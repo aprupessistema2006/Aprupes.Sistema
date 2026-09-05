@@ -343,17 +343,19 @@ class CareFormController {
       .filter(l => this.clientIdsMatch(l, this.clientId))
       .filter(l => this.isRecent(l, today))
       .sort((a, b) => {
-        const ta = this.extractTimeForSort(a.time);
-        const tb = this.extractTimeForSort(b.time);
-        return tb.localeCompare(ta);
+        const ta = this.extractTimeForSort(a.time) || a.lastModified || a.created || a.izveidots || '';
+        const tb = this.extractTimeForSort(b.time) || b.lastModified || b.created || b.izveidots || '';
+        return String(tb).localeCompare(String(ta));
       });
+    console.log('[care_form] loadHistory: total=' + allLog.length + ' history=' + this.history.length);
 
     const employees = await this.db.getAll('darbinieki');
     const empMap = {};
     employees.forEach(e => {
       const id = e.id || e.ID;
-      const uzvards = e.uzvards || e.Uzvārds || '';
+      const uzvards = e.uzvards || e.Uzvārds || e.uzvārds || '';
       empMap[id] = uzvards;
+      empMap[String(id)] = uzvards;
     });
     this.empMap = empMap;
   }
@@ -1295,15 +1297,27 @@ class CareFormController {
     this.toast('Saglabāts');
   }
 
+  escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   renderHistory() {
     const container = document.getElementById('historyContainer');
-    if (this.history.length === 0) {
+    if (!container) return;
+    if (!this.history || this.history.length === 0) {
       container.innerHTML = '<div class="loading">Nav ierakstu</div>';
       return;
     }
 
     container.innerHTML = this.history.map(entry => {
-      const actor = this.empMap[entry.employeeId] || 'Nezināms';
+      const eid = entry.employeeId || entry.darbinieks_id;
+      const actor = this.empMap[eid] || this.empMap[String(eid)] || 'Nezināms';
       const fieldLabel = this.getFieldLabel(entry.category, entry.field);
       const valueDisplay = this.formatHistoryValue(entry.category, entry.field, entry.value);
       const isEdit = entry.type === 'Labots';
@@ -1311,7 +1325,7 @@ class CareFormController {
       return `
         <div class="history-item">
           <div class="history-action">
-            <strong>${this.escapeHtml(time)}</strong> – ${fieldLabel}: <strong>${valueDisplay}</strong>
+            <strong>${this.escapeHtml(time)}</strong> – ${fieldLabel}: <strong>${this.escapeHtml(valueDisplay)}</strong>
             ${isEdit ? '<span class="history-edit-tag">Labots</span>' : ''}
           </div>
           <div class="history-actor">${this.escapeHtml(actor)}</div>
