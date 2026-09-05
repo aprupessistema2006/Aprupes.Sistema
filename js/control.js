@@ -697,21 +697,9 @@ class ControlPanel {
 
     try {
       const exporter = new ExcelExporter();
-      const allMarks = await this.db.getAll('atzimes');
-      const cid = client.id || client.ID;
+      await this.sync.loadInitialData();
+      const allMarks = await this.sync.getAllMarks ? await this.sync.getAllMarks() : window.state?.marks || [];
       const clientMarks = allMarks.filter(m => {
-        const mcid = m.clientId || m.klientsId;
-        return String(mcid) === String(cid);
-      });
-      const filename = await exporter.generateMonth(client, year, month, clientMarks);
-      this.toast('✓ Lejupielādēts: ' + filename);
-    } catch (err) {
-      this.toast('Eksporta kļūda: ' + err.message);
-      console.error(err);
-    }
-  }
-
-  toast(message) {
     const toast = document.getElementById('toast');
     if (!toast) return;
     toast.textContent = message;
