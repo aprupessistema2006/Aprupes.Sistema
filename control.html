@@ -36,8 +36,8 @@
         <label>
           <input type="checkbox" id="onlyEdited"> Tikai labotie
         </label>
-        <button id="refreshBtn" class="btn-primary">Atjaunināt</button>
-        <button id="exportBtn" class="btn-primary">Lejupielādēt Excel</button>
+        <button id="refreshBtn" class="btn-primary">🔄 Atjaunināt no servera</button>
+        <button id="exportBtn" class="btn-primary">📊 Lejupielādēt Excel</button>
       </div>
     </section>
 
@@ -77,6 +77,17 @@
       <div class="stat-card">
         <div class="stat-label">Labojumi</div>
         <div class="stat-value" id="statEdits">0</div>
+      </div>
+    </section>
+
+    <section class="stats-grid team-stats">
+      <div class="stat-card" style="grid-column: span 4;">
+        <div class="stat-label">👥 Darbinieku ieguldījums (izvēlētajā filtrā)</div>
+        <div id="statByEmployee" style="margin-top:6px;font-size:13px;line-height:1.5;">Nav datu</div>
+      </div>
+      <div class="stat-card" style="grid-column: span 2;">
+        <div class="stat-label">📅 Periods</div>
+        <div id="statRange" style="margin-top:6px;font-size:14px;font-weight:600;">—</div>
       </div>
     </section>
 

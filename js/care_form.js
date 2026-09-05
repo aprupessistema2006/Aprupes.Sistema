@@ -58,7 +58,7 @@ class CareFormController {
 
     window.addEventListener('syncStatusChange', (e) => {
       const badge = document.getElementById('syncStatus');
-      badge.textContent = e.detail;
+      if (badge) badge.textContent = e.detail;
     });
 
     this.setupEventListeners();
@@ -68,6 +68,8 @@ class CareFormController {
     this.renderForm();
     this.renderHistory();
     this.renderSignature();
+    this.updateTeamSummary();
+
     this.sync.loadInitialData().then(async () => {
       await this.loadClient();
       await this.loadMarks();
@@ -75,7 +77,34 @@ class CareFormController {
       this.renderForm();
       this.renderHistory();
       this.renderSignature();
+      this.updateTeamSummary();
+      this.toast('✓ Dati sinhronizēti ar serveri');
     });
+  }
+
+  updateTeamSummary() {
+    const el = document.getElementById('teamSummary');
+    if (!el) return;
+    const employees = new Set();
+    this.history.forEach(h => {
+      if (h.employeeId && h.employeeId !== this.currentUser.id) {
+        employees.add(h.employeeId);
+      }
+    });
+    const total = this.history.length;
+    const mineCount = this.history.filter(h => h.employeeId === this.currentUser.id).length;
+    const othersCount = total - mineCount;
+    if (total === 0) {
+      el.innerHTML = '<em style="color:#999">Vēl nav ierakstu par šo klientu šodien. Pievieno pirmo!</em>';
+    } else {
+      const empNames = Array.from(employees).map(eid => this.empMap[eid] || ('ID: ' + eid));
+      const namesList = empNames.length > 0
+        ? '<br>👥 <strong>Komanda:</strong> ' + empNames.join(', ')
+        : '';
+      el.innerHTML =
+        '📊 <strong>Šodienas komandas darbs:</strong> ' + total + ' ieraksti' +
+        ' (' + mineCount + ' mani, ' + othersCount + ' citi)' + namesList;
+    }
   }
 
   setupEventListeners() {
@@ -210,6 +239,12 @@ class CareFormController {
 
   updateCategoryStatuses() {
     const shift = this.currentShift;
+    const lastByFor = (mark) => {
+      if (!mark || !mark.lastBy) return '';
+      const name = this.empMap[mark.lastBy] || '';
+      if (!name) return '';
+      return ' <span style="font-size:10px;color:#888;font-weight:normal;">(' + name + ')</span>';
+    };
 
     const tempMark = this.getMark(shift, 'temp', 'temperatura');
     const tempEl = document.getElementById('status-temp');
@@ -217,10 +252,10 @@ class CareFormController {
       if (tempMark && tempMark.value) {
         const v = parseFloat(tempMark.value);
         if (!isNaN(v) && v >= 37) {
-          tempEl.textContent = '🔥 ' + tempMark.value + '°C';
+          tempEl.innerHTML = '🔥 ' + tempMark.value + '°C' + lastByFor(tempMark);
           tempEl.className = 'cat-status alert';
         } else {
-          tempEl.textContent = '✓ ' + tempMark.value + '°C';
+          tempEl.innerHTML = '✓ ' + tempMark.value + '°C' + lastByFor(tempMark);
           tempEl.className = 'cat-status completed';
         }
       } else {
@@ -282,7 +317,10 @@ class CareFormController {
     const sikEl = document.getElementById('status-sikdrumi');
     if (sikEl) {
       if (urins || uznemts) {
-        sikEl.textContent = '✓ Ierakstīts';
+        const latest = urins && uznemts
+          ? (urins.lastModified > uznemts.lastModified ? urins : uznemts)
+          : (urins || uznemts);
+        sikEl.innerHTML = '✓ Ierakstīts' + lastByFor(latest);
         sikEl.className = 'cat-status completed';
       } else {
         sikEl.textContent = 'Nav ierakstu';
@@ -294,7 +332,7 @@ class CareFormController {
     const fizEl = document.getElementById('status-fiziologija');
     if (fizEl) {
       if (fizMark && fizMark.value) {
-        fizEl.textContent = '✓ ' + fizMark.value;
+        fizEl.innerHTML = '✓ ' + fizMark.value + lastByFor(fizMark);
         fizEl.className = 'cat-status completed';
       } else {
         fizEl.textContent = 'Nav ieraksta';
@@ -306,7 +344,7 @@ class CareFormController {
     const diapersEl = document.getElementById('status-diapers');
     if (diapersEl) {
       if (autins && autins.value) {
-        diapersEl.textContent = '✓ ' + autins.value + ' maiņas';
+        diapersEl.innerHTML = '✓ ' + autins.value + ' maiņas' + lastByFor(autins);
         diapersEl.className = 'cat-status completed';
       } else {
         diapersEl.textContent = 'Nav maiņu';
@@ -342,7 +380,7 @@ class CareFormController {
     const cieminiEl = document.getElementById('status-ciemini');
     if (cieminiEl) {
       if (markCiemini && markCiemini.value) {
-        cieminiEl.textContent = '✓ ' + markCiemini.value;
+        cieminiEl.innerHTML = '✓ ' + markCiemini.value + lastByFor(markCiemini);
         cieminiEl.className = 'cat-status completed';
       } else {
         cieminiEl.textContent = 'Nav ieraksta';

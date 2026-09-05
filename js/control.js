@@ -43,11 +43,14 @@ class ControlPanel {
       window.location.href = 'index.html';
     });
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.todayLocal();
     const dateEl = document.getElementById('dateFilter');
     if (dateEl) {
       dateEl.value = today;
-      dateEl.addEventListener('change', () => this.renderAll());
+      dateEl.addEventListener('change', () => {
+        this.renderAll();
+        this.updateDateModeBadge();
+      });
     }
 
     const addDateRangeUI = () => {
@@ -56,19 +59,60 @@ class ControlPanel {
       const btn = document.createElement('button');
       btn.id = 'showAllBtn';
       btn.className = 'btn-secondary';
-      btn.textContent = 'Rādīt visu';
-      btn.style.cssText = 'padding:8px 14px;border:1px solid #2c3e50;background:white;color:#2c3e50;border-radius:6px;cursor:pointer;font-size:13px;margin-left:8px;';
+      btn.textContent = '📅 Rādīt visu';
+      btn.style.cssText = 'padding:8px 14px;border:1px solid #2c3e50;background:white;color:#2c3e50;border-radius:6px;cursor:pointer;font-size:13px;margin-left:8px;font-weight:600;';
       btn.addEventListener('click', () => {
         if (dateEl) dateEl.value = '';
         this.renderAll();
+        this.updateDateModeBadge();
       });
+      const mode = document.createElement('span');
+      mode.id = 'dateModeBadge';
+      mode.style.cssText = 'margin-left:10px;font-size:12px;color:#27ae60;font-weight:600;';
       filterBar.appendChild(btn);
+      filterBar.appendChild(mode);
     };
     addDateRangeUI();
+    this.updateDateModeBadge();
 
-    document.getElementById('refreshBtn').addEventListener('click', () => this.renderAll());
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('refreshBtn');
+      if (btn) btn.disabled = true;
+      this.toast('Atjauninu no servera...');
+      try {
+        await this.sync.loadInitialData();
+        await this.loadData();
+        this.renderAll();
+        this.toast('Dati atjaunināti');
+      } catch (e) {
+        this.toast('Kļūda: ' + e.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
     document.getElementById('exportBtn').addEventListener('click', () => this.exportExcel());
     document.getElementById('onlyEdited').addEventListener('change', () => this.renderHistory());
+  }
+
+  todayLocal() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  updateDateModeBadge() {
+    const badge = document.getElementById('dateModeBadge');
+    if (!badge) return;
+    const dateEl = document.getElementById('dateFilter');
+    if (!dateEl || !dateEl.value) {
+      badge.textContent = '✓ Rāda visus ierakstus';
+      badge.style.color = '#2980b9';
+    } else {
+      badge.textContent = '✓ Filtrs: ' + dateEl.value;
+      badge.style.color = '#27ae60';
+    }
   }
 
   async loadData() {
@@ -133,12 +177,12 @@ class ControlPanel {
       const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
       if (m1) {
         const y = parseInt(m1[1]);
-        if (y >= 2024 && y <= 2030) return m1[0];
+        if (y >= 2020 && y <= 2035) return m1[0];
       }
       const m2 = s.match(/(\d{4}-\d{2}-\d{2})/);
       if (m2) {
         const y = parseInt(m2[1].substring(0, 4));
-        if (y >= 2024 && y <= 2030) return m2[1];
+        if (y >= 2020 && y <= 2035) return m2[1];
       }
     }
     return '';
@@ -234,6 +278,41 @@ class ControlPanel {
     setText('statDiapers', diapers);
     setText('statEdits', edits);
     setText('statFood', foodCount);
+
+    const empStats = {};
+    marks.forEach(m => {
+      const eid = String(m.employeeId || '?');
+      empStats[eid] = (empStats[eid] || 0) + 1;
+    });
+    log.forEach(l => {
+      const eid = String(l.employeeId || '?');
+      empStats[eid] = (empStats[eid] || 0) + 1;
+    });
+    const empNames = {};
+    this.allEmployees.forEach(e => {
+      empNames[String(e.id || e.ID)] = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim();
+    });
+    const empLines = Object.keys(empStats).map(eid => {
+      const n = empNames[eid] || ('ID: ' + eid);
+      return '• ' + n + ': ' + empStats[eid];
+    });
+    const empEl = document.getElementById('statByEmployee');
+    if (empEl) {
+      empEl.innerHTML = empLines.length
+        ? empLines.join('<br>')
+        : '<em style="color:#999">Nav datu</em>';
+    }
+
+    const rangeEl = document.getElementById('statRange');
+    if (rangeEl) {
+      const dates = marks.map(m => this.extractDateFromAnyField(m)).filter(d => d);
+      if (dates.length > 0) {
+        dates.sort();
+        rangeEl.textContent = dates[0] + ' — ' + dates[dates.length - 1];
+      } else {
+        rangeEl.textContent = 'Nav ierakstu';
+      }
+    }
   }
 
   formatTimeForDisplay(t) {
