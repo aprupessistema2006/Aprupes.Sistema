@@ -426,6 +426,20 @@ body {
   display: none;
 }
 
+.day-totals {
+  font-size: 13px;
+  color: #16a085;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #e8f5e9;
+  border-radius: 6px;
+  border-left: 3px solid #27ae60;
+}
+.day-totals strong {
+  color: #1b5e20;
+  font-size: 14px;
+}
+
 .opt-group {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));

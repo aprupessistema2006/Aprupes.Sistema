@@ -724,31 +724,49 @@ class CareFormController {
   renderSikdrumiSection(shift) {
     const urinsMark = this.getMark(shift, 'sikdrumi', 'urina_daudzums');
     const uznemtsMark = this.getMark(shift, 'sikdrumi', 'uznemts_ml');
+    const dayTotals = this.getDaySikdrumiTotals();
     const body = `
       <div class="section-row">
         <div class="section-row-label">
           <span>Diennakts urīna daudzums (ml)</span>
-          ${urinsMark && urinsMark.value ? `<span class="current-value">${urinsMark.value} ml</span>` : '<span class="current-value empty"></span>'}
         </div>
-        <input type="number" min="0" step="50" class="number-input sikdrumi-input ${urinsMark && urinsMark.value ? 'has-value' : ''}" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" value="${urinsMark ? urinsMark.value : ''}" placeholder="0">
+        <input type="number" min="0" step="50" class="number-input sikdrumi-input" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
+        <div class="day-totals">Kopā šodien: <strong>${dayTotals.urina} ml</strong>${urinsMark ? ' • pēdējais: ' + urinsMark.value + ' ml (' + (urinsMark.lastByName || 'sistēma') + ')' : ''}</div>
       </div>
       <div class="section-row">
         <div class="section-row-label">
           <span>Uzņemts H2O (24h, ml)</span>
-          ${uznemtsMark && uznemtsMark.value ? `<span class="current-value">${uznemtsMark.value} ml</span>` : '<span class="current-value empty"></span>'}
         </div>
-        <input type="number" min="0" step="50" class="number-input sikdrumi-input ${uznemtsMark && uznemtsMark.value ? 'has-value' : ''}" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" value="${uznemtsMark ? uznemtsMark.value : ''}" placeholder="0">
+        <input type="number" min="0" step="50" class="number-input sikdrumi-input" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
+        <div class="day-totals">Kopā šodien: <strong>${dayTotals.uznemts} ml</strong>${uznemtsMark ? ' • pēdējais: ' + uznemtsMark.value + ' ml (' + (uznemtsMark.lastByName || 'sistēma') + ')' : ''}</div>
         <button class="submit-btn" data-submit="sikdrumi">✓ Saglabāt šķidrumus</button>
       </div>
       <div class="section-row" style="border-bottom: none;">
         <div class="field-info">
           <strong>Urīna daudzums:</strong> parasti 1000-2000 ml dienā pieaugušajam.<br>
           <strong>Uzņemtais šķidrums:</strong> ūdens, tēja, zupa u.c. dzērieni.<br>
-          <strong>Padoms:</strong> ievadi abus laukus un nospied "Saglabāt šķidrumus".
+          <strong>Padoms:</strong> ievadi abus laukus un nospied "Saglabāt šķidrumus". Ievadītie lauki paliek tukši nākamajai reizei.
         </div>
       </div>
     `;
     return this.sectionCard('section-sikdrumi', '💧', 'Šķidrumi', null, body);
+  }
+
+  getDaySikdrumiTotals() {
+    let urina = 0;
+    let uznemts = 0;
+    const today = this.getToday();
+    if (this.allClientMarks) {
+      this.allClientMarks.forEach(m => {
+        if (!this.isRecent(m, today)) return;
+        if (m.category !== 'sikdrumi') return;
+        const v = parseInt(m.value);
+        if (isNaN(v)) return;
+        if (m.field === 'urina_daudzums') urina += v;
+        if (m.field === 'uznemts_ml') uznemts += v;
+      });
+    }
+    return { urina, uznemts };
   }
 
   renderFiziologijaSection(shift) {
@@ -970,6 +988,8 @@ class CareFormController {
     if (uznemtsVal !== '') {
       await this.saveMarkDirect('sikdrumi', 'uznemts_ml', uznemtsVal, this.currentShift);
     }
+    if (urinsInput) urinsInput.value = '';
+    if (uznemtsInput) uznemtsInput.value = '';
     await this.loadAllClientMarks();
     await this.loadHistory();
     this.renderTaskBanner();
@@ -978,7 +998,7 @@ class CareFormController {
     const modalBody = document.getElementById('modalBody');
     if (modalBody) {
       const shift = this.currentShift;
-      modalBody.innerHTML = this.renderSikdrumiSection(shift) + this.renderFiziologijaSection(shift);
+      modalBody.innerHTML = this.renderSikdrumiSection(shift);
       this.attachSikdrumiHandlers();
     }
     this.toast('✓ Šķidrumi saglabāti');
