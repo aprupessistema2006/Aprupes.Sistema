@@ -199,21 +199,31 @@ const TaskManager = {
     `;
   },
 
-  renderBanner(currentUser, clientId) {
+  async renderBanner(currentUser, clientId) {
     const active = this.getActiveForEmployee(currentUser.id, clientId || null);
     if (active.length === 0) return '';
+    const clients = await window.careDB.getAll('klienti');
+    const clientMap = {};
+    clients.forEach(c => {
+      const id = c.id || c.ID;
+      const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim();
+      clientMap[String(id)] = name;
+    });
     const items = active.map(t => {
       const dd = this.formatDeadline(t.termins);
       const overdue = this.isOverdue(t.termins);
       const today = this.isToday(t.termins);
       const priorityLabel = { augsta: '🔴 AUGSTA', videja: '🟡 VIDĒJA', zema: '🟢 ZEMA' };
       const pr = priorityLabel[(t.prioritate || '').toLowerCase()] || t.prioritate;
+      const tcid = t.klientsId || t.clientId;
+      const cname = tcid ? (clientMap[String(tcid)] || 'ID: ' + tcid) : 'VISPĀRĪGS';
       return `
         <div class="task-item ${overdue ? 'overdue' : ''} ${today ? 'today' : ''}">
           <div class="task-item-header">
             <span class="task-priority">${pr}</span>
             <span class="task-deadline">${overdue ? '⏰ NOKAVĒTS: ' : (today ? '📅 Šodien, ' : 'Līdz ')} ${dd}</span>
           </div>
+          <div class="task-client">🏥 ${this.escapeHtml(cname)}</div>
           <div class="task-text">${this.escapeHtml(t.teksts || '')}</div>
           <button class="task-complete-btn" data-task-id="${t.id}">✓ Izdarīju</button>
         </div>
