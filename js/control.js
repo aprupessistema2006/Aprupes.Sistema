@@ -122,6 +122,20 @@ class ControlPanel {
     this.allLog = await this.db.getAll('atzimes_log');
     this.allDiary = await this.db.getAll('dienas_ierakti');
 
+    const diagEl = document.getElementById('dbStats');
+    if (diagEl) {
+      const fills = (arr) => (arr || []).filter(r => {
+        if (!r) return false;
+        return Object.values(r).some(v => v !== '' && v !== null && v !== undefined);
+      }).length;
+      diagEl.innerHTML =
+        '<strong>DB saturā (pēc pēdējās sync):</strong><br>' +
+        '👥 Darbinieki: ' + fills(this.allEmployees) + '<br>' +
+        '🏠 Klienti: ' + fills(this.allClients) + '<br>' +
+        '📝 Atzīmes: ' + fills(this.allMarks) + '<br>' +
+        '📜 Žurnāls: ' + fills(this.allLog);
+    }
+
     if (!this.allClients || this.allClients.length === 0) {
       const fromMarks = new Map();
       [...(this.allMarks || []), ...(this.allLog || [])].forEach(r => {

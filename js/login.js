@@ -41,11 +41,15 @@ class LoginController {
       if (result.offline) {
         const hasAfter = await this.sync.hasLocalData();
         if (!hasAfter) {
-          statusMsg.textContent = 'Nav interneta un nav lokālu datu.';
+          statusMsg.textContent = '⚠️ Nav interneta un nav lokālu datu.';
+        } else {
+          statusMsg.textContent = '⚠️ Bezsaistē (lokāli dati)';
         }
       } else {
         const total = Object.values(result.count || {}).reduce((a, b) => a + b, 0);
-        statusMsg.textContent = 'Gatavs (' + total + ' ieraksti)';
+        const marks = result.count['atzimes'] || 0;
+        const log = result.count['atzimes_log'] || 0;
+        statusMsg.textContent = '✓ Gatavs (' + marks + ' atzīmes, ' + log + ' žurnāla ieraksti)';
         document.body.classList.add('online');
       }
     });

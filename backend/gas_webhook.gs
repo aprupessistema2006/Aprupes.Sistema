@@ -39,11 +39,38 @@ function appendRow(sheet, data) {
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   const row = new Array(headers.length).fill('');
   const aliasMap = buildAliasMap(headers);
+  // Normalizējam datu atslēgas: 'vertiba' -> 'vērtība' -> 'value'
+  // un pēc tam salīdzinām ar aliasMap.
+  const headerAliases = {
+    'vertiba': 'vērtība',
+    'pedeja_vertiba': 'pēdējā_vērtība',
+    'pedeja_laiks': 'pēdējais_laiks',
+    'darbinieks_pedejais': 'darbinieks pēdējais',
+    'papilgs_info': 'papildus info',
+    'labotajs_id': 'labotājs id',
+    'klients_id': 'klients id',
+    'darbinieks_id': 'darbinieks id',
+    'atzimes_id': 'atzīmes id',
+    'lauka_nosaukums': 'lauka nosaukums',
+    'datums': 'datums',
+    'periods': 'periods',
+    'kategorija': 'kategorija',
+    'laiks': 'laiks',
+    'izveidots': 'izveidots'
+  };
+  const normalizedData = {};
+  Object.keys(data).forEach(k => {
+    const latvianKey = headerAliases[k] || k;
+    normalizedData[k] = data[k];
+    normalizedData[latvianKey] = data[k];
+    normalizedData[normalizeKey(latvianKey)] = data[k];
+  });
   headers.forEach((h, i) => {
     const key = aliasMap[i];
-    for (const k of Object.keys(data)) {
-      if (k === key || k === normalizeKey(h)) {
-        let v = data[k];
+    const normH = normalizeKey(h);
+    for (const k of Object.keys(normalizedData)) {
+      if (k === key || k === normH || k === h) {
+        let v = normalizedData[k];
         if (typeof v === 'boolean') v = v ? 'TRUE' : 'FALSE';
         if (v === null || v === undefined) v = '';
         row[i] = v;
@@ -119,10 +146,34 @@ function setCellValue(sheet, rowNum, field, value) {
   if (!sheet) return;
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const aliasMap = buildAliasMap(headers);
+  const reverseAlias = {
+    'vards': 'vārds',
+    'uzvards': 'uzvārds',
+    'pin': 'pin kods',
+    'aktivs': 'aktīvs',
+    'dzimis': 'dzimšanas datums',
+    'dieta': 'diēta',
+    'saskarsmes': 'saskarsmes īpatnības',
+    'clientId': 'klients id',
+    'employeeId': 'darbinieks id',
+    'markId': 'atzīmes id',
+    'shift': 'periods',
+    'category': 'kategorija',
+    'field': 'lauka nosaukums',
+    'value': 'vērtība',
+    'lastValue': 'pēdējā vērtība',
+    'lastModified': 'pēdējais laiks',
+    'lastBy': 'darbinieks pēdējais',
+    'reason': 'papildus info',
+    'created': 'izveidots',
+    'editorId': 'labotājs id'
+  };
+  const target = reverseAlias[field] || field;
+  const normTarget = normalizeKey(target);
   let colIdx = -1;
   headers.forEach((h, i) => {
     const k = aliasMap[i];
-    if (k === field || normalizeKey(h) === field) colIdx = i;
+    if (k === field || k === normTarget || normalizeKey(h) === normTarget || normalizeKey(h) === field) colIdx = i;
   });
   if (colIdx >= 0) {
     let v = value;
@@ -320,4 +371,63 @@ function formatDate(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return y + '-' + m + '-' + day;
+}
+
+// Migrācija: aizpilda tukšās Vērtība/Pēdējā vērtība kolonnas atzimes un atzimes_log,
+// izmantojot atzimes_log datus (kas satur jaunākos ierakstus).
+function migrateBackfill() {
+  const logSheet = getSheet('atzimes_log');
+  const atzimesSheet = getSheet('atzimes');
+  if (!logSheet || !atzimesSheet) return 0;
+
+  const logHeaders = logSheet.getRange(1, 1, 1, logSheet.getLastColumn()).getValues()[0];
+  const logAlias = buildAliasMap(logHeaders);
+  const logColIdx = {};
+  logHeaders.forEach((h, i) => { logColIdx[logAlias[i] || normalizeKey(h)] = i; });
+
+  const lastLog = {};
+  const logValues = logSheet.getRange(2, 1, Math.max(0, logSheet.getLastRow() - 1), logSheet.getLastColumn()).getValues();
+  logValues.forEach(row => {
+    const markId = String(row[logColIdx['markId']] || '');
+    if (!markId) return;
+    const existing = lastLog[markId];
+    if (!existing || String(row[logColIdx['created']]) > String(existing[logColIdx['created']])) {
+      lastLog[markId] = row;
+    }
+  });
+
+  const atzHeaders = atzimesSheet.getRange(1, 1, 1, atzimesSheet.getLastColumn()).getValues()[0];
+  const atzAlias = buildAliasMap(atzHeaders);
+  const atzColIdx = {};
+  atzHeaders.forEach((h, i) => { atzColIdx[atzAlias[i] || normalizeKey(h)] = i; });
+
+  const atzRange = atzimesSheet.getRange(2, 1, Math.max(0, atzimesSheet.getLastRow() - 1), atzimesSheet.getLastColumn());
+  const atzValues = atzRange.getValues();
+  let count = 0;
+  for (let i = 0; i < atzValues.length; i++) {
+    const id = String(atzValues[i][atzColIdx['id']] || '');
+    if (!id) continue;
+    const source = lastLog[id];
+    if (!source) continue;
+    const targetValue = String(source[logColIdx['value']] || '');
+    const targetLastBy = String(source[logColIdx['employeeId']] || '');
+    const targetLastMod = source[logColIdx['created']];
+    let changed = false;
+    if (targetValue && !atzValues[i][atzColIdx['value']]) {
+      atzValues[i][atzColIdx['value']] = targetValue;
+      atzValues[i][atzColIdx['lastValue']] = targetValue;
+      changed = true;
+    }
+    if (targetLastBy && !atzValues[i][atzColIdx['lastBy']]) {
+      atzValues[i][atzColIdx['lastBy']] = targetLastBy;
+      changed = true;
+    }
+    if (targetLastMod && !atzValues[i][atzColIdx['lastModified']]) {
+      atzValues[i][atzColIdx['lastModified']] = targetLastMod;
+      changed = true;
+    }
+    if (changed) count++;
+  }
+  atzRange.setValues(atzValues);
+  return count;
 }

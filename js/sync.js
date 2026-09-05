@@ -167,6 +167,7 @@ class SyncManager {
     });
     const url = this.config.GAS_URL;
     const ts = Date.now();
+    let sent = false;
     try {
       await fetch(url + '?t=' + ts, {
         method: 'POST',
@@ -174,21 +175,29 @@ class SyncManager {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: payload
       });
-      console.log('[sync] POST sent', item.action, item.id);
-      return true;
+      console.log('[sync] POST nosūtīts', item.action, item.id);
+      sent = true;
     } catch (err) {
-      console.error('[sync] POST failed', err);
+      console.error('[sync] POST neizdevās', err);
+    }
+    if (!sent) {
       try {
         await fetch(url + '?data=' + encodeURIComponent(payload) + '&t=' + ts, {
           method: 'GET',
           mode: 'no-cors'
         });
-        return true;
+        sent = true;
+        console.log('[sync] GET fallback nosūtīts', item.action, item.id);
       } catch (err2) {
-        console.error('[sync] GET fallback failed', err2);
-        return false;
+        console.error('[sync] GET fallback neizdevās', err2);
       }
     }
+    if (sent) {
+      // Pagaidām 1s un mēģinām vēlreiz pēc 2s, lai GAS noteikti apstrādātu
+      await new Promise(r => setTimeout(r, 300));
+      return true;
+    }
+    return false;
   }
 
   async loadInitialData() {
@@ -231,12 +240,18 @@ class SyncManager {
         }
         await this.db.setMeta('lastSync', Date.now());
         await this.db.setMeta('initData', true);
+        const totalMarks = result.count['atzimes'] || 0;
+        const totalLog = result.count['atzimes_log'] || 0;
+        console.log('[sync] Ielādēts:', result.count, 'atzimes:', totalMarks, 'atzimes_log:', totalLog);
+        this.updateStatus('✓ Sinhronizēts (' + totalMarks + ' ieraksti)');
         return result;
       } else {
         console.warn('[sync] non-ok', response.status);
+        this.updateStatus('Serveris neatbild');
       }
     } catch (err) {
       console.error('[sync] load failed, keeping local data:', err);
+      this.updateStatus('Bezsaistē');
     }
 
     result.offline = true;
