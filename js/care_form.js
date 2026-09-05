@@ -543,6 +543,7 @@ class CareFormController {
     body.innerHTML = html;
     modal.style.display = 'flex';
     this.bindFormEvents();
+    if (cat === 'sikdrumi') this.attachSikdrumiHandlers();
   }
 
   closeCategoryModal() {
@@ -920,14 +921,43 @@ class CareFormController {
       return;
     }
     if (urinsVal !== '') {
-      await this.handleNumberChange('sikdrumi', 'urina_daudzums', urinsVal, this.currentShift);
+      await this.saveMarkDirect('sikdrumi', 'urina_daudzums', urinsVal, this.currentShift);
     }
     if (uznemtsVal !== '') {
-      await this.handleNumberChange('sikdrumi', 'uznemts_ml', uznemtsVal, this.currentShift);
+      await this.saveMarkDirect('sikdrumi', 'uznemts_ml', uznemtsVal, this.currentShift);
     }
     await this.loadAllClientMarks();
+    await this.loadHistory();
+    this.renderTaskBanner();
     this.renderQuickTotals();
+    this.renderHistory();
+    const modalBody = document.getElementById('modalBody');
+    if (modalBody) {
+      const shift = this.currentShift;
+      modalBody.innerHTML = this.renderSikdrumiSection(shift) + this.renderFiziologijaSection(shift);
+      this.attachSikdrumiHandlers();
+    }
     this.toast('✓ Šķidrumi saglabāti');
+  }
+
+  async saveMarkDirect(category, field, value, shift) {
+    await this.saveMark({
+      clientId: this.clientId,
+      shift: shift,
+      category: category,
+      field: field,
+      value: value,
+      prevValue: null,
+      type: 'Jauns'
+    });
+  }
+
+  attachSikdrumiHandlers() {
+    const submitBtn = document.querySelector('button[data-submit="sikdrumi"]');
+    if (submitBtn && !submitBtn.dataset.bound) {
+      submitBtn.dataset.bound = '1';
+      submitBtn.addEventListener('click', () => this.handleSikdrumiSubmit());
+    }
   }
 
   async handleFiziologijaSubmit() {
@@ -1165,16 +1195,16 @@ class CareFormController {
       type: 'Jauns'
     });
     this.toast('Saglabāts');
-    const catMap = { temp: 'temp', higiena: 'higiena', aktivitate: 'aktivitate', edinasana: 'edinasana', sikdrumi: 'sikdrumi', fiziologija: 'fiziologija', citsi_pasakomi: 'citi' };
-    const openCat = catMap[category];
-    if (openCat) {
-      this.openCategoryModal(openCat);
-    }
     await this.loadAllClientMarks();
     await this.loadHistory();
     this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
+    if (typeof this.renderModalContent === 'function') {
+      const catMap = { temp: 'temp', higiena: 'higiena', aktivitate: 'aktivitate', edinasana: 'edinasana', sikdrumi: 'sikdrumi', fiziologija: 'fiziologija', citsi_pasakomi: 'citi' };
+      const openCat = catMap[category];
+      if (openCat) this.renderModalContent(openCat);
+    }
   }
 
   async saveMark(data) {
