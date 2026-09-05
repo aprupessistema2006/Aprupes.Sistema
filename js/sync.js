@@ -65,7 +65,16 @@ function normalizeDate(v) {
     }
     if (/^\d{4}\.\d{1,2}\.\d{1,2}/.test(s)) {
       const parts = s.split('.');
-      return parts[0] + '-' + String(parts[1]).padStart(2, '0') + '-' + String(parts[2].split(/[\s.T]/)[0]).padStart(2, '0');
+      const y = parts[0];
+      const p1 = parseInt(parts[1], 10);
+      const p2 = parseInt(parts[2].split(/[\s.T]/)[0], 10);
+      if (p1 >= 1 && p1 <= 31 && p2 >= 1 && p2 <= 12) {
+        return y + '-' + String(p2).padStart(2, '0') + '-' + String(p1).padStart(2, '0');
+      }
+      if (p1 >= 1 && p1 <= 12 && p2 >= 1 && p2 <= 31) {
+        return y + '-' + String(p1).padStart(2, '0') + '-' + String(p2).padStart(2, '0');
+      }
+      return y + '-' + String(p1).padStart(2, '0') + '-' + String(p2).padStart(2, '0');
     }
   }
   return v;
