@@ -191,7 +191,10 @@ function setCellValue(sheet, rowNum, field, value) {
 function doGet(e) {
   try {
     const params = (e && e.parameter) || {};
-    if (params.action === 'load') return handleLoad();
+    if (params.action === 'load') {
+      try { fixDates(); } catch (fe) { Logger.log('fixDates error: ' + fe); }
+      return handleLoad();
+    }
     if (params.data) {
       let data;
       try { data = JSON.parse(params.data); } catch (pe) {
