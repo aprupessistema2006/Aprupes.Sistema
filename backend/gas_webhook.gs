@@ -300,7 +300,7 @@ function handleMark(data) {
   const m = data.data;
   const id = 'm_' + Date.now();
   const today = m.date ? normalizeToDateString(m.date) : formatDate(new Date());
-  const nowStr = new Date().toISOString();
+  const nowStr = formatDateTimeLV(new Date());
 
   appendRow(atzimesSheet, {
     id: id,
@@ -347,7 +347,7 @@ function handleCreateTask(data) {
     prioritate: t.prioritate || 'videja',
     statuss: t.statuss || 'jauns',
     pabeigts: t.irPabeigts === true || t.irPabeigts === 'true',
-    izveidots: t.izveidots || new Date().toISOString(),
+    izveidots: t.izveidots || formatDateTimeLV(new Date()),
     izveidotajs_id: t.izveidotajsId || '',
     pabeigts_laiks: t.pabeigtsLaiks || '',
     pabeigtajs_id: t.pabeigtajsId || ''
@@ -394,6 +394,16 @@ function formatDate(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return y + '-' + m + '-' + day;
+}
+
+function formatDateTimeLV(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  return y + '-' + m + '-' + day + 'T' + h + ':' + min + ':' + s;
 }
 
 function normalizeToDateString(v) {
