@@ -299,7 +299,7 @@ function handleMark(data) {
   const logSheet = getSheet('atzimes_log');
   const m = data.data;
   const id = 'm_' + Date.now();
-  const today = m.date || formatDate(new Date());
+  const today = m.date ? new Date(m.date + 'T00:00:00') : formatDate(new Date());
   const nowStr = new Date().toISOString();
 
   appendRow(atzimesSheet, {
@@ -370,7 +370,7 @@ function handleUpdateTask(data) {
 function handleLogDay(data) {
   const sheet = getSheet('dienas_ierakti');
   const id = 'd_' + Date.now();
-  const today = data.data.date || formatDate(new Date());
+  const today = data.data.date ? new Date(data.data.date + 'T00:00:00') : new Date();
   appendRow(sheet, {
     id: id,
     klients_id: data.data.clientId,

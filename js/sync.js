@@ -9,7 +9,7 @@ const FIELD_ALIASES = {
   'saskarsmes_īpatnības': 'saskarsmes',
   'parole': 'parole',
   'id': 'id',
-  'klients_id': 'clientId',
+  'klients_id': 'klientsId',
   'darbinieks_id': 'employeeId',
   'datums': 'date',
   'periods': 'shift',
@@ -31,7 +31,6 @@ const FIELD_ALIASES = {
   'labotājs_id': 'editorId',
   '24h': 'h24',
   'skaits': 'count',
-  'klients_id': 'klientsId',
   'piešķirt_darbiniekam_id': 'pieskirtDarbiniekamId',
   'termiņš': 'termins',
   'prioritāte': 'prioritate',
@@ -68,12 +67,27 @@ function normalizeDate(v) {
   return v;
 }
 
+function repairDateString(dateStr, refDateStr) {
+  if (!dateStr || dateStr.length < 10) return dateStr;
+  if (!refDateStr || refDateStr.length < 10) return dateStr;
+  var dateParts = dateStr.substring(0, 10).split('-');
+  var refParts = refDateStr.substring(0, 10).split('-');
+  if (dateParts.length !== 3 || refParts.length !== 3) return dateStr;
+  var dateMonth = parseInt(dateParts[1], 10);
+  var refMonth = parseInt(refParts[1], 10);
+  if (dateMonth === refMonth) return dateStr;
+  var swapped = dateParts[0] + '-' + dateParts[2] + '-' + dateParts[1];
+  var swappedMonth = parseInt(dateParts[2], 10);
+  if (swappedMonth === refMonth) return swapped;
+  return dateStr;
+}
+
 function normalizeRow(row) {
-  const out = {};
-  for (const key of Object.keys(row)) {
-    const k = key.toLowerCase().trim();
-    const target = FIELD_ALIASES[k] || k.replace(/ /g, '_');
-    let v = row[key];
+  var out = {};
+  for (var key of Object.keys(row)) {
+    var k = key.toLowerCase().trim();
+    var target = FIELD_ALIASES[k] || k.replace(/ /g, '_');
+    var v = row[key];
     if (v === null || v === undefined) v = '';
     if (typeof v === 'string') v = v.trim();
     if (target === 'pin' && typeof v === 'number') v = String(v);
@@ -84,6 +98,9 @@ function normalizeRow(row) {
       v = normalizeDate(v);
     }
     out[target] = v;
+  }
+  if (out.date && (out.created || out.lastModified)) {
+    out.date = repairDateString(out.date, out.created || out.lastModified);
   }
   return out;
 }
