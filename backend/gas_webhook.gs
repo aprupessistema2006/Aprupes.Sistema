@@ -299,7 +299,7 @@ function handleMark(data) {
   const logSheet = getSheet('atzimes_log');
   const m = data.data;
   const id = 'm_' + Date.now();
-  const today = m.date ? new Date(m.date + 'T00:00:00') : formatDate(new Date());
+  const today = m.date ? normalizeToDateString(m.date) : formatDate(new Date());
   const nowStr = new Date().toISOString();
 
   appendRow(atzimesSheet, {
@@ -370,7 +370,7 @@ function handleUpdateTask(data) {
 function handleLogDay(data) {
   const sheet = getSheet('dienas_ierakti');
   const id = 'd_' + Date.now();
-  const today = data.data.date ? new Date(data.data.date + 'T00:00:00') : new Date();
+  const today = data.data.date ? normalizeToDateString(data.data.date) : formatDate(new Date());
   appendRow(sheet, {
     id: id,
     klients_id: data.data.clientId,
@@ -394,6 +394,35 @@ function formatDate(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return y + '-' + m + '-' + day;
+}
+
+function normalizeToDateString(v) {
+  if (!v) return '';
+  if (v instanceof Date) {
+    return formatDate(v);
+  }
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+    const parts = s.split(/[.\-/]/);
+    if (parts.length >= 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        if (y >= 100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+          return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        }
+        if (d >= 1000 && m >= 1 && m <= 12) {
+          const swappedY = parseInt(parts[2], 10);
+          const swappedM = parseInt(parts[0], 10);
+          const swappedD = parseInt(parts[1], 10);
+          return swappedY + '-' + String(swappedM).padStart(2, '0') + '-' + String(swappedD).padStart(2, '0');
+        }
+      }
+    }
+  }
+  return '';
 }
 
 // Migrācija: aizpilda tukšās Vērtība/Pēdējā vērtība kolonnas atzimes un atzimes_log,
