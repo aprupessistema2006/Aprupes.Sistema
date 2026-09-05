@@ -328,7 +328,7 @@ class CareFormController {
 
   clientIdsMatch(mark, clientId) {
     if (!mark) return false;
-    const ids = [mark.clientId, mark.klients_id, mark.klienti_id];
+    const ids = [mark.clientId, mark.klients_id, mark.klientsId, mark.klienti_id];
     const result = ids.includes(clientId);
     if (!result && ids.some(x => x)) {
       console.log('[care_form] clientIdsMatch miss: mark.cid=' + JSON.stringify(ids) + ' wanted=' + clientId);

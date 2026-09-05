@@ -103,7 +103,7 @@ class AprupeController {
 
     this.todayMarks.clear();
     todayMarks.forEach(mark => {
-      const cid = mark.clientId || mark.klients_id;
+      const cid = mark.clientId || mark.klients_id || mark.klientsId;
       const key = cid + '|' + mark.category + '|' + mark.field;
       this.todayMarks.set(key, mark);
     });
@@ -111,7 +111,7 @@ class AprupeController {
     const signedClients = new Set();
     todayMarks.forEach(m => {
       if (m.category === 'paraksts') {
-        const cid = m.clientId || m.klients_id;
+        const cid = m.clientId || m.klients_id || m.klientsId;
         signedClients.add(cid);
       }
     });
@@ -196,7 +196,7 @@ class AprupeController {
 
   getClientStatus(clientId) {
     const marks = Array.from(this.todayMarks.values()).filter(m => {
-      const cid = m.clientId || m.klients_id;
+      const cid = m.clientId || m.klients_id || m.klientsId;
       return cid === clientId;
     });
 
@@ -273,7 +273,7 @@ class AprupeController {
 
   getTeamCount(clientId) {
     const marks = Array.from(this.todayMarks.values()).filter(m => {
-      const cid = m.clientId || m.klients_id;
+      const cid = m.clientId || m.klients_id || m.klientsId;
       return cid === clientId;
     });
     const uniq = new Set();
