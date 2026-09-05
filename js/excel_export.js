@@ -38,7 +38,12 @@ class ExcelExporter {
 
     const dataByDay = {};
     marks.forEach(m => {
-      const d = new Date(m.date);
+      let d;
+      if (typeof m.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(m.date)) {
+        d = new Date(m.date.substring(0, 10) + 'T00:00:00');
+      } else {
+        d = new Date(m.date);
+      }
       if (d.getFullYear() === year && (d.getMonth() + 1) === month) {
         const day = d.getDate();
         if (!dataByDay[day]) dataByDay[day] = {};
