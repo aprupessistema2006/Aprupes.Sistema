@@ -203,8 +203,17 @@ class ControlPanel {
   extractDateFromAnyField(row) {
     const candidates = [row.date, row.created, row.lastModified, row.izveidots, row.pedeja_laiks];
     for (const c of candidates) {
-      if (!c) continue;
-      const s = typeof c === 'string' ? c : (c instanceof Date ? c.toISOString() : '');
+      if (c === null || c === undefined || c === '') continue;
+      let s = '';
+      if (c instanceof Date) {
+        if (isNaN(c.getTime())) continue;
+        if (c.getFullYear() < 1900) continue;
+        s = c.toISOString();
+      } else if (typeof c === 'string') {
+        s = c;
+      } else if (typeof c === 'number') {
+        s = new Date(c).toISOString();
+      }
       if (!s) continue;
       const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
       if (m1) {
@@ -371,12 +380,17 @@ class ControlPanel {
 
   formatTimeForDisplay(t) {
     if (!t) return '';
+    if (t instanceof Date) {
+      if (isNaN(t.getTime())) return '';
+      return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0') + ':' + String(t.getSeconds()).padStart(2, '0');
+    }
     if (typeof t === 'string') {
+      if (/^\d{2}:\d{2}:\d{2}/.test(t)) return t.substring(0, 8);
       if (/^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
       if (t.includes('T')) {
         const d = new Date(t);
         if (!isNaN(d.getTime())) {
-          return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+          return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
         }
       }
     }

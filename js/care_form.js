@@ -191,6 +191,8 @@ class CareFormController {
   extractDate(v) {
     if (!v) return '';
     if (v instanceof Date) {
+      if (isNaN(v.getTime())) return '';
+      if (v.getFullYear() < 1900) return '';
       const y = v.getFullYear();
       const m = String(v.getMonth() + 1).padStart(2, '0');
       const d = String(v.getDate()).padStart(2, '0');
@@ -208,10 +210,31 @@ class CareFormController {
 
   extractTimeForSort(t) {
     if (!t) return '';
+    if (t instanceof Date) {
+      if (isNaN(t.getTime())) return '';
+      return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+    }
     if (typeof t === 'string') {
       if (/^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
       const m = t.match(/T(\d{2}):(\d{2})/);
       if (m) return m[1] + ':' + m[2];
+    }
+    return String(t);
+  }
+
+  extractTimeDisplay(t) {
+    if (!t) return '';
+    if (t instanceof Date) {
+      if (isNaN(t.getTime())) return '';
+      return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0') + ':' + String(t.getSeconds()).padStart(2, '0');
+    }
+    if (typeof t === 'string') {
+      if (/^\d{2}:\d{2}:\d{2}/.test(t)) return t.substring(0, 8);
+      if (/^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
+      const m = t.match(/T(\d{2}):(\d{2}):(\d{2})/);
+      if (m) return m[1] + ':' + m[2] + ':' + m[3];
+      const m2 = t.match(/T(\d{2}):(\d{2})/);
+      if (m2) return m2[1] + ':' + m2[2];
     }
     return String(t);
   }
@@ -940,7 +963,7 @@ class CareFormController {
       });
     const fluidLast = fluidLog[0];
     const fluidLastBy = fluidLast ? (this.empMap[fluidLast.employeeId] || '?') : null;
-    const fluidTime = fluidLast ? (fluidLast.time || '').substring(0, 5) : null;
+    const fluidTime = fluidLast ? this.extractTimeDisplay(fluidLast.time) : null;
 
     const fluidValue = document.getElementById('qtFluidValue');
     if (fluidValue) {
@@ -971,7 +994,7 @@ class CareFormController {
         const labels = { 'N': 'Normāla', 'A': 'Aizcietējums', 'S': 'Svecīte', 'C': 'Caureja', 'K': 'Klizma' };
         const lastBy = this.empMap[last.employeeId] || '?';
         const valLabel = labels[last.value] || last.value;
-        stoolMeta.textContent = 'Pēdējais: ' + valLabel + (last.time ? ' (' + last.time.substring(0, 5) + ')' : '');
+        stoolMeta.textContent = 'Pēdējais: ' + valLabel + (last.time ? ' (' + this.extractTimeDisplay(last.time) + ')' : '');
       } else {
         stoolMeta.textContent = 'Vēl neviens nav ievadījis';
       }
@@ -998,7 +1021,7 @@ class CareFormController {
       const last = diaperLog[0];
       if (last) {
         const lastBy = this.empMap[last.employeeId] || '?';
-        diaperMeta.textContent = 'Pēdējais: ' + lastBy + (last.time ? ' (' + last.time.substring(0, 5) + ')' : '');
+        diaperMeta.textContent = 'Pēdējais: ' + lastBy + (last.time ? ' (' + this.extractTimeDisplay(last.time) + ')' : '');
       } else {
         diaperMeta.textContent = 'Vēl neviens nav ievadījis';
       }
@@ -1200,14 +1223,14 @@ class CareFormController {
       const fieldLabel = this.getFieldLabel(entry.category, entry.field);
       const valueDisplay = this.formatHistoryValue(entry.category, entry.field, entry.value);
       const isEdit = entry.type === 'Labots';
-      const time = entry.time || '';
+      const time = this.extractTimeDisplay(entry.time) || '';
       return `
         <div class="history-item">
           <div class="history-action">
-            <strong>${time}</strong> – ${fieldLabel}: <strong>${valueDisplay}</strong>
+            <strong>${this.escapeHtml(time)}</strong> – ${fieldLabel}: <strong>${valueDisplay}</strong>
             ${isEdit ? '<span class="history-edit-tag">Labots</span>' : ''}
           </div>
-          <div class="history-actor">${actor}</div>
+          <div class="history-actor">${this.escapeHtml(actor)}</div>
         </div>
       `;
     }).join('');
@@ -1246,7 +1269,7 @@ class CareFormController {
       signBtn.textContent = '✓ Parakstīts';
       signBtn.classList.add('signed');
       signBtn.disabled = true;
-      signedBy.textContent = 'Parakstīja: ' + actor + ' (' + signature.time + ')';
+      signedBy.textContent = 'Parakstīja: ' + actor + ' (' + this.extractTimeDisplay(signature.time) + ')';
       signedBy.style.display = 'block';
     } else {
       signBtn.textContent = 'Parakstīties';

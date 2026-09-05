@@ -43,7 +43,6 @@ class AprupeController {
       this.renderCards();
     });
   }
-
   setupSearch() {
     const searchBox = document.getElementById('searchBox');
     const searchCount = document.getElementById('searchCount');
@@ -79,8 +78,15 @@ class AprupeController {
     const today = this.todayLocal();
     const allMarks = await this.db.getAll(CONFIG.STORES.ATZIMES);
     const todayMarks = allMarks.filter(m => {
-      const md = this.extractDate(m.date) || this.extractDate(m.created) || this.extractDate(m.lastModified);
-      return !md || md === today;
+      const dates = [
+        this.extractDate(m.date),
+        this.extractDate(m.created),
+        this.extractDate(m.izveidots),
+        this.extractDate(m.lastModified),
+        this.extractDate(m.pedeja_laiks)
+      ].filter(Boolean);
+      if (dates.length === 0) return true;
+      return dates.includes(today);
     });
 
     this.todayMarks.clear();
@@ -109,9 +115,10 @@ class AprupeController {
     if (!v) return '';
     if (v instanceof Date) {
       if (isNaN(v.getTime())) return '';
-      const y = v.getUTCFullYear();
-      const m = String(v.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(v.getUTCDate()).padStart(2, '0');
+      const y = v.getFullYear();
+      const m = String(v.getMonth() + 1).padStart(2, '0');
+      const d = String(v.getDate()).padStart(2, '0');
+      if (y < 1900) return '';
       return y + '-' + m + '-' + d;
     }
     if (typeof v === 'string') {
