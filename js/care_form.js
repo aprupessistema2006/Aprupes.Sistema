@@ -1261,7 +1261,7 @@ class CareFormController {
     const today = this.getToday();
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
-    const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr + '.000Z';
+    const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
 
     const id = this.db.generateId();
 
@@ -1402,7 +1402,7 @@ class CareFormController {
     const today = this.getToday();
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
-    const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr + '.000Z';
+    const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
 
     const existing = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
     const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
