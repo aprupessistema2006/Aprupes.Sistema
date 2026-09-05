@@ -63,6 +63,10 @@ function normalizeDate(v) {
       const parts = s.split('/');
       return parts[2] + '-' + parts[0] + '-' + parts[1];
     }
+    if (/^\d{4}\.\d{1,2}\.\d{1,2}(\s|$)/.test(s)) {
+      const parts = s.split('.');
+      return parts[0] + '-' + String(parts[1]).padStart(2, '0') + '-' + String(parts[2].split(/[\s]/)[0]).padStart(2, '0');
+    }
   }
   return v;
 }
