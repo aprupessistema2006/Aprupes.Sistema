@@ -63,30 +63,26 @@ function normalizeDate(v) {
       const parts = s.split('/');
       return parts[2] + '-' + parts[0] + '-' + parts[1];
     }
-    if (/^\d{4}\.\d{1,2}\.\d{1,2}(\s|$)/.test(s)) {
+    if (/^\d{4}\.\d{1,2}\.\d{1,2}/.test(s)) {
       const parts = s.split('.');
-      return parts[0] + '-' + String(parts[1]).padStart(2, '0') + '-' + String(parts[2].split(/[\s]/)[0]).padStart(2, '0');
+      return parts[0] + '-' + String(parts[1]).padStart(2, '0') + '-' + String(parts[2].split(/[\s.T]/)[0]).padStart(2, '0');
     }
   }
   return v;
 }
 
 function repairDateString(dateStr, refDateStr) {
-  if (!dateStr || dateStr.length < 10) return dateStr;
-  if (!refDateStr || refDateStr.length < 10) return dateStr;
-  var dateParts = dateStr.substring(0, 10).split('-');
-  var refParts = refDateStr.substring(0, 10).split('-');
-  if (dateParts.length !== 3 || refParts.length !== 3) return dateStr;
-  var dateMonth = parseInt(dateParts[1], 10);
-  var refMonth = parseInt(refParts[1], 10);
-  var dateDay = parseInt(dateParts[2], 10);
-  var refDay = parseInt(refParts[2], 10);
-  if (dateMonth === refMonth) {
-    if (Math.abs(dateDay - refDay) <= 1) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
-    return dateStr;
+  if (!dateStr || dateStr.length < 10) {
+    if (!refDateStr || refDateStr.length < 10) return dateStr || '';
+    const refParts = refDateStr.substring(0, 10).split('-');
+    if (refParts.length === 3) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
+    return dateStr || '';
   }
-  var swappedMonth = parseInt(dateParts[2], 10);
-  if (swappedMonth === refMonth) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
+  const dateParts = dateStr.substring(0, 10).split('-');
+  if (dateParts.length === 3) return dateStr;
+  if (!refDateStr || refDateStr.length < 10) return dateStr;
+  const refParts = refDateStr.substring(0, 10).split('-');
+  if (refParts.length === 3) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
   return dateStr;
 }
 
@@ -107,9 +103,12 @@ function normalizeRow(row) {
     }
     out[target] = v;
   }
-  if (out.date && (out.created || out.lastModified)) {
-    out.date = repairDateString(out.date, out.created || out.lastModified);
-  }
+    if (out.date && out.date.length >= 10) {
+      const refStr = out.created || out.lastModified || '';
+      if (refStr.length >= 10) {
+        out.date = repairDateString(out.date, refStr);
+      }
+    }
   return out;
 }
 
