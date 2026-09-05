@@ -242,7 +242,7 @@ class SyncManager {
             const normalized = normalizeRow(row);
             const id = normalized.id || (sheet + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
             normalized.id = id;
-            await this.db.add(sheet, normalized);
+            await this.db.put(sheet, normalized);
           }
           result.count[sheet] = rows.length;
         }
