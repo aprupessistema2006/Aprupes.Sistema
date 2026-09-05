@@ -80,9 +80,8 @@ function repairDateString(dateStr, refDateStr) {
   var dateMonth = parseInt(dateParts[1], 10);
   var refMonth = parseInt(refParts[1], 10);
   if (dateMonth === refMonth) return dateStr;
-  var swapped = dateParts[0] + '-' + dateParts[2] + '-' + dateParts[1];
   var swappedMonth = parseInt(dateParts[2], 10);
-  if (swappedMonth === refMonth) return swapped;
+  if (swappedMonth === refMonth) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
   return dateStr;
 }
 
