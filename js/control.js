@@ -698,15 +698,27 @@ class ControlPanel {
     try {
       const exporter = new ExcelExporter();
       await this.sync.loadInitialData();
-      const allMarks = await this.sync.getAllMarks ? await this.sync.getAllMarks() : window.state?.marks || [];
+      const allMarks = window.state && window.state.marks ? window.state.marks : await this.db.getAll('atzimes');
+      const cid = client.id || client.ID;
       const clientMarks = allMarks.filter(m => {
+        const mcid = m.clientId || m.klientsId;
+        return String(mcid) === String(cid);
+      });
+      const filename = await exporter.generateMonth(client, year, month, clientMarks);
+      this.toast('✓ Lejupielādejts: ' + filename);
+    } catch (err) {
+      this.toast('Eksporta kļūda: ' + err.message);
+      console.error(err);
+    }
+  }
+
+  toast(message) {
     const toast = document.getElementById('toast');
     if (!toast) return;
     toast.textContent = message;
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
   }
-}
 
 document.addEventListener('DOMContentLoaded', () => {
   window.controlPanel = new ControlPanel();
