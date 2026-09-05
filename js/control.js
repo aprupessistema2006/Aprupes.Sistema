@@ -719,6 +719,7 @@ class ControlPanel {
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
   }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   window.controlPanel = new ControlPanel();
