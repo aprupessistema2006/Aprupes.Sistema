@@ -93,7 +93,7 @@ class CareFormController {
     const container = document.getElementById('taskBannerContainer');
     if (!container || !window.TaskManager || !this.currentUser) return;
     await window.TaskManager.loadAll();
-    const html = window.TaskManager.renderBanner(this.currentUser, this.clientId);
+    const html = await window.TaskManager.renderBanner(this.currentUser, this.clientId);
     container.innerHTML = html;
     container.querySelectorAll('.task-complete-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
