@@ -342,7 +342,7 @@ function handleCreateTask(data) {
     id: id,
     teksts: t.teksts || '',
     klients_id: t.klientsId || t.clientId || '',
-    darbinieks_id: t.pieskirtDarbiniekamId || t.employeeId || '',
+    'piešķirt_darbiniekam_id': t.pieskirtDarbiniekamId || t.employeeId || '',
     termins: t.termins || '',
     prioritate: t.prioritate || 'videja',
     statuss: t.statuss || 'jauns',
