@@ -99,35 +99,61 @@ class AprupeController {
   async loadTodayMarks() {
     const today = this.todayLocal();
     const allMarks = await this.db.getAll(CONFIG.STORES.ATZIMES);
-    const todayMarks = allMarks.filter(m => {
-      const dates = [
-        this.extractDate(m.date),
-        this.extractDate(m.created),
-        this.extractDate(m.izveidots),
-        this.extractDate(m.lastModified),
-        this.extractDate(m.pedeja_laiks)
-      ].filter(Boolean);
-      if (dates.length === 0) return true;
-      return dates.includes(today);
-    });
+    const todayMarks = allMarks.filter(m => this.isRecent(m, today));
 
     this.todayMarks.clear();
     todayMarks.forEach(mark => {
-      const key = mark.clientId + '|' + mark.category + '|' + mark.field;
+      const cid = mark.clientId || mark.klients_id;
+      const key = cid + '|' + mark.category + '|' + mark.field;
       this.todayMarks.set(key, mark);
     });
 
     const signedClients = new Set();
     todayMarks.forEach(m => {
       if (m.category === 'paraksts') {
-        signedClients.add(m.clientId);
+        const cid = m.clientId || m.klients_id;
+        signedClients.add(cid);
       }
     });
     this.signedToday = signedClients;
   }
 
+  isRecent(m, today) {
+    const primary = [
+      this.extractDate(m.pedeja_laiks),
+      this.extractDate(m.lastModified),
+      this.extractDate(m.created),
+      this.extractDate(m.izveidots)
+    ].filter(Boolean);
+    if (primary.length === 0) {
+      const fallback = [
+        this.extractDate(m.date),
+        this.extractDate(m.datums)
+      ].filter(Boolean);
+      if (fallback.length === 0) return true;
+      if (fallback.includes(today)) return true;
+      for (let i = 1; i <= 7; i++) {
+        if (fallback.includes(this.offsetLocal(-i))) return true;
+      }
+      return false;
+    }
+    if (primary.includes(today)) return true;
+    for (let i = 1; i <= 7; i++) {
+      if (primary.includes(this.offsetLocal(-i))) return true;
+    }
+    return false;
+  }
+
   todayLocal() {
     const d = new Date();
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  offsetLocal(days) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
     return d.getFullYear() + '-' +
       String(d.getMonth() + 1).padStart(2, '0') + '-' +
       String(d.getDate()).padStart(2, '0');
@@ -169,7 +195,10 @@ class AprupeController {
   }
 
   getClientStatus(clientId) {
-    const marks = Array.from(this.todayMarks.values()).filter(m => m.clientId === clientId);
+    const marks = Array.from(this.todayMarks.values()).filter(m => {
+      const cid = m.clientId || m.klients_id;
+      return cid === clientId;
+    });
 
     if (this.signedToday && this.signedToday.has(clientId)) {
       return { text: 'Pabeigts', class: 'status-complete' };
@@ -243,10 +272,14 @@ class AprupeController {
   }
 
   getTeamCount(clientId) {
-    const marks = Array.from(this.todayMarks.values()).filter(m => m.clientId === clientId);
+    const marks = Array.from(this.todayMarks.values()).filter(m => {
+      const cid = m.clientId || m.klients_id;
+      return cid === clientId;
+    });
     const uniq = new Set();
     marks.forEach(m => {
-      if (m.employeeId) uniq.add(String(m.employeeId));
+      const eid = m.employeeId || m.darbinieks_id;
+      if (eid) uniq.add(String(eid));
     });
     uniq.delete(String(this.currentUser.id));
     return uniq.size;

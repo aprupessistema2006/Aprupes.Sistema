@@ -263,43 +263,67 @@ class CareFormController {
   }
 
   async loadMarks() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.getToday();
     const allMarks = await this.db.getAll('atzimes');
     this.marks.clear();
-    allMarks.filter(m => m.clientId === this.clientId)
-            .filter(m => {
-              const dates = [
-                this.extractDate(m.date),
-                this.extractDate(m.created),
-                this.extractDate(m.izveidots),
-                this.extractDate(m.lastModified),
-                this.extractDate(m.pedeja_laiks)
-              ].filter(Boolean);
-              if (dates.length === 0) return true;
-              return dates.includes(today);
-            })
+    allMarks.filter(m => this.clientIdsMatch(m, this.clientId))
+            .filter(m => this.isRecent(m, today))
             .forEach(m => {
-              const key = m.shift + '|' + m.category + '|' + m.field;
+              const shift = m.shift || m.periods;
+              const key = shift + '|' + m.category + '|' + m.field;
               this.marks.set(key, m);
             });
   }
 
+  isRecent(m, today) {
+    const primary = [
+      this.extractDate(m.pedeja_laiks),
+      this.extractDate(m.lastModified),
+      this.extractDate(m.created),
+      this.extractDate(m.izveidots)
+    ].filter(Boolean);
+    if (primary.length === 0) {
+      const fallback = [
+        this.extractDate(m.date),
+        this.extractDate(m.datums)
+      ].filter(Boolean);
+      if (fallback.length === 0) return true;
+      if (fallback.includes(today)) return true;
+      for (let i = 1; i <= 7; i++) {
+        if (fallback.includes(this.getOffsetDate(-i))) return true;
+      }
+      return false;
+    }
+    if (primary.includes(today)) return true;
+    for (let i = 1; i <= 7; i++) {
+      if (primary.includes(this.getOffsetDate(-i))) return true;
+    }
+    return false;
+  }
+
+  getToday() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  getOffsetDate(days) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  clientIdsMatch(mark, clientId) {
+    if (!mark) return false;
+    const ids = [mark.clientId, mark.klients_id, mark.klienti_id];
+    return ids.includes(clientId);
+  }
+
   async loadHistory() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.getToday();
     const allLog = await this.db.getAll('atzimes_log');
     this.history = allLog
-      .filter(l => l.clientId === this.clientId)
-      .filter(l => {
-        const dates = [
-          this.extractDate(l.date),
-          this.extractDate(l.created),
-          this.extractDate(l.izveidots),
-          this.extractDate(l.lastModified),
-          this.extractDate(l.pedeja_laiks)
-        ].filter(Boolean);
-        if (dates.length === 0) return true;
-        return dates.includes(today);
-      })
+      .filter(l => this.clientIdsMatch(l, this.clientId))
+      .filter(l => this.isRecent(l, today))
       .sort((a, b) => {
         const ta = this.extractTimeForSort(a.time);
         const tb = this.extractTimeForSort(b.time);
@@ -972,31 +996,17 @@ class CareFormController {
   }
 
   async loadAllClientMarks() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.getToday();
     const allMarks = await this.db.getAll('atzimes');
     this.allClientMarks = allMarks.filter(m => {
-      if (m.clientId !== this.clientId) return false;
-      const dates = [
-        this.extractDate(m.date),
-        this.extractDate(m.created),
-        this.extractDate(m.izveidots),
-        this.extractDate(m.lastModified)
-      ].filter(Boolean);
-      if (dates.length === 0) return true;
-      return dates.includes(today);
+      if (!this.clientIdsMatch(m, this.clientId)) return false;
+      return this.isRecent(m, today);
     });
 
     const allLog = await this.db.getAll('atzimes_log');
     this.allClientLog = allLog.filter(l => {
-      if (l.clientId !== this.clientId) return false;
-      const dates = [
-        this.extractDate(l.date),
-        this.extractDate(l.created),
-        this.extractDate(l.izveidots),
-        this.extractDate(l.lastModified)
-      ].filter(Boolean);
-      if (dates.length === 0) return true;
-      return dates.includes(today);
+      if (!this.clientIdsMatch(l, this.clientId)) return false;
+      return this.isRecent(l, today);
     });
   }
 
