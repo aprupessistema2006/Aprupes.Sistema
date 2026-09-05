@@ -3,6 +3,13 @@ class ExcelExporter {
     this.templateUrl = 'Aprūpes lapas.xlsx';
   }
 
+  getFieldMap(row) {
+    if (typeof CONFIG !== 'undefined' && CONFIG.EXCEL_TEMPLATE && CONFIG.EXCEL_TEMPLATE.rowMapping) {
+      return CONFIG.EXCEL_TEMPLATE.rowMapping.find(r => r.row === row);
+    }
+    return undefined;
+  }
+
   async loadTemplateBuffer() {
     if (typeof require !== 'undefined' && typeof window === 'undefined') {
       const fs = require('fs');
