@@ -37,8 +37,11 @@ class ExcelExporter {
     const daysInMonth = new Date(year, month, 0).getDate();
 
     const dataByDay = {};
+    console.log('excel_export: marks count', marks.length, 'year', year, 'month', month);
+    console.log('excel_export: sample marks', JSON.stringify(marks.slice(0,2), null, 2));
     marks.forEach(m => {
       let d;
+      console.log('excel_export: m.date type', typeof m.date, 'value', m.date);
       if (typeof m.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(m.date)) {
         d = new Date(m.date.substring(0, 10) + 'T00:00:00');
       } else {
