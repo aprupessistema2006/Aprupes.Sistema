@@ -425,6 +425,48 @@ body {
   box-shadow: var(--shadow);
 }
 
+.export-section {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  padding: 18px 20px;
+  border-radius: var(--border-radius);
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid #27ae60;
+}
+.export-section h3 {
+  margin: 0 0 6px 0;
+  color: #1b5e20;
+  font-size: 18px;
+}
+.export-section .export-help {
+  margin: 0 0 14px 0;
+  color: #2e7d32;
+  font-size: 13px;
+}
+.export-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.export-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b5e20;
+  gap: 4px;
+}
+.export-row input,
+.export-row select {
+  padding: 10px 12px;
+  border: 1px solid #81c784;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  min-width: 200px;
+}
+
 .filter-row {
   display: flex;
   gap: 12px;

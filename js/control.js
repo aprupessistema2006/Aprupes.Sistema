@@ -176,6 +176,21 @@ class ControlPanel {
         }).join('');
     }
 
+    const exportClient = document.getElementById('exportClient');
+    if (exportClient) {
+      exportClient.innerHTML = '<option value="">— izvēlies klientu —</option>' +
+        this.allClients.map(c => {
+          const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
+          return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
+        }).join('');
+    }
+
+    const exportMonth = document.getElementById('exportMonth');
+    if (exportMonth && !exportMonth.value) {
+      const d = new Date();
+      exportMonth.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+
     const empFilter = document.getElementById('employeeFilter');
     if (empFilter) {
       empFilter.innerHTML = '<option value="">Visi (' + this.allEmployees.length + ')</option>' +
@@ -657,26 +672,39 @@ class ControlPanel {
   }
 
   async exportExcel() {
-    if (typeof XLSX === 'undefined') {
+    if (typeof XLSX === 'undefined' && typeof ExcelJS === 'undefined') {
       this.toast('Excel bibliotēka nav ielādēta');
       return;
     }
-    const date = document.getElementById('dateFilter').value;
-    const clientId = document.getElementById('clientFilter').value;
-    if (!clientId) {
-      this.toast('Izvēlieties klientu Excel eksportam');
+    const monthVal = document.getElementById('exportMonth').value;
+    const clientId = document.getElementById('exportClient').value;
+    if (!monthVal) {
+      this.toast('Izvēlieties mēnesi');
       return;
     }
+    if (!clientId) {
+      this.toast('Izvēlieties klientu');
+      return;
+    }
+    const [y, m] = monthVal.split('-');
+    const year = parseInt(y);
+    const month = parseInt(m);
     const client = this.allClients.find(c => String(c.id || c.ID) === String(clientId));
-    if (!client) return;
+    if (!client) {
+      this.toast('Klients nav atrasts');
+      return;
+    }
 
     try {
       const exporter = new ExcelExporter();
-      const year = parseInt(date.split('-')[0]);
-      const month = parseInt(date.split('-')[1]);
-      const clientMarks = this.allMarks.filter(m => String(m.clientId) === String(clientId));
+      const allMarks = await this.db.getAll('atzimes');
+      const cid = client.id || client.ID;
+      const clientMarks = allMarks.filter(m => {
+        const mcid = m.clientId || m.klientsId;
+        return String(mcid) === String(cid);
+      });
       const filename = await exporter.generateMonth(client, year, month, clientMarks);
-      this.toast('Excel lejupielādēts: ' + filename);
+      this.toast('✓ Lejupielādēts: ' + filename);
     } catch (err) {
       this.toast('Eksporta kļūda: ' + err.message);
       console.error(err);

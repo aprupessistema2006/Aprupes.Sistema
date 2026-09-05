@@ -37,7 +37,22 @@
           <input type="checkbox" id="onlyEdited"> Tikai labotie
         </label>
         <button id="refreshBtn" class="btn-primary">🔄 Atjaunināt no servera</button>
-        <button id="exportBtn" class="btn-primary">📊 Lejupielādēt Excel</button>
+      </div>
+    </section>
+
+    <section class="export-section">
+      <h3>📊 Excel eksports (MK veidlapa)</h3>
+      <p class="export-help">Izvēlies mēnesi un klientu, tad noklikšķini "Lejupielādēt". Fails tiks saglabāts pēc MK veidlapas formāta.</p>
+      <div class="export-row">
+        <label>Mēnesis:
+          <input type="month" id="exportMonth" required>
+        </label>
+        <label>Klients:
+          <select id="exportClient" required>
+            <option value="">— izvēlies klientu —</option>
+          </select>
+        </label>
+        <button id="exportBtn" class="btn-primary">📥 Lejupielādēt Excel</button>
       </div>
     </section>
 
