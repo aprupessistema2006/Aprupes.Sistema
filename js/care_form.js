@@ -267,6 +267,13 @@ class CareFormController {
     const today = this.getToday();
     const allMarks = await this.db.getAll('atzimes');
     console.log('[care_form] loadMarks: clientId=' + this.clientId + ' total=' + allMarks.length);
+    if (allMarks.length > 0) {
+      const sample = allMarks[0];
+      console.log('[care_form] sample keys:', Object.keys(sample).join(','));
+      console.log('[care_form] sample date/datums/lastModified/pedeja_laiks/created:',
+        sample.date, '|', sample.datums, '|', sample.lastModified, '|', sample.pedeja_laiks, '|', sample.created);
+      console.log('[care_form] today=' + today + ' sample recent=' + this.isRecent(sample, today));
+    }
     this.marks.clear();
     let matched = 0;
     allMarks.filter(m => this.clientIdsMatch(m, this.clientId))
