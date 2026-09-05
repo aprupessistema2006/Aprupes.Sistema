@@ -44,9 +44,9 @@ function normalizeDate(v) {
   if (!v) return '';
   if (v instanceof Date) {
     if (isNaN(v.getTime())) return '';
-    const y = v.getUTCFullYear();
-    const m = String(v.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(v.getUTCDate()).padStart(2, '0');
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, '0');
+    const d = String(v.getDate()).padStart(2, '0');
     return y + '-' + m + '-' + d;
   }
   if (typeof v === 'string') {
@@ -79,7 +79,12 @@ function repairDateString(dateStr, refDateStr) {
   if (dateParts.length !== 3 || refParts.length !== 3) return dateStr;
   var dateMonth = parseInt(dateParts[1], 10);
   var refMonth = parseInt(refParts[1], 10);
-  if (dateMonth === refMonth) return dateStr;
+  var dateDay = parseInt(dateParts[2], 10);
+  var refDay = parseInt(refParts[2], 10);
+  if (dateMonth === refMonth) {
+    if (Math.abs(dateDay - refDay) <= 1) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
+    return dateStr;
+  }
   var swappedMonth = parseInt(dateParts[2], 10);
   if (swappedMonth === refMonth) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
   return dateStr;
