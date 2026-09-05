@@ -65,19 +65,23 @@ class CareFormController {
     await this.loadClient();
     await this.loadMarks();
     await this.loadHistory();
+    await this.loadAllClientMarks();
     this.renderForm();
     this.renderHistory();
     this.renderSignature();
     this.updateTeamSummary();
+    this.renderQuickCounters();
 
     this.sync.loadInitialData().then(async () => {
       await this.loadClient();
       await this.loadMarks();
       await this.loadHistory();
+      await this.loadAllClientMarks();
       this.renderForm();
       this.renderHistory();
       this.renderSignature();
       this.updateTeamSummary();
+      this.renderQuickCounters();
       this.toast('✓ Dati sinhronizēti ar serveri');
     });
   }
@@ -458,6 +462,17 @@ class CareFormController {
     });
     document.getElementById('categoryModal').addEventListener('click', (e) => {
       if (e.target.id === 'categoryModal') this.closeCategoryModal();
+    });
+
+    document.querySelectorAll('.qc-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const counter = btn.dataset.counter;
+        const amount = parseFloat(btn.dataset.amount) || 1;
+        const stoolVal = btn.dataset.value;
+        this.addQuickCounter(counter, amount, stoolVal, btn);
+      });
     });
   }
 
@@ -887,6 +902,289 @@ class CareFormController {
     const value = selected.dataset.value;
     const shift = selected.dataset.shift;
     await this.handleOptionSelect(shift, 'fiziologija', 'vedera_izeja', value, selected);
+  }
+
+  async loadAllClientMarks() {
+    const today = new Date().toISOString().split('T')[0];
+    const allMarks = await this.db.getAll('atzimes');
+    this.allClientMarks = allMarks.filter(m => {
+      if (m.clientId !== this.clientId) return false;
+      const dates = [
+        this.extractDate(m.date),
+        this.extractDate(m.created),
+        this.extractDate(m.izveidots),
+        this.extractDate(m.lastModified)
+      ].filter(Boolean);
+      if (dates.length === 0) return true;
+      return dates.includes(today);
+    });
+
+    const allLog = await this.db.getAll('atzimes_log');
+    this.allClientLog = allLog.filter(l => {
+      if (l.clientId !== this.clientId) return false;
+      const dates = [
+        this.extractDate(l.date),
+        this.extractDate(l.created),
+        this.extractDate(l.izveidots),
+        this.extractDate(l.lastModified)
+      ].filter(Boolean);
+      if (dates.length === 0) return true;
+      return dates.includes(today);
+    });
+  }
+
+  renderQuickCounters() {
+    if (!this.allClientMarks) return;
+
+    const fluidSum = this.allClientMarks
+      .filter(m => m.category === 'sikdrumi' && (m.field === 'uznemts_ml' || m.field === 'uzņemts_ml' || m.field === 'uznemts_h2o'))
+      .reduce((sum, m) => sum + (parseFloat(m.value) || 0), 0);
+
+    const fluidLog = this.allClientLog
+      .filter(l => l.category === 'sikdrumi' && (l.field === 'uznemts_ml' || l.field === 'uzņemts_ml' || l.field === 'uznemts_h2o'))
+      .sort((a, b) => {
+        const ta = this.extractTimeForSort(a.time) || a.created || '';
+        const tb = this.extractTimeForSort(b.time) || b.created || '';
+        return tb.localeCompare(ta);
+      });
+    const fluidLast = fluidLog[0];
+    const fluidLastBy = fluidLast ? (this.empMap[fluidLast.employeeId] || '?') : null;
+    const fluidTime = fluidLast ? (fluidLast.time || '') : null;
+
+    const fluidTotal = document.getElementById('qcFluidTotal');
+    if (fluidTotal) {
+      fluidTotal.innerHTML = Math.round(fluidSum) + ' <small>ml</small>';
+    }
+    const fluidMeta = document.getElementById('qcFluidMeta');
+    if (fluidMeta) {
+      fluidMeta.textContent = fluidLastBy
+        ? 'Pēdējais: ' + fluidLastBy + (fluidTime ? ' (' + fluidTime + ')' : '')
+        : 'Vēl neviens nav ievadījis';
+    }
+
+    const stoolLog = this.allClientLog
+      .filter(l => l.category === 'fiziologija' && l.field === 'vedera_izeja')
+      .sort((a, b) => {
+        const ta = this.extractTimeForSort(a.time) || a.created || '';
+        const tb = this.extractTimeForSort(b.time) || b.created || '';
+        return tb.localeCompare(ta);
+      });
+    const stoolMarks = this.allClientMarks.filter(m => m.category === 'fiziologija' && m.field === 'vedera_izeja');
+    const stoolTotal = document.getElementById('qcStoolTotal');
+    if (stoolTotal) {
+      const count = stoolLog.length > 0 ? stoolLog.length : stoolMarks.length;
+      stoolTotal.innerHTML = count + ' <small>reizes</small>';
+    }
+    const stoolMeta = document.getElementById('qcStoolMeta');
+    if (stoolMeta) {
+      const last = stoolLog[0];
+      if (last) {
+        const labels = { 'N': 'Normāla', 'A': 'Aizcietējums', 'S': 'Svecīte', 'C': 'Caureja', 'K': 'Klizma' };
+        const lastBy = this.empMap[last.employeeId] || '?';
+        const valLabel = labels[last.value] || last.value;
+        stoolMeta.textContent = 'Pēdējais: ' + valLabel + ' (' + lastBy + (last.time ? ' ' + last.time : '') + ')';
+      } else {
+        stoolMeta.textContent = 'Vēl neviens nav ievadījis';
+      }
+    }
+
+    const diaperMarks = this.allClientMarks
+      .filter(m => m.category === 'citsi_pasakomi' && (m.field === 'autins_biksitu_skaits' || m.field === 'autiņbiksīšu_skaits'));
+    const diaperLog = this.allClientLog
+      .filter(l => l.category === 'citsi_pasakomi' && (l.field === 'autins_biksitu_skaits' || l.field === 'autiņbiksīšu_skaits'))
+      .sort((a, b) => {
+        const ta = this.extractTimeForSort(a.time) || a.created || '';
+        const tb = this.extractTimeForSort(b.time) || b.created || '';
+        return tb.localeCompare(ta);
+      });
+    const diaperTotal = document.getElementById('qcDiaperTotal');
+    if (diaperTotal) {
+      const total = diaperMarks.length > 0
+        ? Math.max(...diaperMarks.map(m => parseInt(m.value) || 0))
+        : diaperLog.length;
+      diaperTotal.innerHTML = total + ' <small>maiņas</small>';
+    }
+    const diaperMeta = document.getElementById('qcDiaperMeta');
+    if (diaperMeta) {
+      const last = diaperLog[0];
+      if (last) {
+        const lastBy = this.empMap[last.employeeId] || '?';
+        diaperMeta.textContent = 'Pēdējais: ' + lastBy + (last.time ? ' (' + last.time + ')' : '');
+      } else {
+        diaperMeta.textContent = 'Vēl neviens nav ievadījis';
+      }
+    }
+  }
+
+  async addQuickCounter(counter, amount, stoolValue, btn) {
+    const shift = this.currentShift;
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const timeStr = now.toTimeString().split(' ')[0];
+    const card = btn.closest('.quick-counter-card');
+
+    if (card) {
+      card.classList.add('pulse');
+      setTimeout(() => card.classList.remove('pulse'), 350);
+    }
+
+    if (counter === 'fluid') {
+      const existing = (this.allClientMarks || [])
+        .filter(m => m.category === 'sikdrumi' && (m.field === 'uznemts_ml' || m.field === 'uzņemts_ml'))
+        .sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''))[0];
+      const currentVal = existing ? (parseFloat(existing.value) || 0) : 0;
+      const newVal = currentVal + amount;
+      const key = shift + '|sikdrumi|uznemts_ml';
+      this.marks.set(key, {
+        id: existing ? existing.id : this.db.generateId(),
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        shift: shift,
+        category: 'sikdrumi',
+        field: 'uznemts_ml',
+        value: String(newVal),
+        lastModified: now.toISOString(),
+        lastBy: this.currentUser.id
+      });
+      await this.db.put('atzimes', this.marks.get(key));
+      const logEntry = {
+        id: this.db.generateId(),
+        markId: this.marks.get(key).id,
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        time: timeStr,
+        shift: shift,
+        category: 'sikdrumi',
+        field: 'uznemts_ml',
+        value: '+' + amount + ' ml (kopā: ' + newVal + ')',
+        prevValue: existing ? String(existing.value) : null,
+        type: existing ? 'Labots' : 'Jauns',
+        created: now.toISOString()
+      };
+      await this.db.add('atzimes_log', logEntry);
+      this.sync.enqueueChange({
+        action: 'mark',
+        table: 'atzimes',
+        data: {
+          clientId: this.clientId,
+          employeeId: this.currentUser.id,
+          date: today,
+          shift: shift,
+          category: 'sikdrumi',
+          field: 'uznemts_ml',
+          value: String(newVal),
+          reason: 'Quick counter +' + amount
+        }
+      });
+      this.toast('💧 Pievienots ' + amount + ' ml (kopā: ' + newVal + ' ml)');
+    } else if (counter === 'stool') {
+      const val = stoolValue || 'N';
+      const id = this.db.generateId();
+      const mark = {
+        id: id,
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        shift: shift,
+        category: 'fiziologija',
+        field: 'vedera_izeja',
+        value: val,
+        lastModified: now.toISOString(),
+        lastBy: this.currentUser.id
+      };
+      const key = shift + '|fiziologija|vedera_izeja';
+      this.marks.set(key, mark);
+      await this.db.put('atzimes', mark);
+      const logEntry = {
+        id: this.db.generateId(),
+        markId: id,
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        time: timeStr,
+        shift: shift,
+        category: 'fiziologija',
+        field: 'vedera_izeja',
+        value: val,
+        type: 'Jauns',
+        created: now.toISOString()
+      };
+      await this.db.add('atzimes_log', logEntry);
+      this.sync.enqueueChange({
+        action: 'mark',
+        table: 'atzimes',
+        data: {
+          clientId: this.clientId,
+          employeeId: this.currentUser.id,
+          date: today,
+          shift: shift,
+          category: 'fiziologija',
+          field: 'vedera_izeja',
+          value: val
+        }
+      });
+      const labels = { 'N': 'Normāla', 'A': 'Aizcietējums', 'S': 'Svecīte', 'C': 'Caureja', 'K': 'Klizma' };
+      this.toast('🚽 Pievienots: ' + (labels[val] || val));
+    } else if (counter === 'diaper') {
+      const existing = (this.allClientMarks || [])
+        .filter(m => m.category === 'citsi_pasakomi' && (m.field === 'autins_biksitu_skaits' || m.field === 'autiņbiksīšu_skaits'))
+        .sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''))[0];
+      const currentVal = existing ? (parseInt(existing.value) || 0) : 0;
+      const newVal = currentVal + 1;
+      const key = shift + '|citsi_pasakomi|autins_biksitu_skaits';
+      this.marks.set(key, {
+        id: existing ? existing.id : this.db.generateId(),
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        shift: shift,
+        category: 'citsi_pasakomi',
+        field: 'autins_biksitu_skaits',
+        value: String(newVal),
+        lastModified: now.toISOString(),
+        lastBy: this.currentUser.id
+      });
+      await this.db.put('atzimes', this.marks.get(key));
+      const logEntry = {
+        id: this.db.generateId(),
+        markId: this.marks.get(key).id,
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        time: timeStr,
+        shift: shift,
+        category: 'citsi_pasakomi',
+        field: 'autins_biksitu_skaits',
+        value: '+1 (kopā: ' + newVal + ')',
+        prevValue: existing ? String(existing.value) : null,
+        type: existing ? 'Labots' : 'Jauns',
+        created: now.toISOString()
+      };
+      await this.db.add('atzimes_log', logEntry);
+      this.sync.enqueueChange({
+        action: 'mark',
+        table: 'atzimes',
+        data: {
+          clientId: this.clientId,
+          employeeId: this.currentUser.id,
+          date: today,
+          shift: shift,
+          category: 'citsi_pasakomi',
+          field: 'autins_biksitu_skaits',
+          value: String(newVal),
+          reason: 'Quick counter +1'
+        }
+      });
+      this.toast('🧻 Pievienota maiņa (kopā: ' + newVal + ')');
+    }
+
+    await this.loadAllClientMarks();
+    await this.loadHistory();
+    this.renderQuickCounters();
+    this.updateCategoryStatuses();
+    this.renderHistory();
   }
 
   async handleDiaperIncrement(shift, category, field, btn) {

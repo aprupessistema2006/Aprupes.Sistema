@@ -41,6 +41,50 @@
       <em style="color:#999;">Ielādēju...</em>
     </div>
 
+    <section class="quick-counters">
+      <div class="quick-counter-card" data-counter="fluid">
+        <div class="qc-header">
+          <span class="qc-emoji">💧</span>
+          <span class="qc-title">Šķidrumi</span>
+        </div>
+        <div class="qc-total" id="qcFluidTotal">0 <small>ml</small></div>
+        <div class="qc-buttons">
+          <button class="qc-btn qc-btn-fluid" data-counter="fluid" data-amount="100">+ 100 ml</button>
+          <button class="qc-btn qc-btn-fluid" data-counter="fluid" data-amount="200">+ 200 ml</button>
+          <button class="qc-btn qc-btn-fluid" data-counter="fluid" data-amount="300">+ 300 ml</button>
+        </div>
+        <div class="qc-meta" id="qcFluidMeta">Vēl neviens nav ievadījis</div>
+      </div>
+
+      <div class="quick-counter-card" data-counter="stool">
+        <div class="qc-header">
+          <span class="qc-emoji">🚽</span>
+          <span class="qc-title">Vēdera izeja</span>
+        </div>
+        <div class="qc-total" id="qcStoolTotal">0 <small>reizes</small></div>
+        <div class="qc-buttons">
+          <button class="qc-btn qc-btn-stool" data-counter="stool" data-amount="1" data-value="N">+1 Normāla</button>
+          <button class="qc-btn qc-btn-stool" data-counter="stool" data-amount="1" data-value="A">+1 Aizcietējums</button>
+          <button class="qc-btn qc-btn-stool" data-counter="stool" data-amount="1" data-value="C">+1 Caureja</button>
+          <button class="qc-btn qc-btn-stool" data-counter="stool" data-amount="1" data-value="S">+1 Svecīte</button>
+          <button class="qc-btn qc-btn-stool" data-counter="stool" data-amount="1" data-value="K">+1 Klizma</button>
+        </div>
+        <div class="qc-meta" id="qcStoolMeta">Vēl neviens nav ievadījis</div>
+      </div>
+
+      <div class="quick-counter-card" data-counter="diaper">
+        <div class="qc-header">
+          <span class="qc-emoji">🧻</span>
+          <span class="qc-title">Higiēnas maiņa</span>
+        </div>
+        <div class="qc-total" id="qcDiaperTotal">0 <small>maiņas</small></div>
+        <div class="qc-buttons">
+          <button class="qc-btn qc-btn-diaper qc-btn-big" data-counter="diaper" data-amount="1">+1 maiņa</button>
+        </div>
+        <div class="qc-meta" id="qcDiaperMeta">Vēl neviens nav ievadījis</div>
+      </div>
+    </section>
+
     <div class="category-grid" id="categoryGrid">
       <button class="category-card cat-temp" data-cat="temp">
         <div class="cat-emoji">🌡️</div>
