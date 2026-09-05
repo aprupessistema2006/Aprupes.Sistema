@@ -52,6 +52,7 @@ class ExcelExporter {
 
     if (wb.getWorksheet('APRŪPES DOKUMANTĀCIJA_1')) {
       this.fillSheet(wb.getWorksheet('APRŪPES DOKUMANTĀCIJA_1'), dataByDay, 1, 15, 10, 32);
+      this.fillClientInfo(wb.getWorksheet('APRŪPES DOKUMANTĀCIJA_1'), client, year, month);
     }
     if (wb.getWorksheet('APRŪPES DOKUMANTĀCIJA_2')) {
       this.fillSheet(wb.getWorksheet('APRŪPES DOKUMANTĀCIJA_2'), dataByDay, 16, daysInMonth, 4, 26);
@@ -76,6 +77,34 @@ class ExcelExporter {
       await wb.xlsx.writeFile(outPath);
       return outPath;
     }
+  }
+
+  fillClientInfo(ws, client, year, month) {
+    const fullName = (client.vards || client.Vārds || '') + ' ' + (client.uzvards || client.Uzvārds || '');
+    ws.getCell('C3').value = fullName.trim();
+
+    if (client.dzimis) {
+      const birth = (client.dzimis instanceof Date) ? client.dzimis : new Date(client.dzimis);
+      const today = new Date(year, month - 1, 1);
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      ws.getCell('R3').value = age;
+    }
+
+    const dieta = client.dieta || client.Dieta || '';
+    ws.getCell('R5').value = dieta || null;
+
+    if (client.simbiozu || client.Simbiozu) {
+      let s = client.simbiozu || client.Simbiozu;
+      if (typeof s === 'string') {
+        s = s.trim();
+        ws.getCell('C5').value = s || null;
+      }
+    }
+
+    const months = ['Januāris', 'Februāris', 'Marts', 'Aprīlis', 'Maijs', 'Jūnijs', 'Jūlijs', 'Augusts', 'Septembris', 'Oktobris', 'Novembris', 'Decembris'];
+    ws.getCell('N7').value = months[(month - 1 + 12) % 12] || null;
   }
 
   fillSheet(ws, dataByDay, startDay, endDay, dataRowStart, dataRowEnd) {
