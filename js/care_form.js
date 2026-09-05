@@ -74,6 +74,7 @@ class CareFormController {
     this.renderTaskBanner();
 
     this.sync.loadInitialData().then(async () => {
+      await new Promise(r => setTimeout(r, 200));
       await this.loadClient();
       await this.loadMarks();
       await this.loadHistory();
@@ -265,14 +266,20 @@ class CareFormController {
   async loadMarks() {
     const today = this.getToday();
     const allMarks = await this.db.getAll('atzimes');
+    console.log('[care_form] loadMarks: clientId=' + this.clientId + ' total=' + allMarks.length);
     this.marks.clear();
+    let matched = 0;
     allMarks.filter(m => this.clientIdsMatch(m, this.clientId))
-            .filter(m => this.isRecent(m, today))
+            .filter(m => {
+              if (this.isRecent(m, today)) { matched++; return true; }
+              return false;
+            })
             .forEach(m => {
               const shift = m.shift || m.periods;
               const key = shift + '|' + m.category + '|' + m.field;
               this.marks.set(key, m);
             });
+    console.log('[care_form] loadMarks: matched=' + matched + ' marks.size=' + this.marks.size);
   }
 
   isRecent(m, today) {
@@ -315,7 +322,11 @@ class CareFormController {
   clientIdsMatch(mark, clientId) {
     if (!mark) return false;
     const ids = [mark.clientId, mark.klients_id, mark.klienti_id];
-    return ids.includes(clientId);
+    const result = ids.includes(clientId);
+    if (!result && ids.some(x => x)) {
+      console.log('[care_form] clientIdsMatch miss: mark.cid=' + JSON.stringify(ids) + ' wanted=' + clientId);
+    }
+    return result;
   }
 
   async loadHistory() {
