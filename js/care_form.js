@@ -1155,7 +1155,7 @@ class CareFormController {
       markId: 'diaper_' + Date.now(),
       clientId: this.clientId,
       employeeId: this.currentUser.id,
-      date: new Date().toISOString().split('T')[0],
+      date: this.getToday(),
       time: new Date().toTimeString().split(' ')[0],
       shift: shift,
       category: category,
@@ -1258,7 +1258,7 @@ class CareFormController {
   }
 
   async saveMark(data) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.getToday();
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
 
@@ -1398,7 +1398,7 @@ class CareFormController {
   }
 
   async handleSign() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.getToday();
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
 
