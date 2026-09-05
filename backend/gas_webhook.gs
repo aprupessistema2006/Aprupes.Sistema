@@ -420,18 +420,12 @@ function normalizeToDateString(v) {
     const parts = s.split(/[.\-/]/);
     if (parts.length >= 3) {
       const y = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
-      const d = parseInt(parts[2], 10);
-      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-        if (y >= 100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-          return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-        }
-        if (d >= 1000 && m >= 1 && m <= 12) {
-          const swappedY = parseInt(parts[2], 10);
-          const swappedM = parseInt(parts[0], 10);
-          const swappedD = parseInt(parts[1], 10);
-          return swappedY + '-' + String(swappedM).padStart(2, '0') + '-' + String(swappedD).padStart(2, '0');
-        }
+      const p1 = parseInt(parts[1], 10);
+      const p2 = parseInt(parts[2], 10);
+      // Google Sheets "Date" objekta string forma ir Y.D.M (gads.dienn.mēnesis)
+      // piem. "2026.6.9" = 2026. gada 6. septembris = 2026-09-06
+      if (!isNaN(y) && !isNaN(p1) && !isNaN(p2) && y >= 100 && p1 >= 1 && p1 <= 31 && p2 >= 1 && p2 <= 12) {
+        return y + '-' + String(p2).padStart(2, '0') + '-' + String(p1).padStart(2, '0');
       }
     }
   }
