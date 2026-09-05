@@ -36,11 +36,33 @@ class AprupeController {
     await this.loadTodayMarks();
     this.filteredClients = [...this.clients];
     this.renderCards();
+    await this.renderTaskBanner();
     this.sync.loadInitialData().then(async () => {
       await this.loadClients();
       await this.loadTodayMarks();
       this.filteredClients = [...this.clients];
       this.renderCards();
+      await this.renderTaskBanner();
+    });
+  }
+
+  async renderTaskBanner() {
+    const container = document.getElementById('taskBannerContainer');
+    if (!container || !window.TaskManager || !this.currentUser) return;
+    await window.TaskManager.loadAll();
+    const html = window.TaskManager.renderBanner(this.currentUser, null);
+    container.innerHTML = html;
+    container.querySelectorAll('.task-complete-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const taskId = btn.dataset.taskId;
+        btn.disabled = true;
+        btn.textContent = '⏳ Saglabā...';
+        await window.TaskManager.complete(taskId, this.currentUser.id);
+        this.toast && this.toast('✓ Uzdevums atzīmēts kā izdarīts');
+        await this.renderTaskBanner();
+        this.renderCards();
+      });
     });
   }
   setupSearch() {
@@ -245,6 +267,19 @@ class AprupeController {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+  }
+
+  toast(message) {
+    let toast = document.getElementById('taskToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'taskToast';
+      toast.className = 'toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
   }
 
   logout() {

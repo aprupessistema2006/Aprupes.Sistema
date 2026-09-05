@@ -24,13 +24,15 @@ class ControlPanel {
     window.careDB = this.db;
     this.sync = new SyncManager(this.db, CONFIG);
     window.careSync = this.sync;
-
     this.setupUI();
     await this.loadData();
     this.renderAll();
+    await this.setupTasksUI();
+
     this.sync.loadInitialData().then(async () => {
       await this.loadData();
       this.renderAll();
+      await this.renderTasksList();
     });
   }
 
@@ -498,6 +500,154 @@ class ControlPanel {
 
     const countEl = document.getElementById('historyCount');
     if (countEl) countEl.textContent = log.length + ' ierakstu';
+  }
+
+  async setupTasksUI() {
+    const assignee = document.getElementById('taskAssignee');
+    const clientSel = document.getElementById('taskClient');
+    const deadline = document.getElementById('taskDeadline');
+    const form = document.getElementById('taskCreateForm');
+
+    if (deadline) deadline.value = this.todayLocal();
+
+    if (assignee) {
+      assignee.innerHTML = '<option value="">— izvēlies darbinieku —</option>' +
+        this.allEmployees.map(e => {
+          const id = e.id || e.ID;
+          const v = e.vards || e.Vārds || '';
+          const u = e.uzvards || e.Uzvārds || '';
+          const l = e.loma || e.Loma || '';
+          return `<option value="${id}">${this.escapeHtml((v + ' ' + u).trim())} (${this.escapeHtml(l)})</option>`;
+        }).join('');
+    }
+
+    if (clientSel) {
+      clientSel.innerHTML = '<option value="">— bez klienta —</option>' +
+        this.allClients.map(c => {
+          const id = c.id || c.ID;
+          const v = c.vards || c.Vārds || '';
+          const u = c.uzvards || c.Uzvārds || '';
+          return `<option value="${id}">${this.escapeHtml((v + ' ' + u).trim())}</option>`;
+        }).join('');
+    }
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const employeeId = assignee.value;
+        const klientsId = clientSel.value;
+        const termins = deadline.value;
+        const prioritate = document.getElementById('taskPriority').value;
+        const teksts = document.getElementById('taskText').value.trim();
+        if (!employeeId || !teksts || !termins) {
+          this.toast('Aizpildi darbinieku, termiņu un uzdevuma tekstu');
+          return;
+        }
+        if (window.TaskManager) {
+          await window.TaskManager.create({
+            teksts: teksts,
+            klientsId: klientsId,
+            pieskirtDarbiniekamId: employeeId,
+            termins: termins,
+            prioritate: prioritate,
+            izveidotajsId: this.currentUser.id
+          });
+          this.toast('✓ Uzdevums nosūtīts');
+          document.getElementById('taskText').value = '';
+          await this.renderTasksList();
+        }
+      });
+    }
+
+    await this.renderTasksList();
+  }
+
+  async renderTasksList() {
+    const container = document.getElementById('tasksList');
+    const countEl = document.getElementById('tasksCount');
+    if (!container || !window.TaskManager) return;
+    await window.TaskManager.loadAll();
+    const all = window.TaskManager.tasks || [];
+    const active = all.filter(t => !t.irPabeigts && t.irPabeigts !== 'true' && t.irPabeigts !== 'TRUE');
+    const completed = all.filter(t => t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE');
+
+    if (countEl) countEl.textContent = active.length + ' aktīvi / ' + completed.length + ' pabeigti';
+
+    const empMap = {};
+    this.allEmployees.forEach(e => {
+      empMap[String(e.id || e.ID)] = (e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '');
+    });
+    const clientMap = {};
+    this.allClients.forEach(c => {
+      clientMap[String(c.id || c.ID)] = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
+    });
+
+    if (all.length === 0) {
+      container.innerHTML = '<div class="loading">Nav uzdevumu. Pievieno jaunu augstāk.</div>';
+      return;
+    }
+
+    const sorted = [...all].sort((a, b) => {
+      const ad = a.irPabeigts ? 1 : 0;
+      const bd = b.irPabeigts ? 1 : 0;
+      if (ad !== bd) return ad - bd;
+      const pa = window.TaskManager.priorityWeight(a.prioritate);
+      const pb = window.TaskManager.priorityWeight(b.prioritate);
+      if (pa !== pb) return pb - pa;
+      return (a.termins || '').localeCompare(b.termins || '');
+    });
+
+    container.innerHTML = sorted.map(t => {
+      const assignee = empMap[String(t.pieskirtDarbiniekamId || t.employeeId)] || 'ID: ' + (t.pieskirtDarbiniekamId || t.employeeId);
+      const client = t.klientsId ? (clientMap[String(t.klientsId)] || 'ID: ' + t.klientsId) : '—';
+      const pr = (t.prioritate || 'videja').toLowerCase();
+      const prLabel = { augsta: '🔴 Augsta', videja: '🟡 Vidēja', zema: '🟢 Zema' }[pr] || pr;
+      const done = t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE';
+      const doneBy = t.pabeigtajsId ? empMap[String(t.pabeigtajsId)] || 'ID: ' + t.pabeigtajsId : '';
+      const overdue = window.TaskManager.isOverdue(t.termins) && !done;
+      const today = window.TaskManager.isToday(t.termins) && !done;
+      return `
+        <div class="task-row ${done ? 'done' : ''} ${overdue ? 'overdue' : ''} ${today ? 'today' : ''}">
+          <div class="task-row-left">
+            <div class="task-row-header">
+              <span class="task-row-priority">${prLabel}</span>
+              <span class="task-row-deadline">${overdue ? '⏰ ' : ''}${today ? '📅 ' : ''}${this.escapeHtml(t.termins || '')}</span>
+              <span class="task-row-status">${done ? '✅ PABEIGTS' : '⏳ aktīvs'}</span>
+            </div>
+            <div class="task-row-text">${this.escapeHtml(t.teksts || '')}</div>
+            <div class="task-row-meta">
+              <span>👤 ${this.escapeHtml(assignee.trim())}</span>
+              <span>🏥 ${this.escapeHtml(client.trim())}</span>
+              ${doneBy ? '<span>✓ Izpildīja: ' + this.escapeHtml(doneBy.trim()) + '</span>' : ''}
+            </div>
+          </div>
+          <div class="task-row-actions">
+            ${done
+              ? '<button class="btn-secondary task-reopen" data-task-id="' + t.id + '">Atvērt atpakaļ</button>'
+              : '<button class="btn-secondary task-complete" data-task-id="' + t.id + '">✓ Pabeidza</button>'}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.task-complete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.taskId;
+        btn.disabled = true;
+        await window.TaskManager.complete(id, this.currentUser.id);
+        this.toast('✓ Atzīmēts kā pabeigts');
+        await this.renderTasksList();
+      });
+    });
+    container.querySelectorAll('.task-reopen').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.taskId;
+        btn.disabled = true;
+        await window.TaskManager.reopen(id);
+        this.toast('Uzdevums atvērts atpakaļ');
+        await this.renderTasksList();
+      });
+    });
   }
 
   escapeHtml(text) {

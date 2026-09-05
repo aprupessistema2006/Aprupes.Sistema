@@ -105,7 +105,12 @@ function buildAliasMap(headers) {
     'izveidots': 'created',
     'termiņš': 'termins',
     'prioritāte': 'prioritate',
-    'labotājs_id': 'editorId'
+    'labotājs_id': 'editorId',
+    'piešķirt_darbiniekam_id': 'pieskirtDarbiniekamId',
+    'ir_pabeigts': 'irPabeigts',
+    'izveidotājs_id': 'izveidotajsId',
+    'pabeigts_laiks': 'pabeigtsLaiks',
+    'pabeigtājs_id': 'pabeigtajsId'
   };
   const map = {};
   headers.forEach((h, i) => {
@@ -228,6 +233,7 @@ function routeAction(data) {
     if (action === 'updateEmployee') return handleUpdate(data, 'darbinieki');
     if (action === 'mark') return handleMark(data);
     if (action === 'createTask') return handleCreateTask(data);
+    if (action === 'updateTask') return handleUpdateTask(data);
     if (action === 'logDay') return handleLogDay(data);
     return createResponse(200, { success: true });
   } catch (err) {
@@ -335,13 +341,30 @@ function handleCreateTask(data) {
   appendRow(sheet, {
     id: id,
     teksts: t.teksts || '',
-    darbinieks_id: t.employeeId || '',
+    klients_id: t.klientsId || t.clientId || '',
+    darbinieks_id: t.pieskirtDarbiniekamId || t.employeeId || '',
     termins: t.termins || '',
     prioritate: t.prioritate || 'videja',
-    statuss: 'jauns',
-    pabeigts: false
+    statuss: t.statuss || 'jauns',
+    pabeigts: t.irPabeigts === true || t.irPabeigts === 'true',
+    izveidots: t.izveidots || new Date().toISOString(),
+    izveidotajs_id: t.izveidotajsId || '',
+    pabeigts_laiks: t.pabeigtsLaiks || '',
+    pabeigtajs_id: t.pabeigtajsId || ''
   });
   return createResponse(200, { success: true, id: id });
+}
+
+function handleUpdateTask(data) {
+  const sheet = getSheet('uzdevomi');
+  const t = data.data;
+  const row = findRow(sheet, [['id', t.id]]);
+  if (!row) return createResponse(404, { error: 'Uzdevums nav atrasts' });
+  if (t.statuss !== undefined) setCellValue(sheet, row.row, 'statuss', t.statuss);
+  if (t.irPabeigts !== undefined) setCellValue(sheet, row.row, 'pabeigts', t.irPabeigts === true || t.irPabeigts === 'true');
+  if (t.pabeigtsLaiks !== undefined) setCellValue(sheet, row.row, 'pabeigts_laiks', t.pabeigtsLaiks || '');
+  if (t.pabeigtajsId !== undefined) setCellValue(sheet, row.row, 'pabeigtajs_id', t.pabeigtajsId || '');
+  return createResponse(200, { success: true });
 }
 
 function handleLogDay(data) {

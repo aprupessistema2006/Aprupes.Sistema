@@ -30,7 +30,15 @@ const FIELD_ALIASES = {
   'pabeigts': 'completed',
   'labotājs_id': 'editorId',
   '24h': 'h24',
-  'skaits': 'count'
+  'skaits': 'count',
+  'klients_id': 'klientsId',
+  'piešķirt_darbiniekam_id': 'pieskirtDarbiniekamId',
+  'termiņš': 'termins',
+  'prioritāte': 'prioritate',
+  'ir_pabeigts': 'irPabeigts',
+  'izveidotājs_id': 'izveidotajsId',
+  'pabeigts_laiks': 'pabeigtsLaiks',
+  'pabeigtājs_id': 'pabeigtajsId'
 };
 
 function normalizeDate(v) {

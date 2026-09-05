@@ -71,6 +71,7 @@ class CareFormController {
     this.renderSignature();
     this.updateTeamSummary();
     this.renderQuickTotals();
+    this.renderTaskBanner();
 
     this.sync.loadInitialData().then(async () => {
       await this.loadClient();
@@ -82,7 +83,29 @@ class CareFormController {
       this.renderSignature();
       this.updateTeamSummary();
       this.renderQuickTotals();
+      this.renderTaskBanner();
       this.toast('✓ Dati sinhronizēti ar serveri');
+    });
+  }
+
+  async renderTaskBanner() {
+    const container = document.getElementById('taskBannerContainer');
+    if (!container || !window.TaskManager || !this.currentUser) return;
+    await window.TaskManager.loadAll();
+    const html = window.TaskManager.renderBanner(this.currentUser, this.clientId);
+    container.innerHTML = html;
+    container.querySelectorAll('.task-complete-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const taskId = btn.dataset.taskId;
+        btn.disabled = true;
+        btn.textContent = '⏳ Saglabā...';
+        await window.TaskManager.complete(taskId, this.currentUser.id);
+        this.toast('✓ Uzdevums atzīmēts kā izdarīts');
+        await this.renderTaskBanner();
+        await this.loadHistory();
+        this.renderHistory();
+      });
     });
   }
 
@@ -1081,6 +1104,7 @@ class CareFormController {
     this.openCategoryModal('diapers');
     await this.loadAllClientMarks();
     await this.loadHistory();
+    this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
   }
@@ -1123,6 +1147,7 @@ class CareFormController {
     }
     await this.loadAllClientMarks();
     await this.loadHistory();
+    this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
     this.toast('Saglabāts');
@@ -1147,6 +1172,7 @@ class CareFormController {
     }
     await this.loadAllClientMarks();
     await this.loadHistory();
+    this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
   }
@@ -1261,18 +1287,18 @@ class CareFormController {
     const signBtn = document.getElementById('signBtn');
     const signedBy = document.getElementById('signedBy');
 
-    const today = new Date().toISOString().split('T')[0];
-    const signature = this.history.find(h => h.category === 'paraksts');
+    const signature = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
 
     if (signature) {
       const actor = this.empMap[signature.employeeId] || 'Nezināms';
-      signBtn.textContent = '✓ Parakstīts';
+      signBtn.textContent = '🔄 Pārparakstīt';
       signBtn.classList.add('signed');
-      signBtn.disabled = true;
-      signedBy.textContent = 'Parakstīja: ' + actor + ' (' + this.extractTimeDisplay(signature.time) + ')';
+      signBtn.disabled = false;
+      const who = actor === this.empMap[this.currentUser.id] ? 'Tu' : actor;
+      signedBy.textContent = 'Diennakts paraksts: ' + who + ' (' + this.extractTimeDisplay(signature.time) + ')';
       signedBy.style.display = 'block';
     } else {
-      signBtn.textContent = 'Parakstīties';
+      signBtn.textContent = '✍️ Parakstīties';
       signBtn.classList.remove('signed');
       signBtn.disabled = false;
       signedBy.style.display = 'none';
@@ -1284,14 +1310,16 @@ class CareFormController {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
 
+    const existing = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
     const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
+    const isResign = !!existing;
 
     const mark = {
-      id: this.db.generateId(),
+      id: existing ? existing.markId : this.db.generateId(),
       clientId: this.clientId,
       employeeId: this.currentUser.id,
       date: today,
-      shift: this.currentShift,
+      shift: 'D',
       category: 'paraksts',
       field: 'aprupetaja_paraksts',
       value: signatureValue,
@@ -1299,6 +1327,8 @@ class CareFormController {
       lastBy: this.currentUser.id
     };
 
+    const key = 'D|paraksts|aprupetaja_paraksts';
+    this.marks.set(key, mark);
     await this.db.put('atzimes', mark);
 
     const logEntry = {
@@ -1308,11 +1338,12 @@ class CareFormController {
       employeeId: this.currentUser.id,
       date: today,
       time: timeStr,
-      shift: this.currentShift,
+      shift: 'D',
       category: 'paraksts',
       field: 'aprupetaja_paraksts',
       value: signatureValue,
-      type: 'Jauns',
+      prevValue: existing ? existing.value : null,
+      type: isResign ? 'Labots' : 'Jauns',
       created: now.toISOString()
     };
     await this.db.add('atzimes_log', logEntry);
@@ -1324,16 +1355,19 @@ class CareFormController {
         clientId: this.clientId,
         employeeId: this.currentUser.id,
         date: today,
-        shift: this.currentShift,
+        shift: 'D',
         category: 'paraksts',
         field: 'aprupetaja_paraksts',
-        value: signatureValue
+        value: signatureValue,
+        reason: isResign ? 'Pārparakstīts' : 'Diennakts paraksts'
       }
     });
 
+    await this.loadMarks();
     await this.loadHistory();
     this.renderSignature();
-    this.toast('Parakstīts');
+    this.updateCategoryStatuses();
+    this.toast(isResign ? '✓ Pārparakstīts' : '✓ Parakstīts');
   }
 
   toast(message) {

@@ -1074,3 +1074,83 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.task-banner {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  border-left: 5px solid #e74c3c;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(231,76,60,0.15);
+}
+.task-banner-header {
+  font-size: 15px;
+  color: #c0392b;
+  margin-bottom: 10px;
+}
+.task-item {
+  background: white;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-left: 3px solid #3498db;
+}
+.task-item.overdue {
+  border-left-color: #e74c3c;
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+}
+.task-item.today {
+  border-left-color: #f39c12;
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+}
+.task-item-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.task-priority {
+  font-weight: 700;
+}
+.task-deadline {
+  font-size: 11px;
+}
+.task-text {
+  font-size: 14px;
+  color: #2c3e50;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.task-complete-btn {
+  background: linear-gradient(135deg, #27ae60, #16a085);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+.task-complete-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(39,174,96,0.3); }
+.task-complete-btn:active { transform: translateY(0); }
+.task-complete-btn:disabled { opacity: 0.6; cursor: wait; }
+
+.task-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 6px;
+  margin-top: 4px;
+}
+.task-badge-urgent { background: #ffebee; color: #c0392b; border: 1px solid #e74c3c; }
+.task-badge-today { background: #fff8e1; color: #e67e22; border: 1px solid #f39c12; }
+.task-badge-normal { background: #e3f2fd; color: #1976d2; border: 1px solid #2196f3; }
+.task-badge-arrow { font-size: 16px; line-height: 1; }

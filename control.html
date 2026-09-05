@@ -100,6 +100,49 @@
 
     <section class="data-section">
       <div class="data-section-header">
+        <h2>📋 Uzdevumi aprūpētājiem</h2>
+        <span id="tasksCount" class="history-count">0 uzdevumi</span>
+      </div>
+      <div class="task-create-card">
+        <h3>+ Pievienot jaunu uzdevumu</h3>
+        <form id="taskCreateForm" class="task-form">
+          <div class="task-form-row">
+            <label>Darbinieks:
+              <select id="taskAssignee" required></select>
+            </label>
+            <label>Klients (nav obligāti):
+              <select id="taskClient">
+                <option value="">— bez klienta —</option>
+              </select>
+            </label>
+          </div>
+          <div class="task-form-row">
+            <label>Termiņš:
+              <input type="date" id="taskDeadline" required>
+            </label>
+            <label>Prioritāte:
+              <select id="taskPriority">
+                <option value="videja">🟡 Vidēja</option>
+                <option value="augsta">🔴 Augsta</option>
+                <option value="zema">🟢 Zema</option>
+              </select>
+            </label>
+          </div>
+          <div class="task-form-row">
+            <label style="flex:1;">Uzdevuma teksts:
+              <input type="text" id="taskText" placeholder="Piem. Zvanīt ģimenei par..." required maxlength="300">
+            </label>
+          </div>
+          <button type="submit" class="btn-primary">📤 Nosūtīt uzdevumu</button>
+        </form>
+      </div>
+      <div id="tasksList" class="tasks-list">
+        <div class="loading">Ielādēju uzdevumus...</div>
+      </div>
+    </section>
+
+    <section class="data-section">
+      <div class="data-section-header">
         <h2>📋 Detalizēta vēsture</h2>
         <span id="historyCount" class="history-count">0 ierakstu</span>
       </div>
@@ -132,6 +175,7 @@
   <script src="js/db.js"></script>
   <script src="js/sync.js"></script>
   <script src="js/logout.js"></script>
+  <script src="js/tasks.js"></script>
   <script src="js/xlsx.full.min.js"></script>
   <script src="js/excel_export.js"></script>
   <script src="js/control.js"></script>
