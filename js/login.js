@@ -138,6 +138,14 @@ class LoginController {
     });
     this.filteredEmployees = [...this.employees];
     this.renderEmployeeList();
+    const total = this.employees.length;
+    const statusMsg = document.getElementById('statusMessage');
+    if (statusMsg && total > 0) {
+      const existing = statusMsg.textContent;
+      if (existing && !existing.includes('darbinieki')) {
+        statusMsg.textContent = existing + ' • ' + total + ' darbinieki';
+      }
+    }
   }
 
   filterEmployees(term) {
@@ -174,7 +182,7 @@ class LoginController {
       const v = e.vards || e.Vārds || '';
       const u = e.uzvards || e.Uzvārds || '';
       const l = e.loma || e.Loma || '';
-      const sel = this.selectedEmployee && (this.selectedEmployee.id || this.selectedEmployee.ID) === id ? 'selected' : '';
+      const sel = this.selectedEmployee && String(this.selectedEmployee.id || this.selectedEmployee.ID) === String(id) ? 'selected' : '';
       return `
         <div class="employee-item ${sel}" data-id="${id}">
           <div class="emp-avatar">${initials(e)}</div>
@@ -188,7 +196,7 @@ class LoginController {
     list.querySelectorAll('.employee-item').forEach(el => {
       el.addEventListener('click', () => {
         const id = el.dataset.id;
-        const emp = this.employees.find(x => (x.id || x.ID) === id);
+        const emp = this.employees.find(x => String(x.id || x.ID) === String(id));
         if (emp) this.selectEmployee(emp);
       });
     });
