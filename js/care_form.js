@@ -1162,7 +1162,7 @@ class CareFormController {
       field: field,
       value: '+1 (kopā: ' + newCount + ')',
       type: 'Jauns',
-      created: new Date().toISOString()
+      created: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + 'T' + new Date().toTimeString().split(' ')[0] + '.000Z'
     };
     await this.db.add('atzimes_log', logEntry);
 
@@ -1261,6 +1261,7 @@ class CareFormController {
     const today = this.getToday();
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
+    const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr + '.000Z';
 
     const id = this.db.generateId();
 
@@ -1273,7 +1274,7 @@ class CareFormController {
       category: data.category,
       field: data.field,
       value: data.value,
-      lastModified: now.toISOString(),
+      lastModified: nowISO,
       lastBy: this.currentUser.id
     };
 
@@ -1295,7 +1296,7 @@ class CareFormController {
       value: data.value,
       prevValue: data.prevValue,
       type: data.type,
-      created: now.toISOString()
+      created: nowISO
     };
     await this.db.add('atzimes_log', logEntry);
 
@@ -1415,7 +1416,7 @@ class CareFormController {
       category: 'paraksts',
       field: 'aprupetaja_paraksts',
       value: signatureValue,
-      lastModified: now.toISOString(),
+      lastModified: nowISO,
       lastBy: this.currentUser.id
     };
 
@@ -1436,7 +1437,7 @@ class CareFormController {
       value: signatureValue,
       prevValue: existing ? existing.value : null,
       type: isResign ? 'Labots' : 'Jauns',
-      created: now.toISOString()
+      created: nowISO
     };
     await this.db.add('atzimes_log', logEntry);
 
