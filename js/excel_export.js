@@ -136,7 +136,7 @@ class ExcelExporter {
          } else if (cRIsMerged) {
            const valR = dayData['R|' + category + '|' + field];
            const valV = dayData['V|' + category + '|' + field];
-           if (process.env.DEBUG_FILL) console.log('[fillSheet] day', day, addrR+row, 'merged valR=', valR, 'valV=', valV);
+            if (typeof process !== 'undefined' && process.env && process.env.DEBUG_FILL) console.log('[fillSheet] day', day, addrR+row, 'merged valR=', valR, 'valV=', valV);
            if (valR !== undefined && valR !== '' && valV !== undefined && valV !== '') {
             cR.value = `${valR} / ${valV}`;
           } else if (valR !== undefined && valR !== '') {
@@ -148,7 +148,7 @@ class ExcelExporter {
            const cV = ws.getCell(`${addrV}${row}`);
            const valR = dayData['R|' + category + '|' + field];
            const valV = dayData['V|' + category + '|' + field];
-           if (process.env.DEBUG_FILL) console.log('[fillSheet] day', day, addrR+row, 'unmerged valR=', valR, 'valV=', valV);
+            if (typeof process !== 'undefined' && process.env && process.env.DEBUG_FILL) console.log('[fillSheet] day', day, addrR+row, 'unmerged valR=', valR, 'valV=', valV);
            if (valR !== undefined && valR !== '') cR.value = valR;
           if (valV !== undefined && valV !== '') cV.value = valV;
         }
