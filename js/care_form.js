@@ -218,8 +218,15 @@ class CareFormController {
     this.marks.clear();
     allMarks.filter(m => m.clientId === this.clientId)
             .filter(m => {
-              const md = this.extractDate(m.date) || this.extractDate(m.created) || this.extractDate(m.lastModified);
-              return !md || md === today;
+              const dates = [
+                this.extractDate(m.date),
+                this.extractDate(m.created),
+                this.extractDate(m.izveidots),
+                this.extractDate(m.lastModified),
+                this.extractDate(m.pedeja_laiks)
+              ].filter(Boolean);
+              if (dates.length === 0) return true;
+              return dates.includes(today);
             })
             .forEach(m => {
               const key = m.shift + '|' + m.category + '|' + m.field;
@@ -233,8 +240,15 @@ class CareFormController {
     this.history = allLog
       .filter(l => l.clientId === this.clientId)
       .filter(l => {
-        const ld = this.extractDate(l.date) || this.extractDate(l.created) || this.extractDate(l.izveidots);
-        return !ld || ld === today;
+        const dates = [
+          this.extractDate(l.date),
+          this.extractDate(l.created),
+          this.extractDate(l.izveidots),
+          this.extractDate(l.lastModified),
+          this.extractDate(l.pedeja_laiks)
+        ].filter(Boolean);
+        if (dates.length === 0) return true;
+        return dates.includes(today);
       })
       .sort((a, b) => {
         const ta = this.extractTimeForSort(a.time);

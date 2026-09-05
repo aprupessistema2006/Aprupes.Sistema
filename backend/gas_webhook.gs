@@ -311,7 +311,7 @@ function handleMark(data) {
   });
 
   appendRow(logSheet, {
-    id: 'l_' + Date.now(),
+    id: 'l_' + Date.now() + Math.floor(Math.random() * 1000),
     atzimes_id: id,
     klients_id: m.clientId,
     darbinieks_id: m.employeeId,
@@ -375,6 +375,7 @@ function formatDate(d) {
 
 // Migrācija: aizpilda tukšās Vērtība/Pēdējā vērtība kolonnas atzimes un atzimes_log,
 // izmantojot atzimes_log datus (kas satur jaunākos ierakstus).
+// Papildus izlabo datuma formātu, ja tas saglabāts kā Date objekts ar nepareizu mēnesi.
 function migrateBackfill() {
   const logSheet = getSheet('atzimes_log');
   const atzimesSheet = getSheet('atzimes');
@@ -401,7 +402,7 @@ function migrateBackfill() {
   const atzColIdx = {};
   atzHeaders.forEach((h, i) => { atzColIdx[atzAlias[i] || normalizeKey(h)] = i; });
 
-  const atzRange = atzimesSheet.getRange(2, 1, Math.max(0, atzimesSheet.getLastRow() - 1), atzimesSheet.getLastColumn());
+  const atzRange = atzimesSheet.getRange(2, 1, Math.max(0, atzimesSheet.getLastColumn() ? atzimesSheet.getLastRow() - 1 : 0), atzimesSheet.getLastColumn());
   const atzValues = atzRange.getValues();
   let count = 0;
   for (let i = 0; i < atzValues.length; i++) {
@@ -430,4 +431,43 @@ function migrateBackfill() {
   }
   atzRange.setValues(atzValues);
   return count;
+}
+
+// Migrācija: izlabo datuma formātu visās lapās (atzimes un atzimes_log).
+// Ja datums ir 'YYYY-MM-DDTHH:MM:SS.sssZ' (piem. 2026-05-09T00:00:00.000Z),
+// pārraksta uz tādu pašu datumu, bet tikai YYYY-MM-DD formātā.
+// Ja datums šūnā ir Date objekts, pārraksta to kā tekstu YYYY-MM-DD.
+function fixDates() {
+  const sheets = [getSheet('atzimes'), getSheet('atzimes_log')];
+  let fixed = 0;
+  sheets.forEach(sheet => {
+    if (!sheet) return;
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const aliasMap = buildAliasMap(headers);
+    const dateColIdx = headers.findIndex((h, i) => aliasMap[i] === 'date');
+    if (dateColIdx < 0) return;
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return;
+    const range = sheet.getRange(2, dateColIdx + 1, lastRow - 1, 1);
+    const values = range.getValues();
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i][0];
+      if (v instanceof Date) {
+        const y = v.getFullYear();
+        const m = String(v.getMonth() + 1).padStart(2, '0');
+        const d = String(v.getDate()).padStart(2, '0');
+        values[i][0] = y + '-' + m + '-' + d;
+        fixed++;
+      } else if (typeof v === 'string' && v.match(/^\d{4}-\d{2}-\d{2}T/)) {
+        values[i][0] = v.substring(0, 10);
+        fixed++;
+      } else if (typeof v === 'string' && v.match(/^\d{2}\.\d{2}\.\d{4}$/)) {
+        const p = v.split('.');
+        values[i][0] = p[2] + '-' + p[1] + '-' + p[0];
+        fixed++;
+      }
+    }
+    range.setValues(values);
+  });
+  return fixed;
 }

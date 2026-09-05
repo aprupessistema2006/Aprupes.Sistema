@@ -314,10 +314,10 @@ class LoginController {
   }
 
   redirectByRole(role) {
-    const normalizedRole = String(role || '').toLowerCase().trim();
-    if (normalizedRole === 'administrators' || normalizedRole === 'admins' || normalizedRole === 'admin') {
+    const r = String(role || '').toLowerCase().trim();
+    if (r === 'administrators' || r === 'admins' || r === 'admin') {
       window.location.href = 'admin.html';
-    } else if (normalizedRole === 'kontroliere' || normalizedRole === 'controller') {
+    } else if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') {
       window.location.href = 'control.html';
     } else {
       window.location.href = 'aprupe.html';

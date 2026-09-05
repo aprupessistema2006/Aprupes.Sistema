@@ -226,10 +226,16 @@ class ControlPanel {
     const employeeId = document.getElementById('employeeFilter').value;
     const onlyEdited = document.getElementById('onlyEdited').checked;
 
+    const extractAll = (row) => [
+      this.extractDateFromAnyField(row),
+      this.extractDateFromAnyFieldField(row, 'izveidots'),
+      this.extractDateFromAnyFieldField(row, 'created')
+    ].filter(Boolean);
+
     const filterBy = (row) => {
       if (date) {
-        const rowDate = this.extractDateFromAnyField(row);
-        if (rowDate && rowDate !== date) return false;
+        const rowDates = extractAll(row);
+        if (rowDates.length > 0 && !rowDates.includes(date)) return false;
       }
       if (clientId) {
         const cid = String(row.clientId || '');
@@ -247,6 +253,22 @@ class ControlPanel {
     if (onlyEdited) log = log.filter(l => l.type === 'Labots' || l.type === 'Labots' || l.prevValue);
 
     return { marks, log, date, clientId, employeeId, onlyEdited };
+  }
+
+  extractDateFromAnyFieldField(row, field) {
+    const v = row[field];
+    if (!v) return '';
+    if (v instanceof Date) {
+      const y = v.getFullYear();
+      const m = String(v.getMonth() + 1).padStart(2, '0');
+      const d = String(v.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + d;
+    }
+    if (typeof v === 'string') {
+      const m1 = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m1) return m1[0];
+    }
+    return '';
   }
 
   renderAll() {
@@ -423,17 +445,21 @@ class ControlPanel {
     if (!body) return;
 
     if (log.length === 0) {
-      body.innerHTML = '<tr><td colspan="8" class="loading">Nav datu izvēlētajā datumā / filtrā</td></tr>';
+      body.innerHTML = '<tr><td colspan="9" class="loading">Nav datu izvēlētajā datumā / filtrā</td></tr>';
       return;
     }
 
     const sorted = [...log].sort((a, b) => {
+      const da = this.extractDateFromAnyField(a) || '';
+      const db = this.extractDateFromAnyField(b) || '';
+      if (da !== db) return db.localeCompare(da);
       const ta = this.formatTimeForDisplay(a.time);
       const tb = this.formatTimeForDisplay(b.time);
       return tb.localeCompare(ta);
     });
 
-    body.innerHTML = sorted.slice(0, 200).map(l => {
+    body.innerHTML = sorted.slice(0, 500).map(l => {
+      const date = this.extractDateFromAnyField(l) || '-';
       const time = this.formatTimeForDisplay(l.time);
       const cid = String(l.clientId || '');
       const eid = String(l.employeeId || '');
@@ -443,7 +469,8 @@ class ControlPanel {
       const value = l.value === '' || l.value === undefined ? '<em style="color:#999">(tukšs)</em>' : this.escapeHtml(String(l.value));
       return `
         <tr>
-          <td><strong>${time}</strong></td>
+          <td><strong>${this.escapeHtml(date)}</strong></td>
+          <td><strong>${this.escapeHtml(time)}</strong></td>
           <td>${this.escapeHtml(clientName.trim())}</td>
           <td>${this.escapeHtml(empName.trim())}</td>
           <td>${this.escapeHtml(this.formatCategoryLabel(l.category))}</td>
