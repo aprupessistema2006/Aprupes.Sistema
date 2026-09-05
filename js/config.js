@@ -2,7 +2,7 @@ const CONFIG = {
   APP_NAME: 'Aprūpes sistēma',
   VERSION: '1.0.0',
 
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbxoHrNWj0tBGbcCaOaRyJDo6owJ7ik0_R3ldMmCkwfZIDziLrHEjmWWUoak8JNemunS0Q/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbx6Xb7gfsBbz406ptuNONzmuTTkYGEs4TxVd46eBUbrw64lr-0v--JA2ox3Nd9Kq1Q6XA/exec',
 
   SHEET_ID: '1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E',
 
