@@ -36,7 +36,7 @@ body.online {
 
 .login-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 480px;
   padding: 20px;
 }
 
@@ -138,6 +138,302 @@ body.online {
   min-height: 16px;
 }
 
+.employee-search-row {
+  margin-bottom: 10px;
+}
+
+#employeeSearch {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+  border: 2px solid #e0e6ed;
+  border-radius: 10px;
+  outline: none;
+  transition: var(--transition);
+  background: #fafbfc;
+}
+
+#employeeSearch:focus {
+  border-color: var(--accent);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
+}
+
+.employee-list-wrap {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #e0e6ed;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  background: #fafbfc;
+}
+
+.employee-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.employee-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #ecf0f1;
+  transition: var(--transition);
+  text-align: left;
+}
+
+.employee-item:last-child {
+  border-bottom: none;
+}
+
+.employee-item:hover {
+  background: #e8f5e9;
+}
+
+.employee-item.selected {
+  background: linear-gradient(135deg, #c8e6c9, #a5d6a7);
+  font-weight: 600;
+}
+
+.emp-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.emp-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.emp-name {
+  font-size: 15px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.emp-role {
+  font-size: 12px;
+  color: #7f8c8d;
+  margin-top: 2px;
+}
+
+.selected-employee {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  border-left: 4px solid #1976d2;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.selected-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #27ae60);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.selected-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.selected-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0d47a1;
+}
+
+.selected-role {
+  font-size: 12px;
+  color: #1976d2;
+  margin-top: 2px;
+}
+
+.clear-selection {
+  background: rgba(0, 0, 0, 0.08);
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.clear-selection:hover {
+  background: rgba(0, 0, 0, 0.18);
+  transform: scale(1.1);
+}
+
+#pinInput:disabled {
+  background: #f0f0f0;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.logout-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.logout-confirm-card {
+  background: white;
+  border-radius: 16px;
+  padding: 26px 22px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: scaleIn 0.2s ease;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.logout-confirm-icon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.logout-confirm-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.logout-confirm-msg {
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.logout-confirm-msg.unsaved {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.logout-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.logout-btn-cancel,
+.logout-btn-confirm {
+  flex: 1;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.logout-btn-cancel {
+  background: #ecf0f1;
+  color: var(--primary);
+}
+
+.logout-btn-cancel:hover {
+  background: #d5dbdb;
+}
+
+.logout-btn-confirm {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+}
+
+.logout-btn-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(231, 76, 60, 0.4);
+}
+
+.logout-goodbye-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #27ae60, #16a085);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: white;
+  text-align: center;
+  padding: 30px;
+  animation: fadeIn 0.3s ease;
+}
+
+.logout-goodbye-emoji {
+  font-size: 90px;
+  margin-bottom: 14px;
+  animation: bounceIn 0.6s ease;
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.logout-goodbye-msg {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.logout-goodbye-sub {
+  font-size: 16px;
+  opacity: 0.95;
+}
+
 @media (max-width: 480px) {
   .login-card {
     padding: 24px 16px;
@@ -148,5 +444,8 @@ body.online {
   #pinInput {
     font-size: 20px;
     letter-spacing: 4px;
+  }
+  .employee-list-wrap {
+    max-height: 200px;
   }
 }

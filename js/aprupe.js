@@ -246,9 +246,14 @@ class AprupeController {
   }
 }
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  if (window.aprupeController) {
-    window.aprupeController.logout();
+document.getElementById('logoutBtn').addEventListener('click', (e) => {
+  if (e) e.preventDefault();
+  if (window.Logout) {
+    Logout.confirm().then((ok) => {
+      if (ok) Logout.performLogout();
+    });
+  } else {
+    if (window.aprupeController) window.aprupeController.logout();
   }
 });
 

@@ -47,9 +47,24 @@ class AdminPanel {
     document.getElementById('backBtn').addEventListener('click', () => {
       window.location.href = 'index.html';
     });
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      sessionStorage.removeItem('careUser');
-      window.location.href = 'index.html';
+    document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+      if (e) e.preventDefault();
+      if (window.Logout) {
+        const pending = await (async () => {
+          try {
+            if (window.careSync) {
+              const items = await window.careSync.getUnsyncedItems();
+              return items.length;
+            }
+          } catch (err) {}
+          return 0;
+        })();
+        const ok = await Logout.confirm({ pending });
+        if (ok) Logout.performLogout();
+      } else {
+        sessionStorage.removeItem('careUser');
+        window.location.href = 'index.html';
+      }
     });
 
     document.getElementById('clientSearch').addEventListener('input', (e) => {

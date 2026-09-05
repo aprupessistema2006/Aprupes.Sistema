@@ -461,3 +461,6 @@ body {
   color: var(--primary);
   font-size: 18px;
 }
+
+.logout-btn { color: #e74c3c !important; background: rgba(231,76,60,0.08) !important; border-radius: 50% !important; }
+.logout-btn:hover { background: #e74c3c !important; color: white !important; transform: scale(1.08); }
