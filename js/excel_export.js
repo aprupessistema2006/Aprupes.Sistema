@@ -156,7 +156,7 @@ class ExcelExporter {
     for (let day = startDay; day <= endDay; day++) {
       const dayData = dataByDay[day] || {};
       const dayOffset = day - startDay;
-      const colR = 2 + dayOffset * 2;
+      const colR = 10 + dayOffset * 2;
       const colV = colR + 1;
       const addrR = colLetter(colR);
       const addrV = colLetter(colV);
