@@ -44,7 +44,11 @@ function normalizeRow(raw) {
     piešķirt_darbiniekam_id: 'pieskirtDarbiniekamId',
     ir_pabeigts: 'irPabeigts',
     pabeigts_laiks: 'pabeigtsLaiks',
-    pabeigtajs_id: 'pabeigtajsId'
+    pabeigtajs_id: 'pabeigtajsId',
+    vārds: 'vards',
+    uzvārds: 'uzvards',
+    pin_kods: 'pin',
+    parole: 'parole'
   };
 
   Object.keys(map).forEach(oldKey => {
@@ -85,9 +89,11 @@ class SyncManager {
       for (const store of stores) {
         const items = (data[store] || []).map(normalizeRow);
         counts[store] = items.length;
-        await this.db.clear(store);
-        for (const item of items) {
-          await this.db.put(store, item);
+        if (items.length > 0) {
+          await this.db.clear(store);
+          for (const item of items) {
+            await this.db.put(store, item);
+          }
         }
       }
 
