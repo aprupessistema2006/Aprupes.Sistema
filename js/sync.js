@@ -72,6 +72,19 @@ function normalizeRow(raw) {
   if (row.clientId && !row.klientsId) row.klientsId = row.clientId;
   if (row.employeeId && !row.darbinieksId) row.darbinieksId = row.employeeId;
 
+  if (!row.datums || row.datums === '0000-00-00') {
+    const ts = String(row.id || '').match(/^[a-z]+_(\d+)/);
+    if (ts) {
+      const d = new Date(parseInt(ts[1], 10));
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        row.datums = y + '-' + m + '-' + day;
+      }
+    }
+  }
+
   return row;
 }
 
@@ -84,8 +97,6 @@ class SyncManager {
   }
 
   async loadInitialData() {
-    if (this.loaded) return { offline: false, count: {} };
-
     try {
       const url = SYNC_URL + '?action=load&t=' + Date.now();
       const response = await fetch(url);
@@ -101,16 +112,13 @@ class SyncManager {
       for (const store of stores) {
         const items = (data[store] || []).map(normalizeRow);
         counts[store] = items.length;
-        if (items.length > 0) {
-          await this.db.clear(store);
-          for (const item of items) {
-            await this.db.put(store, item);
-          }
+        await this.db.clear(store);
+        for (const item of items) {
+          await this.db.put(store, item);
         }
       }
 
       await this.db.setMeta('lastSync', Date.now());
-      this.loaded = true;
 
       return { offline: false, count: counts };
     } catch (err) {
