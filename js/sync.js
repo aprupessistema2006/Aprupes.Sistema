@@ -72,16 +72,14 @@ function normalizeRow(raw) {
   if (row.clientId && !row.klientsId) row.klientsId = row.clientId;
   if (row.employeeId && !row.darbinieksId) row.darbinieksId = row.employeeId;
 
-  if (!row.datums || row.datums === '0000-00-00') {
-    const ts = String(row.id || '').match(/^[a-z]+_(\d+)/);
-    if (ts) {
-      const d = new Date(parseInt(ts[1], 10));
-      if (!isNaN(d.getTime())) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        row.datums = y + '-' + m + '-' + day;
-      }
+  const idTs = String(row.id || '').match(/^[a-z]+_(\d+)/);
+  if (idTs) {
+    const d = new Date(parseInt(idTs[1], 10));
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      row.datums = y + '-' + m + '-' + day;
     }
   }
 
