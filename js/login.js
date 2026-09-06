@@ -74,8 +74,26 @@ class LoginController {
     const setupSection = document.getElementById('setupSection');
     if (loginSection) loginSection.style.display = 'block';
     if (setupSection) setupSection.style.display = 'none';
-    await this.sync.loadInitialData();
+    try {
+      await this.sync.loadInitialData();
+    } catch (e) {
+      console.warn('[login] initial load failed', e);
+    }
     await this.loadEmployees();
+  }
+
+  async createLocalEmployee(data) {
+    const id = this.db.generateId();
+    const employee = {
+      id,
+      vards: data.vards,
+      uzvards: data.uzvards,
+      loma: data.loma || 'administrators',
+      pin: data.pin,
+      aktivs: true
+    };
+    await this.db.add('darbinieki', employee);
+    return id;
   }
 
   setupUI() {
@@ -173,9 +191,22 @@ class LoginController {
             statusMsg.style.color = '#27ae60';
           }
         } catch (err) {
-          if (setupStatus) {
-            setupStatus.textContent = 'Kļūda: ' + err.message;
-            setupStatus.style.color = '#e74c3c';
+          const localId = await this.createLocalEmployee(data);
+          if (localId) {
+            if (setupStatus) {
+              setupStatus.textContent = '✓ Administrators izveidots lokāli (bez interneta). Dati tiks sinhronizēti, kad būs savienojums.';
+              setupStatus.style.color = '#f39c12';
+            }
+            await this.exitSetupMode();
+            if (statusMsg) {
+              statusMsg.textContent = '✓ Administrators izveidots lokāli';
+              statusMsg.style.color = '#f39c12';
+            }
+          } else {
+            if (setupStatus) {
+              setupStatus.textContent = 'Kļūda: ' + err.message;
+              setupStatus.style.color = '#e74c3c';
+            }
           }
         }
       });
