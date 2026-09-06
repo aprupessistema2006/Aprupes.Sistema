@@ -13,33 +13,56 @@
     <div class="login-card">
       <img src="logo/logoDS.png" alt="Aprūpes sistēma" class="login-logo">
       <h1>Aprūpes sistēma</h1>
-      <p id="loginSubtitle">Izvēlies darbinieku un ievadi PIN kodu</p>
 
-      <div class="employee-search-row">
-        <input type="text" id="employeeSearch" placeholder="🔍 Meklēt darbinieku..." autocomplete="off">
-      </div>
-
-      <div class="employee-list-wrap">
-        <div class="employee-list" id="employeeList">
-          <div class="loading">Ielādēju darbiniekus...</div>
-        </div>
-      </div>
-
-      <form id="loginForm" autocomplete="off">
-        <div class="selected-employee" id="selectedEmployee" style="display:none;">
-          <div class="selected-avatar" id="selectedAvatar">?</div>
-          <div class="selected-info">
-            <div class="selected-name" id="selectedName">—</div>
-            <div class="selected-role" id="selectedRole">—</div>
+      <div id="setupSection" style="display:none;">
+        <p class="setup-title">👋 Izveido pirmo administratoru</p>
+        <form id="setupForm" autocomplete="off">
+          <div class="form-group">
+            <label>Vārds *</label>
+            <input type="text" name="vards" required>
           </div>
-          <button type="button" class="clear-selection" id="clearSelection" title="Notīrīt izvēli">✕</button>
-        </div>
-        <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" placeholder="PIN __ __" maxlength="6" disabled>
-        <button type="submit" id="loginBtn" disabled>✓ Ieiet</button>
-      </form>
+          <div class="form-group">
+            <label>Uzvārds *</label>
+            <input type="text" name="uzvards" required>
+          </div>
+          <div class="form-group">
+            <label>PIN kods *</label>
+            <input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required>
+          </div>
+          <button type="submit" class="btn-primary">Izveidot administratoru</button>
+        </form>
+        <div id="setupStatus" class="status-message"></div>
+      </div>
 
-      <div id="errorMessage" class="error-message" style="display:none;"></div>
-      <div id="statusMessage" class="status-message"></div>
+      <div id="loginSection">
+        <p id="loginSubtitle">Izvēlies darbinieku un ievadi PIN kodu</p>
+
+        <div class="employee-search-row">
+          <input type="text" id="employeeSearch" placeholder="🔍 Meklēt darbinieku..." autocomplete="off">
+        </div>
+
+        <div class="employee-list-wrap">
+          <div class="employee-list" id="employeeList">
+            <div class="loading">Ielādēju darbiniekus...</div>
+          </div>
+        </div>
+
+        <form id="loginForm" autocomplete="off">
+          <div class="selected-employee" id="selectedEmployee" style="display:none;">
+            <div class="selected-avatar" id="selectedAvatar">?</div>
+            <div class="selected-info">
+              <div class="selected-name" id="selectedName">—</div>
+              <div class="selected-role" id="selectedRole">—</div>
+            </div>
+            <button type="button" class="clear-selection" id="clearSelection" title="Notīrīt izvēli">✕</button>
+          </div>
+          <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" placeholder="PIN __ __" maxlength="6" disabled>
+          <button type="submit" id="loginBtn" disabled>✓ Ieiet</button>
+        </form>
+
+        <div id="errorMessage" class="error-message" style="display:none;"></div>
+        <div id="statusMessage" class="status-message"></div>
+      </div>
     </div>
   </div>
   <script src="js/config.js?v=20250906"></script>

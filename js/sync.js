@@ -150,6 +150,30 @@ class SyncManager {
     const darbinieki = await this.db.getAll('darbinieki');
     return darbinieki.length > 0;
   }
+
+  async hasRemoteEmployees() {
+    try {
+      const url = SYNC_URL + '?action=load&t=' + Date.now();
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.error) return false;
+      return (data.darbinieki || []).length > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async createEmployee(data) {
+    const response = await fetch(SYNC_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'createEmployee', data })
+    });
+    if (!response.ok) throw new Error('Neizdevās izveidot darbinieku');
+    const result = await response.json();
+    return result;
+  }
 }
 
 if (typeof module !== 'undefined' && module.exports) {

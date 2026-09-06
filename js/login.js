@@ -7,6 +7,7 @@ class LoginController {
     this.filteredEmployees = [];
     this.selectedEmployee = null;
     this.pin = '';
+    this.setupMode = false;
     this.init();
   }
 
@@ -30,31 +31,51 @@ class LoginController {
 
     this.setupUI();
 
-    const hasLocal = await this.sync.hasLocalData();
     const statusMsg = document.getElementById('statusMessage');
-    if (hasLocal) {
-      statusMsg.textContent = 'Gatavs (lokāli dati)';
-      document.body.classList.add('online');
-    } else {
-      statusMsg.textContent = 'Ielādēju datus...';
+    statusMsg.textContent = 'Pārbaudām savienojumu...';
+
+    const hasRemote = await this.sync.hasRemoteEmployees();
+    const hasLocal = await this.sync.hasLocalData();
+
+    if (!hasRemote && !hasLocal) {
+      this.enterSetupMode();
+      return;
     }
 
-    this.sync.loadInitialData().then(async (result) => {
-      if (result.offline) {
-        const hasAfter = await this.sync.hasLocalData();
-        if (!hasAfter) {
-          statusMsg.textContent = '⚠️ Nav interneta un nav lokālu datu.';
-        } else {
-          statusMsg.textContent = '⚠️ Bezsaistē (lokāli dati)';
-        }
-      } else {
-        const marks = result.count['atzimes'] || 0;
-        const log = result.count['atzimes_log'] || 0;
-        statusMsg.textContent = '✓ Gatavs (' + marks + ' atzīmes, ' + log + ' žurnāla ieraksti)';
+    if (hasRemote) {
+      statusMsg.textContent = 'Ielādēju datus...';
+      try {
+        await this.sync.loadInitialData();
+        statusMsg.textContent = '✓ Savienojums aktīvs';
         document.body.classList.add('online');
+      } catch (e) {
+        statusMsg.textContent = '⚠️ Neizdevās ielādēt datus. Mēģinam lokāli...';
       }
-      await this.loadEmployees();
-    });
+    } else if (hasLocal) {
+      statusMsg.textContent = '⚠️ Bezsaistē (lokāli dati)';
+    }
+
+    await this.loadEmployees();
+  }
+
+  enterSetupMode() {
+    this.setupMode = true;
+    const loginSection = document.getElementById('loginSection');
+    const setupSection = document.getElementById('setupSection');
+    const statusMsg = document.getElementById('statusMessage');
+    if (loginSection) loginSection.style.display = 'none';
+    if (setupSection) setupSection.style.display = 'block';
+    if (statusMsg) statusMsg.textContent = 'Nav darbinieku. Izveido pirmo administratoru.';
+  }
+
+  async exitSetupMode() {
+    this.setupMode = false;
+    const loginSection = document.getElementById('loginSection');
+    const setupSection = document.getElementById('setupSection');
+    if (loginSection) loginSection.style.display = 'block';
+    if (setupSection) setupSection.style.display = 'none';
+    await this.sync.loadInitialData();
+    await this.loadEmployees();
   }
 
   setupUI() {
@@ -123,6 +144,42 @@ class LoginController {
         form.dispatchEvent(new Event('submit'));
       }
     });
+
+    const setupForm = document.getElementById('setupForm');
+    if (setupForm) {
+      setupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = {
+          vards: formData.get('vards'),
+          uzvards: formData.get('uzvards'),
+          pin: formData.get('pin'),
+          loma: 'administrators'
+        };
+        const setupStatus = document.getElementById('setupStatus');
+        if (setupStatus) {
+          setupStatus.textContent = 'Izveidoju administratoru...';
+          setupStatus.style.display = 'block';
+        }
+        try {
+          await this.sync.createEmployee(data);
+          if (setupStatus) {
+            setupStatus.textContent = '✓ Administrators izveidots! Ielādēju...';
+            setupStatus.style.color = '#27ae60';
+          }
+          await this.exitSetupMode();
+          if (statusMsg) {
+            statusMsg.textContent = '✓ Administrators izveidots';
+            statusMsg.style.color = '#27ae60';
+          }
+        } catch (err) {
+          if (setupStatus) {
+            setupStatus.textContent = 'Kļūda: ' + err.message;
+            setupStatus.style.color = '#e74c3c';
+          }
+        }
+      });
+    }
   }
 
   async loadEmployees() {
