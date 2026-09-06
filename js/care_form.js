@@ -83,6 +83,8 @@ class CareFormController {
       this.renderTaskBanner();
       this.toast('✓ Dati sinhronizēti ar serveri');
     });
+
+    this.setupEventListeners();
   }
 
   async renderTaskBanner() {
@@ -162,14 +164,30 @@ class CareFormController {
     document.querySelectorAll('.shift-tab').forEach(tab => {
       tab.addEventListener('click', (e) => {
         document.querySelectorAll('.shift-tab').forEach(t => t.classList.remove('active'));
-        e.target.classList.add('active');
-        this.currentShift = e.target.dataset.shift;
-        this.renderForm();
+        e.currentTarget.classList.add('active');
+        this.currentShift = e.currentTarget.dataset.shift;
+        this.updateCategoryStatuses();
       });
     });
 
+    this.setupShiftAutoUpdate();
+
     document.getElementById('signBtn').addEventListener('click', () => {
       this.handleSign();
+    });
+
+    document.querySelectorAll('.category-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        const cat = e.currentTarget.dataset.cat;
+        this.openCategoryModal(cat);
+      });
+    });
+
+    document.getElementById('modalClose').addEventListener('click', () => {
+      this.closeCategoryModal();
+    });
+    document.getElementById('categoryModal').addEventListener('click', (e) => {
+      if (e.target.id === 'categoryModal') this.closeCategoryModal();
     });
   }
 
@@ -514,41 +532,6 @@ class CareFormController {
         cieminiEl.className = 'cat-status';
       }
     }
-  }
-
-  setupEventListeners() {
-    document.getElementById('backBtn').addEventListener('click', () => {
-      window.location.href = 'aprupe.html';
-    });
-
-    document.querySelectorAll('.shift-tab').forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        document.querySelectorAll('.shift-tab').forEach(t => t.classList.remove('active'));
-        e.currentTarget.classList.add('active');
-        this.currentShift = e.currentTarget.dataset.shift;
-        this.updateCategoryStatuses();
-      });
-    });
-
-    this.setupShiftAutoUpdate();
-
-    document.getElementById('signBtn').addEventListener('click', () => {
-      this.handleSign();
-    });
-
-    document.querySelectorAll('.category-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        const cat = e.currentTarget.dataset.cat;
-        this.openCategoryModal(cat);
-      });
-    });
-
-    document.getElementById('modalClose').addEventListener('click', () => {
-      this.closeCategoryModal();
-    });
-    document.getElementById('categoryModal').addEventListener('click', (e) => {
-      if (e.target.id === 'categoryModal') this.closeCategoryModal();
-    });
   }
 
   openCategoryModal(cat) {
@@ -986,6 +969,7 @@ class CareFormController {
     }
     if (urinsInput) urinsInput.value = '';
     if (uznemtsInput) uznemtsInput.value = '';
+    this.updateCategoryStatuses();
     await this.loadAllClientMarks();
     await this.loadHistory();
     this.renderTaskBanner();
@@ -1177,6 +1161,7 @@ class CareFormController {
     });
 
     this.toast('✓ Maiņa pievienota (' + newCount + ')');
+    this.updateCategoryStatuses();
     this.openCategoryModal('diapers');
     await this.loadAllClientMarks();
     await this.loadHistory();
@@ -1311,6 +1296,7 @@ class CareFormController {
       }
     });
 
+    this.updateCategoryStatuses();
     this.toast('Saglabāts');
   }
 

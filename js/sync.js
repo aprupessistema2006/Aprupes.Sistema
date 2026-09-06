@@ -276,9 +276,9 @@ class SyncManager {
     const sheets = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'dienas_ierakti', 'uzdevomi'];
 
     try {
-      const url = this.config.GAS_URL + '?action=load';
+      const url = this.config.GAS_URL + '?action=load&t=' + Date.now();
       console.log('[sync] GET', url);
-      const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+      const response = await fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' });
       console.log('[sync] status', response.status, response.statusText);
       if (response.ok) {
         const text = await response.text();

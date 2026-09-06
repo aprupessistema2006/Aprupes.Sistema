@@ -305,18 +305,23 @@ function handleMark(data) {
   const today = m.date ? normalizeToDateString(m.date) : formatDate(new Date());
   const nowStr = formatDateTimeLV(new Date());
 
+  ensureColumns(atzimesSheet, ['Pēdējais laiks', 'Darbinieks pēdējais', 'Pēdējā vērtība']);
+  ensureColumns(logSheet, ['Pēdējais laiks', 'Darbinieks pēdējais', 'Pēdējā vērtība']);
+
   appendRow(atzimesSheet, {
     id: id,
     klients_id: m.clientId,
     darbinieks_id: m.employeeId,
     datums: today,
+    laiks: nowStr,
     periods: m.shift || 'R',
     kategorija: m.category,
     lauka_nosaukums: m.field,
     vertiba: m.value,
     pedeja_vertiba: m.value,
     pedeja_laiks: nowStr,
-    darbinieks_pedejais: m.employeeId
+    darbinieks_pedejais: m.employeeId,
+    izveidots: nowStr
   });
 
   appendRow(logSheet, {
@@ -335,6 +340,18 @@ function handleMark(data) {
   });
 
   return createResponse(200, { success: true, id: id });
+}
+
+function ensureColumns(sheet, requiredColumns) {
+  if (!sheet) return;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const missing = requiredColumns.filter(col => !headers.includes(col));
+  if (missing.length > 0) {
+    const lastCol = headers.length;
+    missing.forEach((col, i) => {
+      sheet.getRange(1, lastCol + 1 + i).setValue(col);
+    });
+  }
 }
 
 function handleCreateTask(data) {
