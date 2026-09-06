@@ -63,7 +63,6 @@ class SyncManager {
   constructor(db, config) {
     this.db = db;
     this.config = config;
-    this.pending = [];
     this.syncing = false;
     this.loaded = false;
   }
@@ -101,49 +100,30 @@ class SyncManager {
     }
   }
 
-  enqueueChange(change) {
-    this.pending.push({
-      ...change,
-      _ts: Date.now()
-    });
+  async enqueueChange(change) {
+    if (!SYNC_URL) return;
+    try {
+      await fetch(SYNC_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(change)
+      });
+    } catch (e) {
+      console.error('[sync] send failed', e);
+    }
   }
 
   async getUnsyncedItems() {
-    return this.pending;
+    return [];
   }
 
   async getUnsyncedCount() {
-    return this.pending.length;
+    return 0;
   }
 
   async sync() {
-    if (this.syncing || !SYNC_URL || this.pending.length === 0) return;
-
-    this.syncing = true;
-    const items = [...this.pending];
-    this.pending = [];
-
-    try {
-      for (const item of items) {
-        const response = await fetch(SYNC_URL, {
-          method: 'POST',
-          mode: 'cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(item)
-        });
-
-        if (!response.ok) {
-          throw new Error('Sync failed: ' + response.status);
-        }
-      }
-
-      await this.db.setMeta('lastSync', Date.now());
-    } catch (err) {
-      this.pending = [...this.pending, ...items];
-      throw err;
-    } finally {
-      this.syncing = false;
-    }
+    this.syncing = false;
   }
 
   async hasLocalData() {

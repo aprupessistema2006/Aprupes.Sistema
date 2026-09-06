@@ -26,8 +26,6 @@ class CareDB {
           atzimes_log: { keyPath: 'id' },
           dienas_ierakti: { keyPath: 'id' },
           uzdevomi: { keyPath: 'id' },
-          pending: { keyPath: 'id' },
-          pamaciba: { keyPath: 'id' },
           meta: { keyPath: 'key' }
         };
         Object.keys(migrations).forEach(storeName => {
@@ -42,7 +40,7 @@ class CareDB {
   _initMemory() {
     this._memory = {
       darbinieki: {}, klienti: {}, atzimes: {}, atzimes_log: {},
-      dienas_ierakti: {}, uzdevomi: {}, pending: {}, pamaciba: {}, meta: {}
+      dienas_ierakti: {}, uzdevomi: {}, meta: {}
     };
     this.db = { _memory: this._memory, _isMemory: true };
     return this.db;

@@ -23,9 +23,7 @@ const CONFIG = {
     ATZIMES: 'atzimes',
     ATZIMES_LOG: 'atzimes_log',
     DIENAS_IERAKTI: 'dienas_ierakti',
-    UZDEVOMI: 'uzdevomi',
-    PAMACIBA: 'pamaciba',
-    PENDING: 'pending'
+    UZDEVOMI: 'uzdevomi'
   },
 
   SHIFT_OPTIONS: [
