@@ -41,9 +41,11 @@ class ExcelExporter {
     console.log('excel_export: sample marks', JSON.stringify(marks.slice(0,2), null, 2));
     marks.forEach(m => {
       let d;
-      console.log('excel_export: m.date type', typeof m.date, 'value', m.date);
       if (typeof m.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(m.date)) {
-        d = new Date(m.date.substring(0, 10) + 'T00:00:00');
+        const parts = m.date.split('-');
+        d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else if (m.date instanceof Date) {
+        d = m.date;
       } else {
         d = new Date(m.date);
       }
@@ -156,7 +158,7 @@ class ExcelExporter {
     for (let day = startDay; day <= endDay; day++) {
       const dayData = dataByDay[day] || {};
       const dayOffset = day - startDay;
-      const colR = 10 + dayOffset * 2;
+      const colR = 2 + dayOffset * 2;
       const colV = colR + 1;
       const addrR = colLetter(colR);
       const addrV = colLetter(colV);

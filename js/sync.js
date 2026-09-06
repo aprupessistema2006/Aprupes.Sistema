@@ -88,10 +88,40 @@ function repairDateString(dateStr, refDateStr) {
     return dateStr || '';
   }
   const dateParts = dateStr.substring(0, 10).split('-');
-  if (dateParts.length === 3) return dateStr;
-  if (!refDateStr || refDateStr.length < 10) return dateStr;
-  const refParts = refDateStr.substring(0, 10).split('-');
-  if (refParts.length === 3) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
+  if (dateParts.length !== 3) {
+    if (!refDateStr || refDateStr.length < 10) return dateStr;
+    const refParts = refDateStr.substring(0, 10).split('-');
+    if (refParts.length === 3) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
+    return dateStr;
+  }
+
+  const year = parseInt(dateParts[0], 10);
+  const month = parseInt(dateParts[1], 10);
+  const day = parseInt(dateParts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    if (!refDateStr || refDateStr.length < 10) return dateStr;
+    const refParts = refDateStr.substring(0, 10).split('-');
+    if (refParts.length === 3) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
+    return dateStr;
+  }
+  if (year === 0 || year < 2000 || month < 1 || month > 12 || day < 1 || day > 31) {
+    if (!refDateStr || refDateStr.length < 10) return dateStr;
+    const refParts = refDateStr.substring(0, 10).split('-');
+    if (refParts.length === 3) return refParts[0] + '-' + refParts[1] + '-' + refParts[2];
+    return dateStr;
+  }
+
+  if (refDateStr && refDateStr.length >= 10) {
+    const refParts = refDateStr.substring(0, 10).split('-');
+    if (refParts.length === 3) {
+      const refYear = parseInt(refParts[0], 10);
+      const refMonth = parseInt(refParts[1], 10);
+      if (!isNaN(refYear) && !isNaN(refMonth) && (year !== refYear || month !== refMonth)) {
+        return refDateStr.substring(0, 10);
+      }
+    }
+  }
+
   return dateStr;
 }
 
