@@ -25,6 +25,18 @@ function normalizeRow(raw) {
     }
   }
 
+  if (row.datums && row.izveidots && /^\d{4}-\d{2}-\d{2}/.test(String(row.izveidots)) && row.datums !== row.izveidots.substring(0, 10)) {
+    row.datums = row.izveidots.substring(0, 10);
+  }
+
+  if (row.datums && row.pedeja_laiks && /^\d{4}-\d{2}-\d{2}/.test(String(row.pedeja_laiks)) && row.datums !== row.pedeja_laiks.substring(0, 10)) {
+    row.datums = row.pedeja_laiks.substring(0, 10);
+  }
+
+  if (row.datums && row.pēdējais_laiks && /^\d{4}-\d{2}-\d{2}/.test(String(row.pēdējais_laiks)) && row.datums !== row.pēdējais_laiks.substring(0, 10)) {
+    row.datums = row.pēdējais_laiks.substring(0, 10);
+  }
+
   const map = {
     datums: 'date',
     klients_id: 'clientId',
