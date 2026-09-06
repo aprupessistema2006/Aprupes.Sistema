@@ -27,9 +27,9 @@ function getSheetData(sheet) {
         hasData = true;
       }
       if (v instanceof Date) {
-        row[headers[j]] = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+        row[normalizeKey(headers[j])] = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
       } else {
-        row[headers[j]] = v;
+        row[normalizeKey(headers[j])] = v;
       }
     }
     if (hasData) rows.push(row);
@@ -355,5 +355,11 @@ function normalizeToDateString(v) {
 }
 
 function normalizeKey(h) {
-  return String(h).toLowerCase().replace(/ /g, '_').replace(/[^a-z0-9_]/g, '');
+  return String(h)
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ /g, '_')
+    .replace(/[^a-z0-9_]/g, '');
 }
