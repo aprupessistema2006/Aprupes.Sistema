@@ -137,17 +137,15 @@ function normalizeRow(row) {
     if (target === 'aktivs' && typeof v === 'string') {
       v = v === 'TRUE' || v === 'true' || v === '1';
     }
+    // Vienkārši normalizējam datumu, neļaujot to bojāt ar repairDateString
     if (target === 'date' || target === 'datums' || target === 'created' || target === 'lastModified' || target === 'izveidots') {
       v = normalizeDate(v);
     }
     out[target] = v;
   }
-    if (out.date && out.date.length >= 10) {
-      const refStr = out.created || out.lastModified || '';
-      if (refStr.length >= 10) {
-        out.date = repairDateString(out.date, refStr);
-      }
-    }
+  
+  // Noņemam vai ignorējam repairDateString, lai tas nepārrakstītu pareizus YYYY-MM-DD datumus
+  
   return out;
 }
 
