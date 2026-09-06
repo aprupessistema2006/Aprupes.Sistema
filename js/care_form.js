@@ -56,22 +56,18 @@ class CareFormController {
     this.sync = new SyncManager(this.db, CONFIG);
     window.careSync = this.sync;
 
-    window.addEventListener('syncStatusChange', (e) => {
-      const badge = document.getElementById('syncStatus');
-      if (badge) badge.textContent = e.detail;
-    });
-
-    this.setupEventListeners();
-    await this.loadClient();
-    await this.loadMarks();
-    await this.loadHistory();
-    await this.loadAllClientMarks();
-    this.renderForm();
-    this.renderHistory();
-    this.renderSignature();
-    this.updateTeamSummary();
-    this.renderQuickTotals();
-    this.renderTaskBanner();
+    window.addEventListener('syncComplete', async () => {
+  await this.loadClient();
+  await this.loadMarks();
+  await this.loadHistory();
+  await this.loadAllClientMarks();
+  this.renderForm();
+  this.renderHistory();
+  this.renderSignature();
+  this.updateTeamSummary();
+  this.renderQuickTotals();
+  this.renderTaskBanner();
+});
 
     this.sync.loadInitialData().then(async () => {
       await new Promise(r => setTimeout(r, 200));
@@ -1250,10 +1246,10 @@ class CareFormController {
     this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
-    if (typeof this.renderModalContent === 'function') {
-      const catMap = { temp: 'temp', higiena: 'higiena', aktivitate: 'aktivitate', edinasana: 'edinasana', sikdrumi: 'sikdrumi', fiziologija: 'fiziologija', citsi_pasakomi: 'citi' };
-      const openCat = catMap[category];
-      if (openCat) this.renderModalContent(openCat);
+   const catMap = { temp: 'temp', higiena: 'higiena', aktivitate: 'aktivitate', edinasana: 'edinasana', sikdrumi: 'sikdrumi', fiziologija: 'fiziologija', citsi_pasakomi: 'citi' };
+    const openCat = catMap[category];
+    if (openCat) {
+      this.openCategoryModal(openCat);
     }
   }
 
