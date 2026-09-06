@@ -42,6 +42,14 @@ const FIELD_ALIASES = {
 
 function normalizeDate(v) {
   if (!v) return '';
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return '';
+    // Ja datums jau satur YYYY-MM-DD, uzreiz izņemam pirmos 10 simbolus (novērš jebkādu datumu bojāšanu)
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      return s.substring(0, 10);
+    }
+  }
   if (v instanceof Date) {
     if (isNaN(v.getTime())) return '';
     const y = v.getFullYear();
@@ -52,9 +60,6 @@ function normalizeDate(v) {
   if (typeof v === 'string') {
     const s = v.trim();
     if (!s) return '';
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-      return s.substring(0, 10);
-    }
     if (/^\d{2}\.\d{2}\.\d{4}$/.test(s)) {
       const parts = s.split('.');
       return parts[2] + '-' + parts[1] + '-' + parts[0];
