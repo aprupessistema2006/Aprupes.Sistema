@@ -30,6 +30,7 @@ class LoginController {
     }
 
     this.setupUI();
+    this.setupLanguageSwitcher();
 
     const statusMsg = document.getElementById('statusMessage');
     const loadingOverlay = document.getElementById('loadingOverlay');
@@ -225,6 +226,22 @@ class LoginController {
           }
         }
       });
+    }
+  }
+
+  setupLanguageSwitcher() {
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        if (lang && typeof setLang === 'function') {
+          setLang(lang);
+          document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+    if (typeof applyLanguage === 'function') {
+      applyLanguage();
     }
   }
 

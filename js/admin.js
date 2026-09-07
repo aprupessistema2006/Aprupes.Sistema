@@ -24,6 +24,7 @@ class AdminPanel {
 
     this.setupTabs();
     this.setupUI();
+    this.setupLanguageSwitcher();
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
     if (overlay) overlay.style.display = 'flex';
@@ -101,6 +102,22 @@ class AdminPanel {
     });
 
     document.getElementById('gasUrl').textContent = CONFIG.GAS_URL;
+  }
+
+  setupLanguageSwitcher() {
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        if (lang && typeof setLang === 'function') {
+          setLang(lang);
+          document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+    if (typeof applyLanguage === 'function') {
+      applyLanguage();
+    }
   }
 
   async loadData() {

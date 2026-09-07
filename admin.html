@@ -4,91 +4,96 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2c3e50">
-  <title>Administratora panelis</title>
+  <title data-i18n="loginTitle">Administratora panelis</title>
   <link rel="stylesheet" href="css/admin.css">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
+  <div class="lang-switcher">
+    <button data-lang="lv" class="lang-btn active">LV</button>
+    <button data-lang="ru" class="lang-btn">RU</button>
+    <button data-lang="en" class="lang-btn">EN</button>
+  </div>
   <header class="header">
-    <button id="backBtn" class="btn-icon">←</button>
-    <h1>Administratora panelis</h1>
-    <button id="logoutBtn" class="btn-icon logout-btn" title="Izlogoties">⎋</button>
+    <button id="backBtn" class="btn-icon" data-i18n="backBtn">←</button>
+    <h1 data-i18n="loginTitle">Administratora panelis</h1>
+    <button id="logoutBtn" class="btn-icon logout-btn" data-i18n="logoutBtn" title="Izlogoties">⎋</button>
   </header>
 
   <nav class="tab-bar">
-    <button class="tab-btn active" data-tab="dashboard">📊 Pārskats</button>
-    <button class="tab-btn" data-tab="clients">👥 Klienti</button>
-    <button class="tab-btn" data-tab="employees">👤 Darbinieki</button>
-    <button class="tab-btn" data-tab="settings">⚙️ Iestatījumi</button>
+    <button class="tab-btn active" data-tab="dashboard" data-i18n="dashboard">📊 Pārskats</button>
+    <button class="tab-btn" data-tab="clients" data-i18n="clients">👥 Klienti</button>
+    <button class="tab-btn" data-tab="employees" data-i18n="employees">👤 Darbinieki</button>
+    <button class="tab-btn" data-tab="settings" data-i18n="settings">⚙️ Iestatījumi</button>
   </nav>
 
   <main class="main">
     <section id="dashboard" class="tab-content active">
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-label">Aktīvie klienti</div>
+          <div class="stat-label" data-i18n="activeClients">Aktīvie klienti</div>
           <div class="stat-value" id="dashActiveClients">0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Aktīvie darbinieki</div>
+          <div class="stat-label" data-i18n="activeEmployees">Aktīvie darbinieki</div>
           <div class="stat-value" id="dashActiveEmployees">0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Nesinhronizēti ieraksti</div>
+          <div class="stat-label" data-i18n="unsynced">Nesinhronizēti ieraksti</div>
           <div class="stat-value" id="dashUnsynced">0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Pēdējā sinhronizācija</div>
+          <div class="stat-label" data-i18n="lastSync">Pēdējā sinhronizācija</div>
           <div class="stat-value" id="dashLastSync" style="font-size:14px;">-</div>
         </div>
       </div>
 
       <div class="action-section">
-        <h2>Darbības</h2>
-        <button id="syncNow" class="btn-primary">Sinhronizēt tūlīt</button>
-        <button id="checkConnection" class="btn-secondary">Pārbaudīt savienojumu</button>
+        <h2 data-i18n="statistics">Darbības</h2>
+        <button id="syncNow" class="btn-primary" data-i18n="syncBtn">Sinhronizēt tūlīt</button>
+        <button id="checkConnection" class="btn-secondary" data-i18n="connectionOk">Pārbaudīt savienojumu</button>
         <div id="connectionResult" class="connection-result" style="display:none;"></div>
       </div>
     </section>
 
     <section id="clients" class="tab-content">
       <div class="section-header">
-        <h2>Klienti</h2>
-        <button id="addClientBtn" class="btn-primary">+ Pievienot klientu</button>
+        <h2 data-i18n="clients">Klienti</h2>
+        <button id="addClientBtn" class="btn-primary" data-i18n="addClient">+ Pievienot klientu</button>
       </div>
-      <input type="text" id="clientSearch" placeholder="Meklēt klientu..." class="search-input">
+      <input type="text" id="clientSearch" data-i18n="searchPlaceholder" placeholder="Meklēt klientu..." class="search-input">
       <div id="clientList" class="item-list">
-        <div class="loading">Ielādēju klientus...</div>
+        <div class="loading" data-i18n="loading">Ielādēju...</div>
       </div>
     </section>
 
     <section id="employees" class="tab-content">
       <div class="section-header">
-        <h2>Darbinieki</h2>
-        <button id="addEmployeeBtn" class="btn-primary">+ Pievienot darbinieku</button>
+        <h2 data-i18n="employees">Darbinieki</h2>
+        <button id="addEmployeeBtn" class="btn-primary" data-i18n="addEmployee">+ Pievienot darbinieku</button>
       </div>
-      <input type="text" id="employeeSearch" placeholder="Meklēt darbinieku..." class="search-input">
+      <input type="text" id="employeeSearch" data-i18n="searchPlaceholder" placeholder="Meklēt darbinieku..." class="search-input">
       <div id="employeeList" class="item-list">
-        <div class="loading">Ielādēju darbiniekus...</div>
+        <div class="loading" data-i18n="loading">Ielādēju...</div>
       </div>
     </section>
 
     <section id="settings" class="tab-content">
-      <h2>Sistēmas iestatījumi</h2>
+      <h2 data-i18n="settingsTitle">Sistēmas iestatījumi</h2>
       <div class="settings-group">
         <h3>Google Sheets savienojums</h3>
         <p>URL: <span id="gasUrl">-</span></p>
-        <button id="testConnection" class="btn-secondary">Pārbaudīt savienojumu</button>
+        <button id="testConnection" class="btn-secondary" data-i18n="connectionOk">Pārbaudīt savienojumu</button>
       </div>
       <div class="settings-group">
-        <h3>Datu pārvaldība</h3>
-        <button id="findDuplicates" class="btn-secondary">Meklēt dublikātus</button>
-        <button id="clearLocal" class="btn-secondary">Notīrīt lokālos datus</button>
+        <h3 data-i18n="statistics">Datu pārvaldība</h3>
+        <button id="findDuplicates" class="btn-secondary" data-i18n="findDuplicates">Meklēt dublikātus</button>
+        <button id="clearLocal" class="btn-secondary" data-i18n="clearLocal">Notīrīt lokālos datus</button>
       </div>
       <div class="settings-group">
-        <h3>Rezerves kopija</h3>
-        <p>Pēdējā rezerves kopija: <span id="lastBackup">-</span></p>
-        <button id="manualBackup" class="btn-secondary">Izveidot rezerves kopiju</button>
+        <h3 data-i18n="backupCreate">Rezerves kopija</h3>
+        <p data-i18n="lastSync">Pēdējā rezerves kopija: <span id="lastBackup">-</span></p>
+        <button id="manualBackup" class="btn-secondary" data-i18n="backupCreate">Izveidot rezerves kopiju</button>
       </div>
     </section>
   </main>
@@ -97,7 +102,7 @@
     <div class="loading-modal">
       <img src="logo/logoDS.png" alt="Aprūpes sistēma" class="loading-logo">
       <div class="loading-spinner"></div>
-      <div id="loadingText" class="loading-text">Ielādēju datus...</div>
+      <div id="loadingText" class="loading-text" data-i18n="loading">Ielādēju datus...</div>
     </div>
   </div>
 
@@ -111,6 +116,7 @@
   <div id="toast" class="toast"></div>
 
   <script src="js/config.js?v=20250907"></script>
+  <script src="js/i18n.js?v=20250907"></script>
   <script src="js/db.js?v=20250907"></script>
   <script src="js/sync.js?v=20250907"></script>
   <script src="js/logout.js?v=20250907"></script>

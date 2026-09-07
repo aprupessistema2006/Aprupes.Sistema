@@ -25,6 +25,7 @@ class ControlPanel {
     this.sync = new SyncManager(this.db, CONFIG);
     window.careSync = this.sync;
     this.setupUI();
+    this.setupLanguageSwitcher();
     await this.loadData();
     this.renderAll();
     await this.setupTasksUI();
@@ -130,6 +131,22 @@ class ControlPanel {
       });
     }
     document.getElementById('onlyEdited').addEventListener('change', () => this.renderHistory());
+  }
+
+  setupLanguageSwitcher() {
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        if (lang && typeof setLang === 'function') {
+          setLang(lang);
+          document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+    if (typeof applyLanguage === 'function') {
+      applyLanguage();
+    }
   }
 
   todayLocal() {

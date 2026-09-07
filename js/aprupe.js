@@ -32,6 +32,7 @@ class AprupeController {
     });
 
     this.setupSearch();
+    this.setupLanguageSwitcher();
     await this.loadClients();
     await this.loadTodayMarks();
     this.filteredClients = [...this.clients];
@@ -81,6 +82,22 @@ class AprupeController {
     });
 
     searchBox.focus();
+  }
+
+  setupLanguageSwitcher() {
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        if (lang && typeof setLang === 'function') {
+          setLang(lang);
+          document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+    if (typeof applyLanguage === 'function') {
+      applyLanguage();
+    }
   }
 
   async loadClients() {

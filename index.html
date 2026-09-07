@@ -4,46 +4,51 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2c3e50">
-  <title>Aprūpes sistēma – Ienākšana</title>
+  <title data-i18n="loginTitle">Aprūpes sistēma – Ienākšana</title>
   <link rel="stylesheet" href="css/index.css">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
+  <div class="lang-switcher">
+    <button data-lang="lv" class="lang-btn active">LV</button>
+    <button data-lang="ru" class="lang-btn">RU</button>
+    <button data-lang="en" class="lang-btn">EN</button>
+  </div>
   <div class="login-container">
     <div class="login-card">
       <img src="logo/logoDS.png" alt="Aprūpes sistēma" class="login-logo">
-      <h1>Aprūpes sistēma</h1>
+      <h1 data-i18n="loginTitle">Aprūpes sistēma</h1>
 
       <div id="setupSection" style="display:none;">
-        <p class="setup-title">👋 Izveido pirmo administratoru</p>
+        <p class="setup-title" data-i18n="setupTitle">👋 Izveido pirmo administratoru</p>
         <form id="setupForm" autocomplete="off">
           <div class="form-group">
-            <label>Vārds *</label>
+            <label data-i18n="setupName">Vārds *</label>
             <input type="text" name="vards" required>
           </div>
           <div class="form-group">
-            <label>Uzvārds *</label>
+            <label data-i18n="setupSurname">Uzvārds *</label>
             <input type="text" name="uzvards" required>
           </div>
           <div class="form-group">
-            <label>PIN kods *</label>
+            <label data-i18n="setupPin">PIN kods *</label>
             <input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required>
           </div>
-          <button type="submit" class="btn-primary">Izveidot administratoru</button>
+          <button type="submit" class="btn-primary" data-i18n="setupBtn">Izveidot administratoru</button>
         </form>
         <div id="setupStatus" class="status-message"></div>
       </div>
 
       <div id="loginSection">
-        <p id="loginSubtitle">Izvēlies darbinieku un ievadi PIN kodu</p>
+        <p id="loginSubtitle" data-i18n="loginSubtitle">Izvēlies darbinieku un ievadi PIN kodu</p>
 
         <div class="employee-search-row">
-          <input type="text" id="employeeSearch" placeholder="🔍 Meklēt darbinieku..." autocomplete="off">
+          <input type="text" id="employeeSearch" data-i18n="searchPlaceholder" placeholder="🔍 Meklēt darbinieku..." autocomplete="off">
         </div>
 
         <div class="employee-list-wrap">
           <div class="employee-list" id="employeeList">
-            <div class="loading">Ielādēju darbiniekus...</div>
+            <div class="loading" data-i18n="loading">Ielādēju...</div>
           </div>
         </div>
 
@@ -54,10 +59,10 @@
               <div class="selected-name" id="selectedName">—</div>
               <div class="selected-role" id="selectedRole">—</div>
             </div>
-            <button type="button" class="clear-selection" id="clearSelection" title="Notīrīt izvēli">✕</button>
+            <button type="button" class="clear-selection" title="Notīrīt izvēli">✕</button>
           </div>
-          <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" placeholder="PIN __ __" maxlength="6" disabled>
-          <button type="submit" id="loginBtn" disabled>✓ Ieiet</button>
+          <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" data-i18n="pinPlaceholder" placeholder="PIN __ __" maxlength="6" disabled>
+          <button type="submit" id="loginBtn" disabled data-i18n="loginBtn">✓ Ieiet</button>
         </form>
 
         <div id="errorMessage" class="error-message" style="display:none;"></div>
@@ -68,10 +73,11 @@
   <div id="loadingOverlay" class="loading-overlay" style="display:none;">
     <div class="loading-modal">
       <div class="loading-spinner"></div>
-      <div id="loadingText" class="loading-text">Ielādēju datus...</div>
+      <div id="loadingText" class="loading-text" data-i18n="loading">Ielādēju datus...</div>
     </div>
   </div>
   <script src="js/config.js?v=20250907"></script>
+  <script src="js/i18n.js?v=20250907"></script>
   <script src="js/db.js?v=20250907"></script>
   <script src="js/sync.js?v=20250907"></script>
   <script src="js/login.js?v=20250907"></script>

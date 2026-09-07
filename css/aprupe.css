@@ -501,3 +501,37 @@ body {
 .task-badge-today { background: #fff8e1; color: #e67e22; border: 1px solid #f39c12; }
 .task-badge-normal { background: #e3f2fd; color: #1976d2; border: 1px solid #2196f3; }
 .task-badge-arrow { font-size: 16px; line-height: 1; }
+.lang-switcher {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 9999;
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 4px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.lang-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: #555;
+  transition: all 0.2s ease;
+}
+
+.lang-btn:hover {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.lang-btn.active {
+  background: #2c3e50;
+  color: white;
+}

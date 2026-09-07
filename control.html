@@ -4,29 +4,34 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2c3e50">
-  <title>Kontroliera panelis</title>
+  <title data-i18n="loginTitle">Kontroliera panelis</title>
   <link rel="stylesheet" href="css/admin.css">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
+  <div class="lang-switcher">
+    <button data-lang="lv" class="lang-btn active">LV</button>
+    <button data-lang="ru" class="lang-btn">RU</button>
+    <button data-lang="en" class="lang-btn">EN</button>
+  </div>
   <header class="header">
-    <button id="backBtn" class="btn-icon">←</button>
-    <h1>Kontroliera panelis</h1>
-    <button id="logoutBtn" class="btn-icon logout-btn" title="Izlogoties">⎋</button>
+    <button id="backBtn" class="btn-icon" data-i18n="backBtn">←</button>
+    <h1 data-i18n="loginTitle">Kontroliera panelis</h1>
+    <button id="logoutBtn" class="btn-icon logout-btn" data-i18n="logoutBtn" title="Izlogoties">⎋</button>
   </header>
 
   <main class="main">
     <section class="filter-bar">
       <div class="filter-row">
-        <label>Datums:
+        <label data-i18n="day">Datums:
           <input type="date" id="dateFilter" value="">
         </label>
-        <label>Klients:
+        <label data-i18n="client">Klients:
           <select id="clientFilter">
             <option value="">Visi klienti</option>
           </select>
         </label>
-        <label>Darbinieks:
+        <label data-i18n="employee">Darbinieks:
           <select id="employeeFilter">
             <option value="">Visi</option>
           </select>
@@ -34,125 +39,125 @@
       </div>
       <div class="filter-row">
         <label>
-          <input type="checkbox" id="onlyEdited"> Tikai labotie
+          <input type="checkbox" id="onlyEdited"> <span data-i18n="edit">Tikai labotie</span>
         </label>
-        <button id="refreshBtn" class="btn-primary">🔄 Atjaunināt no servera</button>
+        <button id="refreshBtn" class="btn-primary" data-i18n="refresh">🔄 Atjaunināt no servera</button>
       </div>
     </section>
 
     <section class="export-section">
-      <h3>📊 Excel eksports</h3>
-      <p class="export-help">Izvēlies mēnesi un klientu, tad noklikšķini "Lejupielādēt". Fails tiks saglabāts.</p>
+      <h3 data-i18n="export">📊 Excel eksports</h3>
+      <p class="export-help" data-i18n="exportHelp">Izvēlies mēnesi un klientu, tad noklikšķini "Lejupielādēt".</p>
       <div class="export-row">
-        <label>Mēnesis:
+        <label data-i18n="month">Mēnesis:
           <input type="month" id="exportMonth" required>
         </label>
-        <label>Klients:
+        <label data-i18n="client">Klients:
           <select id="exportClient" required>
             <option value="">— izvēlies klientu —</option>
           </select>
         </label>
-        <button id="exportBtn" class="btn-primary">📥 Lejupielādēt Excel</button>
+        <button id="exportBtn" class="btn-primary" data-i18n="exportExcel">📥 Lejupielādēt Excel</button>
       </div>
     </section>
 
     <section class="month-view-section">
-      <h3>📅 Mēneša apskats</h3>
-      <p class="export-help">Izvēlies mēnesi un klientu, lai redzētu vizuālo apskatu tāpat kā Excel veidlapā.</p>
+      <h3 data-i18n="monthView">📅 Mēneša apskats</h3>
+      <p class="export-help" data-i18n="monthViewHelp">Izvēlies mēnesi un klientu, lai redzētu vizuālo apskatu.</p>
       <div class="export-row">
-        <label>Mēnesis:
+        <label data-i18n="month">Mēnesis:
           <input type="month" id="monthViewMonth" required>
         </label>
-        <label>Klients:
+        <label data-i18n="client">Klients:
           <select id="monthViewClient" required>
             <option value="">— izvēlies klientu —</option>
           </select>
         </label>
-        <button id="renderMonthView" class="btn-primary">👁️ Apskatīt</button>
+        <button id="renderMonthView" class="btn-primary" data-i18n="renderMonth">👁️ Apskatīt</button>
       </div>
       <div id="monthViewContainer" class="month-view-container"></div>
     </section>
 
     <section class="stats-grid">
       <div class="stat-card">
-        <div class="stat-label">Klienti</div>
+        <div class="stat-label" data-i18n="clients">Klienti</div>
         <div class="stat-value" id="statTotal">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Pabeigtas dienas</div>
+        <div class="stat-label" data-i18n="statCompleted">Pabeigtas dienas</div>
         <div class="stat-value" id="statCompleted">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Nepabeigti</div>
+        <div class="stat-label" data-i18n="statIncomplete">Nepabeigti</div>
         <div class="stat-value" id="statIncomplete">0</div>
       </div>
       <div class="stat-card alert">
-        <div class="stat-label">Temperatūra ≥ 37°C</div>
+        <div class="stat-label" data-i18n="statFever">Temperatūra ≥ 37°C</div>
         <div class="stat-value" id="statFever">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Šķidrums uzņemts (ml)</div>
+        <div class="stat-label" data-i18n="statFluid">Šķidrums uzņemts (ml)</div>
         <div class="stat-value" id="statFluid">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Urīna daudzums (ml)</div>
+        <div class="stat-label" data-i18n="statUrine">Urīna daudzums (ml)</div>
         <div class="stat-value" id="statUrine">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Autiņbiksīšu maiņa</div>
+        <div class="stat-label" data-i18n="statDiapers">Autiņbiksīšu maiņa</div>
         <div class="stat-value" id="statDiapers">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Ēdienreizes</div>
+        <div class="stat-label" data-i18n="statFood">Ēdienreizes</div>
         <div class="stat-value" id="statFood">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Labojumi</div>
+        <div class="stat-label" data-i18n="statEdits">Labojumi</div>
         <div class="stat-value" id="statEdits">0</div>
       </div>
     </section>
 
     <section class="stats-grid team-stats">
       <div class="stat-card" style="grid-column: span 4;">
-        <div class="stat-label">👥 Darbinieku ieguldījums (izvēlētajā filtrā)</div>
-        <div id="statByEmployee" style="margin-top:6px;font-size:13px;line-height:1.5;">Nav datu</div>
+        <div class="stat-label" data-i18n="teamStats">👥 Darbinieku ieguldījums (izvēlētajā filtrā)</div>
+        <div id="statByEmployee" style="margin-top:6px;font-size:13px;line-height:1.5;" data-i18n="noData">Nav datu</div>
       </div>
       <div class="stat-card" style="grid-column: span 2;">
-        <div class="stat-label">📅 Periods</div>
+        <div class="stat-label" data-i18n="statRange">📅 Periods</div>
         <div id="statRange" style="margin-top:6px;font-size:14px;font-weight:600;">—</div>
       </div>
     </section>
 
     <section class="stats-grid team-stats">
       <div class="stat-card" style="grid-column: span 6;">
-        <div class="stat-label">💾 DB diagnostika</div>
-        <div id="dbStats" style="margin-top:6px;font-size:12px;line-height:1.6;">Nav datu</div>
+        <div class="stat-label" data-i18n="dbStats">💾 DB diagnostika</div>
+        <div id="dbStats" style="margin-top:6px;font-size:12px;line-height:1.6;" data-i18n="noData">Nav datu</div>
       </div>
     </section>
 
     <section class="data-section">
       <div class="data-section-header">
-        <h2>📋 Uzdevumi aprūpētājiem</h2>
+        <h2 data-i18n="tasks">📋 Uzdevumi aprūpētājiem</h2>
         <span id="tasksCount" class="history-count">0 uzdevumi</span>
       </div>
       <div class="task-create-card">
-        <h3>+ Pievienot jaunu uzdevumu</h3>
+        <h3 data-i18n="addTask">+ Pievienot jaunu uzdevumu</h3>
         <form id="taskCreateForm" class="task-form">
           <div class="task-form-row">
-            <label>Darbinieks:
+            <label data-i18n="employee">Darbinieks:
               <select id="taskAssignee" required></select>
             </label>
-            <label>Klients (nav obligāti):
+            <label data-i18n="client">Klients (nav obligāti):
               <select id="taskClient">
                 <option value="">— bez klienta —</option>
               </select>
             </label>
           </div>
           <div class="task-form-row">
-            <label>Termiņš:
+            <label data-i18n="taskDeadline">Termiņš:
               <input type="date" id="taskDeadline" required>
             </label>
-            <label>Prioritāte:
+            <label data-i18n="taskPriority">Prioritāte:
               <select id="taskPriority">
                 <option value="videja">🟡 Vidēja</option>
                 <option value="augsta">🔴 Augsta</option>
@@ -161,40 +166,40 @@
             </label>
           </div>
           <div class="task-form-row">
-            <label style="flex:1;">Uzdevuma teksts:
+            <label style="flex:1;" data-i18n="taskDescription">Uzdevuma teksts:
               <input type="text" id="taskText" placeholder="Piem. Zvanīt ģimenei par..." required maxlength="300">
             </label>
           </div>
-          <button type="submit" class="btn-primary">📤 Nosūtīt uzdevumu</button>
+          <button type="submit" class="btn-primary" data-i18n="submitBtn">📤 Nosūtīt uzdevumu</button>
         </form>
       </div>
       <div id="tasksList" class="tasks-list">
-        <div class="loading">Ielādēju uzdevumus...</div>
+        <div class="loading" data-i18n="loading">Ielādēju uzdevumus...</div>
       </div>
     </section>
 
     <section class="data-section">
       <div class="data-section-header">
-        <h2>📋 Detalizēta vēsture</h2>
+        <h2 data-i18n="history">📋 Detalizēta vēsture</h2>
         <span id="historyCount" class="history-count">0 ierakstu</span>
       </div>
       <div class="table-wrapper">
         <table id="historyTable" class="data-table">
           <thead>
             <tr>
-              <th>Datums</th>
-              <th>Laiks</th>
-              <th>Klients</th>
-              <th>Aprūpētājs</th>
-              <th>Kategorija</th>
-              <th>Lauks</th>
-              <th>Vērtība</th>
-              <th>Iepriekšējā</th>
-              <th>Tips</th>
+              <th data-i18n="date">Datums</th>
+              <th data-i18n="time">Laiks</th>
+              <th data-i18n="client">Klients</th>
+              <th data-i18n="employee">Aprūpētājs</th>
+              <th data-i18n="category">Kategorija</th>
+              <th data-i18n="field">Lauks</th>
+              <th data-i18n="value">Vērtība</th>
+              <th data-i18n="previous">Iepriekšējā</th>
+              <th data-i18n="type">Tips</th>
             </tr>
           </thead>
           <tbody id="historyBody">
-            <tr><td colspan="9" class="loading">Nav datu</td></tr>
+            <tr><td colspan="9" class="loading" data-i18n="noData">Nav datu</td></tr>
           </tbody>
         </table>
       </div>
@@ -205,13 +210,14 @@
     <div class="loading-modal">
       <img src="logo/logoDS.png" alt="Aprūpes sistēma" class="loading-logo">
       <div class="loading-spinner"></div>
-      <div id="loadingText" class="loading-text">Ielādēju datus...</div>
+      <div id="loadingText" class="loading-text" data-i18n="loading">Ielādēju datus...</div>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
 
   <script src="js/config.js?v=20250907"></script>
+  <script src="js/i18n.js?v=20250907"></script>
   <script src="js/db.js?v=20250907"></script>
   <script src="js/sync.js?v=20250907"></script>
   <script src="js/logout.js?v=20250907"></script>

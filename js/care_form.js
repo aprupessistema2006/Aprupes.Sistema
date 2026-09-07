@@ -57,17 +57,19 @@ class CareFormController {
     window.careSync = this.sync;
 
     window.addEventListener('syncComplete', async () => {
-  await this.loadClient();
-  await this.loadMarks();
-  await this.loadHistory();
-  await this.loadAllClientMarks();
-  this.renderForm();
-  this.renderHistory();
-  this.renderSignature();
-  this.updateTeamSummary();
-  this.renderQuickTotals();
-  this.renderTaskBanner();
-});
+      await this.loadClient();
+      await this.loadMarks();
+      await this.loadHistory();
+      await this.loadAllClientMarks();
+      this.renderForm();
+      this.renderHistory();
+      this.renderSignature();
+      this.updateTeamSummary();
+      this.renderQuickTotals();
+      this.renderTaskBanner();
+    });
+
+    this.setupLanguageSwitcher();
 
     this.sync.loadInitialData().then(async () => {
       await new Promise(r => setTimeout(r, 200));
@@ -85,6 +87,22 @@ class CareFormController {
     });
 
     this.setupEventListeners();
+  }
+
+  setupLanguageSwitcher() {
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        if (lang && typeof setLang === 'function') {
+          setLang(lang);
+          document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+    if (typeof applyLanguage === 'function') {
+      applyLanguage();
+    }
   }
 
   async renderTaskBanner() {
