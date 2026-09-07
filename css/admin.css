@@ -797,10 +797,10 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: 80px;
   color: white;
   text-align: center;
-  padding: 30px;
   animation: fadeIn 0.3s ease;
 }
 
