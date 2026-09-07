@@ -997,10 +997,19 @@ function applyLanguage() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     const translation = t(key);
-    if (translation && el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+    if (!translation) return;
+
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
       el.placeholder = translation;
-    } else if (translation) {
+    } else if (el.children.length === 0) {
       el.textContent = translation;
+    } else {
+      const textNode = Array.from(el.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+      if (textNode) {
+        textNode.textContent = translation;
+      } else {
+        el.insertBefore(document.createTextNode(translation), el.firstChild);
+      }
     }
   });
 }
