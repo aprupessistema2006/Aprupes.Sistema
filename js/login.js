@@ -123,61 +123,71 @@ class LoginController {
 
     const maxLength = 6;
 
-    pinInput.addEventListener('input', (e) => {
-      const raw = e.target.value.replace(/\D/g, '');
-      let newPin = this.pin + raw;
-      if (newPin.length > maxLength) {
-        newPin = newPin.substring(0, maxLength);
-      }
-      this.pin = newPin;
-      e.target.value = '•'.repeat(this.pin.length);
-      this.refreshLoginButton();
-      errorMsg.style.display = 'none';
-    });
-
-    pinInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace') {
-        e.preventDefault();
-        this.pin = this.pin.substring(0, this.pin.length - 1);
+    if (pinInput) {
+      pinInput.addEventListener('input', (e) => {
+        const raw = e.target.value.replace(/\D/g, '');
+        let newPin = this.pin + raw;
+        if (newPin.length > maxLength) {
+          newPin = newPin.substring(0, maxLength);
+        }
+        this.pin = newPin;
         e.target.value = '•'.repeat(this.pin.length);
         this.refreshLoginButton();
         errorMsg.style.display = 'none';
-      }
-    });
+      });
 
-    employeeSearch.addEventListener('input', (e) => {
-      this.filterEmployees(e.target.value.trim().toLowerCase());
-      this.renderEmployeeList();
-    });
+      pinInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          this.pin = this.pin.substring(0, this.pin.length - 1);
+          e.target.value = '•'.repeat(this.pin.length);
+          this.refreshLoginButton();
+          errorMsg.style.display = 'none';
+        }
+      });
+    }
 
-    clearBtn.addEventListener('click', () => {
-      this.clearSelection();
-    });
+    if (employeeSearch) {
+      employeeSearch.addEventListener('input', (e) => {
+        this.filterEmployees(e.target.value.trim().toLowerCase());
+        this.renderEmployeeList();
+      });
+    }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!this.selectedEmployee) {
-        errorMsg.textContent = 'Izvēlies darbinieku no saraksta';
-        errorMsg.style.display = 'block';
-        return;
-      }
-      if (this.pin.length < 4) {
-        errorMsg.textContent = 'PIN kodā jābūt vismaz 4 cipariem';
-        errorMsg.style.display = 'block';
-        return;
-      }
-      loginBtn.disabled = true;
-      statusMsg.textContent = 'Pārbaudējam...';
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        this.clearSelection();
+      });
+    }
 
-      await this.authenticate(this.selectedEmployee, this.pin);
-    });
-
-    pinInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && this.pin.length >= 4 && this.selectedEmployee) {
+    if (form) {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        form.dispatchEvent(new Event('submit'));
-      }
-    });
+        if (!this.selectedEmployee) {
+          errorMsg.textContent = 'Izvēlies darbinieku no saraksta';
+          errorMsg.style.display = 'block';
+          return;
+        }
+        if (this.pin.length < 4) {
+          errorMsg.textContent = 'PIN kodā jābūt vismaz 4 cipariem';
+          errorMsg.style.display = 'block';
+          return;
+        }
+        loginBtn.disabled = true;
+        statusMsg.textContent = 'Pārbaudējam...';
+
+        await this.authenticate(this.selectedEmployee, this.pin);
+      });
+    }
+
+    if (pinInput) {
+      pinInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && this.pin.length >= 4 && this.selectedEmployee) {
+          e.preventDefault();
+          form.dispatchEvent(new Event('submit'));
+        }
+      });
+    }
 
     const setupForm = document.getElementById('setupForm');
     if (setupForm) {
