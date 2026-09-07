@@ -272,7 +272,7 @@ class LoginController {
       return;
     }
     const roleLabel = (l) => {
-      const m = { 'administrators': '👑 administrators', 'kontroliere': '📊 kontroliere', 'aprūpētājs': '🤝 aprūpētājs' };
+      const m = { 'administrators': '👑 Administrators/e', 'kontroliere': '📊 Kontrolieris/e', 'aprūpētājs': '🤝 Aprūpētājs/a' };
       return m[(l || '').toLowerCase()] || ('👤 ' + l);
     };
     const initials = (e) => {
@@ -322,7 +322,7 @@ class LoginController {
     if (sel) sel.style.display = 'flex';
     if (avatar) avatar.textContent = ((emp.vards || emp.Vārds || '?')[0] || '?') + ((emp.uzvards || emp.Uzvārds || '')[0] || '');
     if (name) name.textContent = (emp.vards || emp.Vārds || '') + ' ' + (emp.uzvards || emp.Uzvārds || '');
-    const roleLbl = { 'administrators': '👑 administrators', 'kontroliere': '📊 kontroliere', 'aprūpētājs': '🤝 aprūpētājs' };
+    const roleLbl = { 'administrators': '👑 Administrators/e', 'kontroliere': '📊 Kontrolieris/e', 'aprūpētājs': '🤝 Aprūpētājs/a' };
     if (role) role.textContent = roleLbl[(emp.loma || emp.Loma || '').toLowerCase()] || emp.loma;
     const sub = document.getElementById('loginSubtitle');
     if (sub) sub.textContent = 'Ievadiet PIN kodu darbiniekam:';

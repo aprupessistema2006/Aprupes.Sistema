@@ -280,9 +280,9 @@ class AdminPanel {
         <div class="form-group">
           <label>Loma *</label>
           <select name="loma">
-            <option value="aprūpētājs" ${loma === 'aprūpētājs' ? 'selected' : ''}>Aprūpētājs</option>
-            <option value="kontroliere" ${loma === 'kontroliere' ? 'selected' : ''}>Kontrolieris</option>
-            <option value="administrators" ${loma === 'administrators' ? 'selected' : ''}>Administrators</option>
+            <option value="aprūpētājs" ${loma === 'aprūpētājs' ? 'selected' : ''}>Aprūpētājs/a</option>
+            <option value="kontroliere" ${loma === 'kontroliere' ? 'selected' : ''}>Kontrolieris/e</option>
+            <option value="administrators" ${loma === 'administrators' ? 'selected' : ''}>Administrators/e</option>
           </select>
         </div>
         <div class="form-group">
