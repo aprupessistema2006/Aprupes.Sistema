@@ -784,100 +784,105 @@ class ControlPanel {
         return String(mcid) === String(cid);
       });
 
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const dataByDay = {};
-    clientMarks.forEach(m => {
-      let d;
-      const dateStr = m.date || m.datums;
-      if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-        const parts = dateStr.split('-');
-        d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-      } else if (m.date instanceof Date) {
-        d = m.date;
-      } else {
-        const ts = String(m.id || '').match(/^[a-z]+_(\d+)/);
-        if (ts) d = new Date(parseInt(ts[1], 10));
-      }
-      if (d && d.getFullYear() === year && (d.getMonth() + 1) === month) {
-        const day = d.getDate();
-        if (!dataByDay[day]) dataByDay[day] = {};
-        const shift = m.shift || m.periods || 'R';
-        const key = shift + '|' + m.category + '|' + m.field;
-        if (dataByDay[day][key] === undefined) {
-          dataByDay[day][key] = m.value;
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const dataByDay = {};
+      clientMarks.forEach(m => {
+        let d;
+        const dateStr = m.date || m.datums;
+        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+          const parts = dateStr.split('-');
+          d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        } else if (m.date instanceof Date) {
+          d = m.date;
+        } else {
+          const ts = String(m.id || '').match(/^[a-z]+_(\d+)/);
+          if (ts) d = new Date(parseInt(ts[1], 10));
         }
-      }
-    });
+        if (d && d.getFullYear() === year && (d.getMonth() + 1) === month) {
+          const day = d.getDate();
+          if (!dataByDay[day]) dataByDay[day] = {};
+          const shift = m.shift || m.periods || 'R';
+          const key = shift + '|' + m.category + '|' + m.field;
+          if (dataByDay[day][key] === undefined) {
+            dataByDay[day][key] = m.value;
+          }
+        }
+      });
 
-    const fieldMap = [
-      { category: 'temp', field: 'temperatura', label: 'Temperatūra' },
-      { category: 'higiena', field: 'mutes_dobuma_kopsana', label: 'Mutes dobuma kopšana' },
-      { category: 'higiena', field: 'vana_dns', label: 'Vanna, duša' },
-      { category: 'higiena', field: 'daleja_apmazgasana', label: 'Daļēja apmazgāšana' },
-      { category: 'higiena', field: 'velas_maina', label: 'Veļas maiņa' },
-      { category: 'higiena', field: 'nagu_kopsana', label: 'Nagu kopšana' },
-      { category: 'higiena', field: 'matu_kopsana', label: 'Matu kopšana' },
-      { category: 'higiena', field: 'bardas_skushana', label: 'Bārdas skūšana' },
-      { category: 'aktivitate', field: 'parvietojas_ar_palidzlekli', label: 'Pārvietojas ar palīglīdzekli' },
-      { category: 'aktivitate', field: 'stav_ar_palidziigu', label: 'Stāv ar palīdzību' },
-      { category: 'aktivitate', field: 'sedz_ar_palidziigu', label: 'Sēž ar palīdzību' },
-      { category: 'edinasana', field: 'brokastis', label: 'Brokastis' },
-      { category: 'edinasana', field: 'pusdienas', label: 'Pusdienas' },
-      { category: 'edinasana', field: 'launags', label: 'Launags' },
-      { category: 'edinasana', field: 'vakariņi', label: 'Vakariņas' },
-      { category: 'sikdrumi', field: 'urina_daudzums', label: 'Urīna daudzums' },
-      { category: 'sikdrumi', field: 'uznemts_ml', label: 'Uzņemts H2O' },
-      { category: 'citsi_pasakomi', field: 'adas_kopsana', label: 'Ādas kopšana' },
-      { category: 'fiziologija', field: 'vedera_izeja', label: 'Vēdera izeja' },
-      { category: 'citsi_pasakomi', field: 'pastaigas', label: 'Pastaiga' },
-      { category: 'citsi_pasakomi', field: 'ciemini', label: 'Ciemiņi' },
-      { category: 'citsi_pasakomi', field: 'autins_biksitu_skaits', label: 'Autiņbiksīšu maiņa' },
-      { category: 'paraksts', field: 'aprupetaja_paraksts', label: 'Paraksts' }
-    ];
+      const fieldMap = [
+        { category: 'temp', field: 'temperatura', label: 'Temperatūra' },
+        { category: 'higiena', field: 'mutes_dobuma_kopsana', label: 'Mutes dobuma kopšana' },
+        { category: 'higiena', field: 'vana_dns', label: 'Vanna, duša' },
+        { category: 'higiena', field: 'daleja_apmazgasana', label: 'Daļēja apmazgāšana' },
+        { category: 'higiena', field: 'velas_maina', label: 'Veļas maiņa' },
+        { category: 'higiena', field: 'nagu_kopsana', label: 'Nagu kopšana' },
+        { category: 'higiena', field: 'matu_kopsana', label: 'Matu kopšana' },
+        { category: 'higiena', field: 'bardas_skushana', label: 'Bārdas skūšana' },
+        { category: 'aktivitate', field: 'parvietojas_ar_palidzlekli', label: 'Pārvietojas ar palīglīdzekli' },
+        { category: 'aktivitate', field: 'stav_ar_palidziigu', label: 'Stāv ar palīdzību' },
+        { category: 'aktivitate', field: 'sedz_ar_palidziigu', label: 'Sēž ar palīdzību' },
+        { category: 'edinasana', field: 'brokastis', label: 'Brokastis' },
+        { category: 'edinasana', field: 'pusdienas', label: 'Pusdienas' },
+        { category: 'edinasana', field: 'launags', label: 'Launags' },
+        { category: 'edinasana', field: 'vakariņi', label: 'Vakariņas' },
+        { category: 'sikdrumi', field: 'urina_daudzums', label: 'Urīna daudzums' },
+        { category: 'sikdrumi', field: 'uznemts_ml', label: 'Uzņemts H2O' },
+        { category: 'citsi_pasakomi', field: 'adas_kopsana', label: 'Ādas kopšana' },
+        { category: 'fiziologija', field: 'vedera_izeja', label: 'Vēdera izeja' },
+        { category: 'citsi_pasakomi', field: 'pastaigas', label: 'Pastaiga' },
+        { category: 'citsi_pasakomi', field: 'ciemini', label: 'Ciemiņi' },
+        { category: 'citsi_pasakomi', field: 'autins_biksitu_skaits', label: 'Autiņbiksīšu maiņa' },
+        { category: 'paraksts', field: 'aprupetaja_paraksts', label: 'Paraksts' }
+      ];
 
-    const colLetter = (num) => {
-      let s = '';
-      num = num + 1;
-      while (num > 0) {
-        const r = (num - 1) % 26;
-        s = String.fromCharCode(65 + r) + s;
-        num = Math.floor((num - 1) / 26);
-      }
-      return s;
-    };
+      const colLetter = (num) => {
+        let s = '';
+        num = num + 1;
+        while (num > 0) {
+          const r = (num - 1) % 26;
+          s = String.fromCharCode(65 + r) + s;
+          num = Math.floor((num - 1) / 26);
+        }
+        return s;
+      };
 
-    let html = '<table class="month-table"><thead><tr><th>Laiks / Diena</th>';
-    for (let day = 1; day <= daysInMonth; day++) {
-      html += `<th colspan="2" class="day-header">${day}</th>`;
-    }
-    html += '</tr><tr><th>Kategorija</th>';
-    for (let day = 1; day <= daysInMonth; day++) {
-      html += '<th class="shift-r">R</th><th class="shift-v">V</th>';
-    }
-    html += '</tr></thead><tbody>';
-
-    fieldMap.forEach(f => {
-      html += `<tr><td>${this.escapeHtml(f.label)}</td>`;
+      let html = '<table class="month-table"><thead><tr><th>Laiks / Diena</th>';
       for (let day = 1; day <= daysInMonth; day++) {
-        const dayData = dataByDay[day] || {};
-        const valR = dayData['R|' + f.category + '|' + f.field];
-        const valV = dayData['V|' + f.category + '|' + f.field];
-        const rClass = valR ? '' : 'empty';
-        const vClass = valV ? '' : 'empty';
-        const rFever = (f.category === 'temp' && valR && parseFloat(valR) >= 37) ? ' fever' : '';
-        const vFever = (f.category === 'temp' && valV && parseFloat(valV) >= 37) ? ' fever' : '';
-        const rSig = f.category === 'paraksts' ? ' signature' : '';
-        const vSig = f.category === 'paraksts' ? ' signature' : '';
-        html += `<td class="${rClass}${rFever}${rSig}">${this.escapeHtml(valR || '')}</td>`;
-        html += `<td class="${vClass}${vFever}${vSig}">${this.escapeHtml(valV || '')}</td>`;
+        html += `<th colspan="2" class="day-header">${day}</th>`;
       }
-      html += '</tr>';
-    });
+      html += '</tr><tr><th>Kategorija</th>';
+      for (let day = 1; day <= daysInMonth; day++) {
+        html += '<th class="shift-r">R</th><th class="shift-v">V</th>';
+      }
+      html += '</tr></thead><tbody>';
 
-    html += '</tbody></table>';
-    container.innerHTML = html;
-    const overlay = document.getElementById('loadingOverlay');
-    if (overlay) overlay.style.display = 'none';
+      fieldMap.forEach(f => {
+        html += `<tr><td>${this.escapeHtml(f.label)}</td>`;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dayData = dataByDay[day] || {};
+          const valR = dayData['R|' + f.category + '|' + f.field];
+          const valV = dayData['V|' + f.category + '|' + f.field];
+          const rClass = valR ? '' : 'empty';
+          const vClass = valV ? '' : 'empty';
+          const rFever = (f.category === 'temp' && valR && parseFloat(valR) >= 37) ? ' fever' : '';
+          const vFever = (f.category === 'temp' && valV && parseFloat(valV) >= 37) ? ' fever' : '';
+          const rSig = f.category === 'paraksts' ? ' signature' : '';
+          const vSig = f.category === 'paraksts' ? ' signature' : '';
+          html += `<td class="${rClass}${rFever}${rSig}">${this.escapeHtml(valR || '')}</td>`;
+          html += `<td class="${vClass}${vFever}${vSig}">${this.escapeHtml(valV || '')}</td>`;
+        }
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } catch (err) {
+      this.toast('Kļūda: ' + err.message);
+      console.error(err);
+    } finally {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
   }
 
   toast(message) {
