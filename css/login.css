@@ -21,7 +21,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: url('logo/logo_admin.png') center/cover no-repeat;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -31,7 +31,7 @@ body {
 }
 
 body.online {
-  background: linear-gradient(135deg, var(--accent), #27ae60);
+  background: url('logo/logo_admin.png') center/cover no-repeat;
 }
 
 .login-container {
@@ -41,7 +41,7 @@ body.online {
 }
 
 .login-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.97);
   border-radius: var(--border-radius);
   padding: 40px;
   text-align: center;
