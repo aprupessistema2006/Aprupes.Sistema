@@ -38,9 +38,12 @@ class ControlPanel {
   }
 
   setupUI() {
-    document.getElementById('backBtn').addEventListener('click', () => {
-      window.location.href = 'index.html';
-    });
+    const backBtn = document.getElementById('backBtn');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        window.location.href = 'index.html';
+      });
+    }
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async (e) => {
@@ -96,27 +99,33 @@ class ControlPanel {
     addDateRangeUI();
     this.updateDateModeBadge();
 
-    document.getElementById('refreshBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('refreshBtn');
-      const overlay = document.getElementById('loadingOverlay');
-      const loadingText = document.getElementById('loadingText');
-      if (btn) btn.disabled = true;
-      if (overlay) overlay.style.display = 'flex';
-      try {
-        await this.sync.loadInitialData((msg) => {
-          if (loadingText) loadingText.textContent = msg;
-        });
-        await this.loadData();
-        this.renderAll();
-        this.toast('Dati atjaunināti');
-      } catch (e) {
-        this.toast('Kļūda: ' + e.message);
-      } finally {
-        if (btn) btn.disabled = false;
-        if (overlay) overlay.style.display = 'none';
-      }
-    });
-    document.getElementById('exportBtn').addEventListener('click', () => this.exportExcel());
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        const btn = document.getElementById('refreshBtn');
+        const overlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        if (btn) btn.disabled = true;
+        if (overlay) overlay.style.display = 'flex';
+        try {
+          await this.sync.loadInitialData((msg) => {
+            if (loadingText) loadingText.textContent = msg;
+          });
+          await this.loadData();
+          this.renderAll();
+          this.toast('Dati atjaunināti');
+        } catch (e) {
+          this.toast('Kļūda: ' + e.message);
+        } finally {
+          if (btn) btn.disabled = false;
+          if (overlay) overlay.style.display = 'none';
+        }
+      });
+    }
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => this.exportExcel());
+    }
     const renderMonthBtn = document.getElementById('renderMonthView');
     if (renderMonthBtn) {
       renderMonthBtn.addEventListener('click', async () => {
@@ -130,7 +139,10 @@ class ControlPanel {
         }
       });
     }
-    document.getElementById('onlyEdited').addEventListener('change', () => this.renderHistory());
+    const onlyEdited = document.getElementById('onlyEdited');
+    if (onlyEdited) {
+      onlyEdited.addEventListener('change', () => this.renderHistory());
+    }
   }
 
   setupLanguageSwitcher() {
@@ -297,10 +309,15 @@ class ControlPanel {
   }
 
   getFilteredData() {
-    const date = document.getElementById('dateFilter').value;
-    const clientId = document.getElementById('clientFilter').value;
-    const employeeId = document.getElementById('employeeFilter').value;
-    const onlyEdited = document.getElementById('onlyEdited').checked;
+    const dateEl = document.getElementById('dateFilter');
+    const clientEl = document.getElementById('clientFilter');
+    const employeeEl = document.getElementById('employeeFilter');
+    const onlyEditedEl = document.getElementById('onlyEdited');
+
+    const date = dateEl ? dateEl.value : '';
+    const clientId = clientEl ? clientEl.value : '';
+    const employeeId = employeeEl ? employeeEl.value : '';
+    const onlyEdited = onlyEditedEl ? onlyEditedEl.checked : false;
 
     const extractAll = (row) => [
       this.extractDateFromAnyField(row),
@@ -602,8 +619,10 @@ class ControlPanel {
         const employeeId = assignee.value;
         const klientsId = clientSel.value;
         const termins = deadline.value;
-        const prioritate = document.getElementById('taskPriority').value;
-        const teksts = document.getElementById('taskText').value.trim();
+        const prioritateEl = document.getElementById('taskPriority');
+        const tekstsEl = document.getElementById('taskText');
+        const prioritate = prioritateEl ? prioritateEl.value : '';
+        const teksts = tekstsEl ? tekstsEl.value.trim() : '';
         if (!employeeId || !teksts || !termins) {
           this.toast('Aizpildi darbinieku, termiņu un uzdevuma tekstu');
           return;
@@ -618,7 +637,7 @@ class ControlPanel {
             izveidotajsId: this.currentUser.id
           });
           this.toast('✓ Uzdevums nosūtīts');
-          document.getElementById('taskText').value = '';
+          if (tekstsEl) tekstsEl.value = '';
           await this.renderTasksList();
         }
       });
@@ -726,8 +745,10 @@ class ControlPanel {
       this.toast('Excel bibliotēka nav ielādēta');
       return;
     }
-    const monthVal = document.getElementById('exportMonth').value;
-    const clientId = document.getElementById('exportClient').value;
+    const monthEl = document.getElementById('exportMonth');
+    const clientEl = document.getElementById('exportClient');
+    const monthVal = monthEl ? monthEl.value : '';
+    const clientId = clientEl ? clientEl.value : '';
     if (!monthVal) {
       this.toast('Izvēlieties mēnesi');
       return;
@@ -771,8 +792,10 @@ class ControlPanel {
   }
 
   async renderMonthView() {
-    const monthVal = document.getElementById('monthViewMonth').value;
-    const clientId = document.getElementById('monthViewClient').value;
+    const monthEl = document.getElementById('monthViewMonth');
+    const clientEl = document.getElementById('monthViewClient');
+    const monthVal = monthEl ? monthEl.value : '';
+    const clientId = clientEl ? clientEl.value : '';
     const container = document.getElementById('monthViewContainer');
     if (!monthVal || !clientId) {
       this.toast('Izvēlieties mēnesi un klientu');
