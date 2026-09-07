@@ -79,7 +79,6 @@ class AdminPanel {
 
     document.getElementById('syncNow').addEventListener('click', () => this.syncNow());
     document.getElementById('checkConnection').addEventListener('click', () => this.checkConnection());
-    document.getElementById('downloadTemplate').addEventListener('click', () => this.downloadTemplate());
     document.getElementById('testConnection').addEventListener('click', () => this.checkConnection());
     document.getElementById('findDuplicates').addEventListener('click', () => this.findDuplicates());
     document.getElementById('clearLocal').addEventListener('click', () => this.clearLocal());
@@ -456,14 +455,6 @@ class AdminPanel {
       result.className = 'connection-result error';
       result.textContent = '✗ Nav savienojuma: ' + err.message;
     }
-  }
-
-  downloadTemplate() {
-    const link = document.createElement('a');
-    link.href = 'Aprūpes lapas.xlsx';
-    link.download = 'Aprūpes lapas.xlsx';
-    link.click();
-    this.toast('Lejupielāde sākta');
   }
 
   async findDuplicates() {
