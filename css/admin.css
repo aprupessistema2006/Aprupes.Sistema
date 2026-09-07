@@ -842,11 +842,8 @@ body {
 }
 
 .lang-switcher {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  z-index: 9999;
   display: flex;
+  align-items: center;
   gap: 4px;
   background: rgba(255, 255, 255, 0.95);
   padding: 4px;
