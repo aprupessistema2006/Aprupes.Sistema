@@ -144,20 +144,35 @@ class SyncManager {
     this.loaded = false;
   }
 
-  async loadInitialData() {
+  async loadInitialData(onProgress) {
+    onProgress = onProgress || function() {};
     try {
+      onProgress('Ielādēju datus no servera...');
       const url = SYNC_URL + '?action=load&t=' + Date.now();
       const response = await fetch(url);
+      if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
 
       if (data.error) {
         throw new Error(data.error);
       }
 
-      const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'dienas_ierakti', 'uzdevomi'];
+      const criticalStores = ['darbinieki', 'klienti'];
+      const otherStores = ['atzimes', 'atzimes_log', 'dienas_ierakti', 'uzdevomi'];
       const counts = {};
 
-      for (const store of stores) {
+      onProgress('Saglabāju darbiniekus un klientus...');
+      for (const store of criticalStores) {
+        const items = (data[store] || []).map(normalizeRow);
+        counts[store] = items.length;
+        await this.db.clear(store);
+        for (const item of items) {
+          await this.db.put(store, item);
+        }
+      }
+
+      onProgress('Saglabāju atzīmes un uzdevumus...');
+      for (const store of otherStores) {
         const items = (data[store] || []).map(normalizeRow);
         counts[store] = items.length;
         await this.db.clear(store);
@@ -167,9 +182,10 @@ class SyncManager {
       }
 
       await this.db.setMeta('lastSync', Date.now());
-
+      onProgress('✓ Dati veiksmīgi ielādēti');
       return { offline: false, count: counts };
     } catch (err) {
+      onProgress('⚠️ Neizdevās ielādēt datus: ' + err.message);
       return { offline: true, error: err.message, count: {} };
     }
   }

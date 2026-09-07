@@ -24,11 +24,22 @@ class AdminPanel {
 
     this.setupTabs();
     this.setupUI();
-    await this.sync.loadInitialData();
-    await this.loadData();
-    this.renderDashboard();
-    this.renderClientList();
-    this.renderEmployeeList();
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    if (overlay) overlay.style.display = 'flex';
+    try {
+      await this.sync.loadInitialData((msg) => {
+        if (loadingText) loadingText.textContent = msg;
+      });
+      await this.loadData();
+      this.renderDashboard();
+      this.renderClientList();
+      this.renderEmployeeList();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (overlay) overlay.style.display = 'none';
+    }
   }
 
   setupTabs() {

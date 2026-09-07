@@ -97,10 +97,14 @@ class ControlPanel {
 
     document.getElementById('refreshBtn').addEventListener('click', async () => {
       const btn = document.getElementById('refreshBtn');
+      const overlay = document.getElementById('loadingOverlay');
+      const loadingText = document.getElementById('loadingText');
       if (btn) btn.disabled = true;
-      this.toast('Atjauninu no servera...');
+      if (overlay) overlay.style.display = 'flex';
       try {
-        await this.sync.loadInitialData();
+        await this.sync.loadInitialData((msg) => {
+          if (loadingText) loadingText.textContent = msg;
+        });
         await this.loadData();
         this.renderAll();
         this.toast('Dati atjaunināti');
@@ -108,6 +112,7 @@ class ControlPanel {
         this.toast('Kļūda: ' + e.message);
       } finally {
         if (btn) btn.disabled = false;
+        if (overlay) overlay.style.display = 'none';
       }
     });
     document.getElementById('exportBtn').addEventListener('click', () => this.exportExcel());
@@ -725,7 +730,12 @@ class ControlPanel {
 
     try {
       const exporter = new ExcelExporter();
-      await this.sync.loadInitialData();
+      const overlay = document.getElementById('loadingOverlay');
+      const loadingText = document.getElementById('loadingText');
+      if (overlay) overlay.style.display = 'flex';
+      await this.sync.loadInitialData((msg) => {
+        if (loadingText) loadingText.textContent = msg;
+      });
       const allMarks = window.state && window.state.marks ? window.state.marks : await this.db.getAll('atzimes');
       const cid = client.id || client.ID;
       const clientMarks = allMarks.filter(m => {
@@ -734,9 +744,12 @@ class ControlPanel {
       });
       const filename = await exporter.generateMonth(client, year, month, clientMarks);
       this.toast('✓ Lejupielādejts: ' + filename);
+      if (overlay) overlay.style.display = 'none';
     } catch (err) {
       this.toast('Eksporta kļūda: ' + err.message);
       console.error(err);
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'none';
     }
   }
 
@@ -757,13 +770,19 @@ class ControlPanel {
       return;
     }
 
-    await this.sync.loadInitialData();
-    const allMarks = await this.db.getAll('atzimes');
-    const cid = client.id || client.ID;
-    const clientMarks = allMarks.filter(m => {
-      const mcid = m.clientId || m.klientsId;
-      return String(mcid) === String(cid);
-    });
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    if (overlay) overlay.style.display = 'flex';
+    try {
+      await this.sync.loadInitialData((msg) => {
+        if (loadingText) loadingText.textContent = msg;
+      });
+      const allMarks = await this.db.getAll('atzimes');
+      const cid = client.id || client.ID;
+      const clientMarks = allMarks.filter(m => {
+        const mcid = m.clientId || m.klientsId;
+        return String(mcid) === String(cid);
+      });
 
     const daysInMonth = new Date(year, month, 0).getDate();
     const dataByDay = {};
@@ -857,6 +876,8 @@ class ControlPanel {
 
     html += '</tbody></table>';
     container.innerHTML = html;
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
   }
 
   toast(message) {

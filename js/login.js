@@ -32,29 +32,44 @@ class LoginController {
     this.setupUI();
 
     const statusMsg = document.getElementById('statusMessage');
-    statusMsg.textContent = 'Pārbaudām savienojumu...';
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+
+    const showLoading = (text) => {
+      if (loadingOverlay) loadingOverlay.style.display = 'flex';
+      if (loadingText) loadingText.textContent = text;
+    };
+    const hideLoading = () => {
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+    };
+
+    showLoading('Pārbaudām savienojumu...');
 
     const hasRemote = await this.sync.hasRemoteEmployees();
     const hasLocal = await this.sync.hasLocalData();
 
     if (!hasRemote && !hasLocal) {
+      hideLoading();
       this.enterSetupMode();
       return;
     }
 
     if (hasRemote) {
-      statusMsg.textContent = 'Ielādēju datus...';
+      showLoading('Ielādēju datus...');
       try {
-        await this.sync.loadInitialData();
-        statusMsg.textContent = '✓ Savienojums aktīvs';
+        await this.sync.loadInitialData((msg) => {
+          showLoading(msg);
+        });
+        if (statusMsg) statusMsg.textContent = '✓ Savienojums aktīvs';
         document.body.classList.add('online');
       } catch (e) {
-        statusMsg.textContent = '⚠️ Neizdevās ielādēt datus. Mēģinam lokāli...';
+        if (statusMsg) statusMsg.textContent = '⚠️ Neizdevās ielādēt datus. Mēģinam lokāli...';
       }
     } else if (hasLocal) {
-      statusMsg.textContent = '⚠️ Bezsaistē (lokāli dati)';
+      if (statusMsg) statusMsg.textContent = '⚠️ Bezsaistē (lokāli dati)';
     }
 
+    hideLoading();
     await this.loadEmployees();
   }
 
