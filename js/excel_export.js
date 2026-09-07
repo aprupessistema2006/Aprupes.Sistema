@@ -3,13 +3,6 @@ class ExcelExporter {
     this.templateUrl = 'Aprūpes lapas.xlsx';
   }
 
-  getFieldMap(row) {
-    if (typeof CONFIG !== 'undefined' && CONFIG.EXCEL_TEMPLATE && CONFIG.EXCEL_TEMPLATE.rowMapping) {
-      return CONFIG.EXCEL_TEMPLATE.rowMapping.find(r => r.row === row);
-    }
-    return undefined;
-  }
-
   async loadTemplateBuffer() {
     if (typeof require !== 'undefined' && typeof window === 'undefined') {
       const fs = require('fs');
@@ -18,8 +11,23 @@ class ExcelExporter {
       return fs.readFileSync(path.join(dir, this.templateUrl));
     }
     const response = await fetch(this.templateUrl);
-    if (!response.ok) throw new Error('Neizdevās ielādēt MK veidni');
+    if (!response.ok) throw new Error('Neizdevās ielādēt MK veidni: ' + this.templateUrl);
     return await response.arrayBuffer();
+  }
+
+  getMarkDate(m) {
+    if (m.date && /^\d{4}-\d{2}-\d{2}/.test(m.date)) return m.date;
+    const ts = String(m.id || '').match(/^[a-z]+_(\d+)/);
+    if (ts) {
+      const d = new Date(parseInt(ts[1], 10));
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + mo + '-' + day;
+      }
+    }
+    return null;
   }
 
   async generateMonth(client, year, month, marks) {
@@ -37,18 +45,11 @@ class ExcelExporter {
     const daysInMonth = new Date(year, month, 0).getDate();
 
     const dataByDay = {};
-    console.log('excel_export: marks count', marks.length, 'year', year, 'month', month);
-    console.log('excel_export: sample marks', JSON.stringify(marks.slice(0,2), null, 2));
     marks.forEach(m => {
-      let d;
-      if (typeof m.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(m.date)) {
-        const parts = m.date.split('-');
-        d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-      } else if (m.date instanceof Date) {
-        d = m.date;
-      } else {
-        d = new Date(m.date);
-      }
+      const dateStr = this.getMarkDate(m);
+      if (!dateStr) return;
+      const parts = dateStr.split('-');
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
       if (d.getFullYear() === year && (d.getMonth() + 1) === month) {
         const day = d.getDate();
         if (!dataByDay[day]) dataByDay[day] = {};
@@ -168,27 +169,15 @@ class ExcelExporter {
         const row = fieldMap[key];
         const isSig = category === 'paraksts';
         const cR = ws.getCell(`${addrR}${row}`);
-        const cRIsMerged = cR && cR._mergeCount > 0;
+        const cV = ws.getCell(`${addrV}${row}`);
+
         if (isSig) {
           const valD = dayData['D|' + category + '|' + field];
-         if (valD !== undefined && valD !== '') cR.value = valD;
-         } else if (cRIsMerged) {
-           const valR = dayData['R|' + category + '|' + field];
-           const valV = dayData['V|' + category + '|' + field];
-            if (typeof process !== 'undefined' && process.env && process.env.DEBUG_FILL) console.log('[fillSheet] day', day, addrR+row, 'merged valR=', valR, 'valV=', valV);
-           if (valR !== undefined && valR !== '' && valV !== undefined && valV !== '') {
-            cR.value = `${valR} / ${valV}`;
-          } else if (valR !== undefined && valR !== '') {
-            cR.value = valR;
-          } else if (valV !== undefined && valV !== '') {
-            cR.value = valV;
-          }
-         } else {
-           const cV = ws.getCell(`${addrV}${row}`);
-           const valR = dayData['R|' + category + '|' + field];
-           const valV = dayData['V|' + category + '|' + field];
-            if (typeof process !== 'undefined' && process.env && process.env.DEBUG_FILL) console.log('[fillSheet] day', day, addrR+row, 'unmerged valR=', valR, 'valV=', valV);
-           if (valR !== undefined && valR !== '') cR.value = valR;
+          if (valD !== undefined && valD !== '') cR.value = valD;
+        } else {
+          const valR = dayData['R|' + category + '|' + field];
+          const valV = dayData['V|' + category + '|' + field];
+          if (valR !== undefined && valR !== '') cR.value = valR;
           if (valV !== undefined && valV !== '') cV.value = valV;
         }
       }
