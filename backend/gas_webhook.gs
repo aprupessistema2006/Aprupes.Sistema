@@ -226,9 +226,6 @@ function handleMark(data) {
   const today = m.date ? normalizeToDateString(m.date) : formatDate(new Date());
   const nowStr = formatDateTimeLV(new Date());
 
-  ensureColumns(atzimesSheet, ['Pēdējais laiks', 'Darbinieks pēdējais', 'Pēdējā vērtība']);
-  ensureColumns(logSheet, ['Pēdējais laiks', 'Darbinieks pēdējais', 'Pēdējā vērtība']);
-
   appendRow(atzimesSheet, {
     id: id,
     klients_id: m.clientId,
@@ -238,11 +235,7 @@ function handleMark(data) {
     periods: m.shift || 'R',
     kategorija: m.category,
     lauka_nosaukums: m.field,
-    vertiba: m.value,
-    pedeja_vertiba: m.value,
-    pedeja_laiks: nowStr,
-    darbinieks_pedejais: m.employeeId,
-    izveidots: nowStr
+    vertiba: m.value
   });
 
   appendRow(logSheet, {
@@ -251,12 +244,11 @@ function handleMark(data) {
     klients_id: m.clientId,
     darbinieks_id: m.employeeId,
     datums: today,
-    laiks: new Date().toTimeString().split(' ')[0],
+    laiks: nowStr,
     periods: m.shift || 'R',
     kategorija: m.category,
     lauka_nosaukums: m.field,
     vertiba: m.value,
-    papilgs_info: '',
     izveidots: nowStr
   });
 

@@ -256,6 +256,8 @@ class CareFormController {
       if (/^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
       const m = t.match(/T(\d{2}):(\d{2})/);
       if (m) return m[1] + ':' + m[2];
+      const m2 = t.match(/(\d{2}):(\d{2}):(\d{2})/);
+      if (m2) return m2[1] + ':' + m2[2];
     }
     return String(t);
   }
@@ -273,8 +275,27 @@ class CareFormController {
       if (m) return m[1] + ':' + m[2] + ':' + m[3];
       const m2 = t.match(/T(\d{2}):(\d{2})/);
       if (m2) return m2[1] + ':' + m2[2];
+      const m3 = t.match(/(\d{2}):(\d{2}):(\d{2})/);
+      if (m3) return m3[1] + ':' + m3[2] + ':' + m3[3];
+      const m4 = t.match(/(\d{2}):(\d{2})/);
+      if (m4) return m4[1] + ':' + m4[2];
     }
     return String(t);
+  }
+
+  getMarkTime(m) {
+    return m.time || m.laiks || m.created || m.izveidots || m.lastModified || m.pedeja_laiks || m.pēdējais_laiks || '';
+  }
+
+  getMarkTimeLocal(m) {
+    const t = this.getMarkTime(m);
+    if (!t) return null;
+    if (t instanceof Date) return t;
+    if (typeof t === 'string') {
+      const d = new Date(t);
+      if (!isNaN(d.getTime()) && d.getFullYear() > 1900) return d;
+    }
+    return null;
   }
 
   async loadMarks() {
@@ -357,8 +378,8 @@ class CareFormController {
       .filter(l => this.clientIdsMatch(l, this.clientId))
       .filter(l => this.isRecent(l, today))
       .sort((a, b) => {
-        const ta = this.extractTimeForSort(a.time) || a.lastModified || a.created || a.izveidots || '';
-        const tb = this.extractTimeForSort(b.time) || b.lastModified || b.created || b.izveidots || '';
+        const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.lastModified || a.created || a.izveidots || '';
+        const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.lastModified || b.created || b.izveidots || '';
         return String(tb).localeCompare(String(ta));
       });
     console.log('[care_form] loadHistory: total=' + allLog.length + ' history=' + this.history.length);
@@ -1040,13 +1061,13 @@ class CareFormController {
     const fluidLog = (this.allClientLog || [])
       .filter(l => l.category === 'sikdrumi' && (l.field === 'uznemts_ml' || l.field === 'uzņemts_ml' || l.field === 'uznemts_h2o'))
       .sort((a, b) => {
-        const ta = this.extractTimeForSort(a.time) || a.created || '';
-        const tb = this.extractTimeForSort(b.time) || b.created || '';
+        const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.created || '';
+        const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.created || '';
         return tb.localeCompare(ta);
       });
     const fluidLast = fluidLog[0];
     const fluidLastBy = fluidLast ? (this.empMap[fluidLast.employeeId] || '?') : null;
-    const fluidTime = fluidLast ? this.extractTimeDisplay(fluidLast.time) : null;
+    const fluidTime = fluidLast ? this.extractTimeDisplay(this.getMarkTime(fluidLast)) : null;
 
     const fluidValue = document.getElementById('qtFluidValue');
     if (fluidValue) {
@@ -1062,8 +1083,8 @@ class CareFormController {
     const stoolLog = (this.allClientLog || [])
       .filter(l => l.category === 'fiziologija' && l.field === 'vedera_izeja')
       .sort((a, b) => {
-        const ta = this.extractTimeForSort(a.time) || a.created || '';
-        const tb = this.extractTimeForSort(b.time) || b.created || '';
+        const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.created || '';
+        const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.created || '';
         return tb.localeCompare(ta);
       });
     const stoolValue = document.getElementById('qtStoolValue');
@@ -1077,7 +1098,8 @@ class CareFormController {
         const labels = { 'N': 'Normāla', 'A': 'Aizcietējums', 'S': 'Svecīte', 'C': 'Caureja', 'K': 'Klizma' };
         const lastBy = this.empMap[last.employeeId] || '?';
         const valLabel = labels[last.value] || last.value;
-        stoolMeta.textContent = 'Pēdējais: ' + valLabel + (last.time ? ' (' + this.extractTimeDisplay(last.time) + ')' : '');
+        const lastTimeStr = this.extractTimeDisplay(this.getMarkTime(last));
+        stoolMeta.textContent = 'Pēdējais: ' + valLabel + (lastTimeStr ? ' (' + lastTimeStr + ')' : '');
       } else {
         stoolMeta.textContent = 'Vēl neviens nav ievadījis';
       }
@@ -1088,8 +1110,8 @@ class CareFormController {
     const diaperLog = (this.allClientLog || [])
       .filter(l => l.category === 'citsi_pasakomi' && (l.field === 'autins_biksitu_skaits' || l.field === 'autiņbiksīšu_skaits'))
       .sort((a, b) => {
-        const ta = this.extractTimeForSort(a.time) || a.created || '';
-        const tb = this.extractTimeForSort(b.time) || b.created || '';
+        const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.created || '';
+        const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.created || '';
         return tb.localeCompare(ta);
       });
     const diaperValue = document.getElementById('qtDiaperValue');
@@ -1104,7 +1126,8 @@ class CareFormController {
       const last = diaperLog[0];
       if (last) {
         const lastBy = this.empMap[last.employeeId] || '?';
-        diaperMeta.textContent = 'Pēdējais: ' + lastBy + (last.time ? ' (' + this.extractTimeDisplay(last.time) + ')' : '');
+        const lastTimeStr = this.extractTimeDisplay(this.getMarkTime(last));
+        diaperMeta.textContent = 'Pēdējais: ' + lastBy + (lastTimeStr ? ' (' + lastTimeStr + ')' : '');
       } else {
         diaperMeta.textContent = 'Vēl neviens nav ievadījis';
       }
@@ -1324,7 +1347,7 @@ class CareFormController {
       const fieldLabel = this.getFieldLabel(entry.category, entry.field);
       const valueDisplay = this.formatHistoryValue(entry.category, entry.field, entry.value);
       const isEdit = entry.type === 'Labots';
-      const time = this.extractTimeDisplay(entry.time) || '';
+      const time = this.extractTimeDisplay(this.getMarkTime(entry)) || '';
       return `
         <div class="history-item">
           <div class="history-action">
@@ -1370,7 +1393,7 @@ class CareFormController {
       signBtn.classList.add('signed');
       signBtn.disabled = false;
       const who = actor === this.empMap[this.currentUser.id] ? 'Tu' : actor;
-      signedBy.textContent = 'Diennakts paraksts: ' + who + ' (' + this.extractTimeDisplay(signature.time) + ')';
+      signedBy.textContent = 'Diennakts paraksts: ' + who + ' (' + this.extractTimeDisplay(this.getMarkTime(signature)) + ')';
       signedBy.style.display = 'block';
     } else {
       signBtn.textContent = '✍️ Parakstīties';
