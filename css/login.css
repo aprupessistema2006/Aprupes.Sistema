@@ -525,7 +525,7 @@ body.online {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: url('logo/logo_admin.png') center/cover no-repeat;
   z-index: 99999;
   display: flex;
   flex-direction: column;
