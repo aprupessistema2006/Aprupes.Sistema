@@ -1,5 +1,15 @@
 const SYNC_URL = typeof CONFIG !== 'undefined' ? CONFIG.GAS_URL : null;
 
+function normalizeKey(h) {
+  return String(h)
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ /g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+}
+
 function normalizeRow(raw) {
   if (!raw) return raw;
   const row = { ...raw };
@@ -38,52 +48,92 @@ function normalizeRow(raw) {
   }
 
   const map = {
+    date: 'date',
     datums: 'date',
+    clientId: 'clientId',
+    clientid: 'clientId',
+    klientsId: 'clientId',
     klients_id: 'clientId',
+    employeeId: 'employeeId',
+    employeeid: 'employeeId',
+    darbinieksId: 'employeeId',
     darbinieks_id: 'employeeId',
+    markId: 'markId',
+    markid: 'markId',
+    atzimesId: 'markId',
     atzimes_id: 'markId',
+    shift: 'shift',
     periods: 'shift',
+    category: 'category',
     kategorija: 'category',
+    field: 'field',
     lauka_nosaukums: 'field',
-    vērtība: 'value',
+    value: 'value',
     vertiba: 'value',
+    vertiba2: 'value',
+    lastValue: 'lastValue',
+    pedejaVertiba: 'lastValue',
     pedeja_vertiba: 'lastValue',
+    lastModified: 'lastModified',
+    pedejaLaiks: 'lastModified',
     pedeja_laiks: 'lastModified',
+    pedejaisLaiks: 'lastModified',
+    pedejais_laiks: 'lastModified',
+    lastBy: 'lastBy',
+    darbinieksPedejais: 'lastBy',
     darbinieks_pedejais: 'lastBy',
+    created: 'created',
     izveidots: 'created',
+    time: 'time',
     laiks: 'time',
+    reason: 'reason',
+    papilgsInfo: 'reason',
     papilgs_info: 'reason',
-    piešķirt_darbiniekam_id: 'pieskirtDarbiniekamId',
+    pieskirtDarbiniekamId: 'pieskirtDarbiniekamId',
+    pieskirt_darbiniekam_id: 'pieskirtDarbiniekamId',
+    irPabeigts: 'irPabeigts',
     ir_pabeigts: 'irPabeigts',
+    pabeigts: 'irPabeigts',
+    pabeigt: 'irPabeigts',
+    pabeigtsLaiks: 'pabeigtsLaiks',
     pabeigts_laiks: 'pabeigtsLaiks',
+    pabeigtajsId: 'pabeigtajsId',
     pabeigtajs_id: 'pabeigtajsId',
-    vārds: 'vards',
-    uzvārds: 'uzvards',
+    vards: 'vards',
+    uzvards: 'uzvards',
+    pin: 'pin',
+    pinKods: 'pin',
     pin_kods: 'pin',
     parole: 'parole'
   };
 
-  Object.keys(map).forEach(oldKey => {
-    if (row[oldKey] !== undefined && row[map[oldKey]] === undefined) {
-      row[map[oldKey]] = row[oldKey];
+  const normalizedRow = {};
+  Object.keys(row).forEach(k => {
+    const nk = normalizeKey(k);
+    if (map[nk]) {
+      if (normalizedRow[map[nk]] === undefined) normalizedRow[map[nk]] = row[k];
+    } else {
+      normalizedRow[k] = row[k];
     }
   });
 
-  if (row.clientId && !row.klientsId) row.klientsId = row.clientId;
-  if (row.employeeId && !row.darbinieksId) row.darbinieksId = row.employeeId;
+  if (row.id) normalizedRow.id = row.id;
 
-  const idTs = String(row.id || '').match(/^[a-z]+_(\d+)/);
+  const idTs = String(normalizedRow.id || '').match(/^[a-z]+_(\d+)/);
   if (idTs) {
     const d = new Date(parseInt(idTs[1], 10));
     if (!isNaN(d.getTime())) {
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
-      row.datums = y + '-' + m + '-' + day;
+      normalizedRow.date = y + '-' + m + '-' + day;
     }
   }
 
-  return row;
+  if (normalizedRow.clientId && !normalizedRow.klientsId) normalizedRow.klientsId = normalizedRow.clientId;
+  if (normalizedRow.employeeId && !normalizedRow.darbinieksId) normalizedRow.darbinieksId = normalizedRow.employeeId;
+
+  return normalizedRow;
 }
 
 class SyncManager {
