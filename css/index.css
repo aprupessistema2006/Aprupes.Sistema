@@ -45,13 +45,28 @@ body {
   animation: slideUp 0.4s ease;
 }
 
+.login-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
 .login-logo {
   width: 100px;
   height: auto;
-  margin-bottom: 18px;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+  flex-shrink: 0;
+}
+
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 4px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .login-card h1 {
@@ -431,16 +446,6 @@ body {
   .login-logo {
     width: 80px;
   }
-}
-
-.lang-switcher {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 4px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .lang-btn {
