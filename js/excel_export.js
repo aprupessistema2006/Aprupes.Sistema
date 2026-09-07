@@ -16,7 +16,6 @@ class ExcelExporter {
   }
 
   getMarkDate(m) {
-    if (m.date && /^\d{4}-\d{2}-\d{2}/.test(m.date)) return m.date;
     const ts = String(m.id || '').match(/^[a-z]+_(\d+)/);
     if (ts) {
       const d = new Date(parseInt(ts[1], 10));
@@ -27,6 +26,7 @@ class ExcelExporter {
         return y + '-' + mo + '-' + day;
       }
     }
+    if (m.date && /^\d{4}-\d{2}-\d{2}/.test(m.date)) return m.date;
     return null;
   }
 
