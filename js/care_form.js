@@ -278,6 +278,35 @@ class CareFormController {
     return v;
   }
 
+  extractDateFromAnyField(row) {
+    const candidates = [row.date, row.created, row.lastModified, row.izveidots, row.pedeja_laiks];
+    for (const c of candidates) {
+      if (c === null || c === undefined || c === '') continue;
+      let s = '';
+      if (c instanceof Date) {
+        if (isNaN(c.getTime())) continue;
+        if (c.getFullYear() < 1900) continue;
+        s = c.toISOString();
+      } else if (typeof c === 'string') {
+        s = c;
+      } else if (typeof c === 'number') {
+        s = new Date(c).toISOString();
+      }
+      if (!s) continue;
+      const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m1) {
+        const y = parseInt(m1[1]);
+        if (y >= 2020 && y <= 2035) return m1[0];
+      }
+      const m2 = s.match(/(\d{4}-\d{2}-\d{2})/);
+      if (m2) {
+        const y = parseInt(m2[1].substring(0, 4));
+        if (y >= 2020 && y <= 2035) return m2[1];
+      }
+    }
+    return '';
+  }
+
   extractTimeForSort(t) {
     if (!t) return '';
     if (t instanceof Date) {
