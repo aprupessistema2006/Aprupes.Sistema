@@ -1018,7 +1018,6 @@ class CareFormController {
     if (modalBody) {
       const shift = this.currentShift;
       modalBody.innerHTML = this.renderSikdrumiSection(shift);
-      this.attachSikdrumiHandlers();
     }
     this.toast('✓ Šķidrumi saglabāti');
   }
