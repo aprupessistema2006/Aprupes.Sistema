@@ -276,6 +276,10 @@ class CareFormController {
       if (m) return m[1] + ':' + m[2];
       const m2 = t.match(/(\d{2}):(\d{2}):(\d{2})/);
       if (m2) return m2[1] + ':' + m2[2];
+      const m3 = t.match(/ (\d{2}):(\d{2}):(\d{2})/);
+      if (m3) return m3[1] + ':' + m3[2];
+      const m4 = t.match(/ (\d{2}):(\d{2})/);
+      if (m4) return m4[1] + ':' + m4[2];
     }
     return String(t);
   }
