@@ -519,7 +519,6 @@ class AdminPanel {
     await this.db.clear('klienti');
     await this.db.clear('atzimes');
     await this.db.clear('atzimes_log');
-    await this.db.clear('dienas_ierakti');
     await this.db.clear('darbinieki');
     await this.db.clear('sync_queue');
     this.toast('Lokālie dati notīrīti');

@@ -346,13 +346,15 @@ class LoginController {
     const avatar = document.getElementById('selectedAvatar');
     const name = document.getElementById('selectedName');
     const role = document.getElementById('selectedRole');
+    const shiftSelector = document.getElementById('shiftTypeSelector');
     if (sel) sel.style.display = 'flex';
     if (avatar) avatar.textContent = ((emp.vards || emp.Vārds || '?')[0] || '?') + ((emp.uzvards || emp.Uzvārds || '')[0] || '');
     if (name) name.textContent = (emp.vards || emp.Vārds || '') + ' ' + (emp.uzvards || emp.Uzvārds || '');
     const roleLbl = { 'administrators': '👑 Administrators/e', 'kontroliere': '📊 Kontrolieris/e', 'aprūpētājs': '🤝 Aprūpētājs/a' };
     if (role) role.textContent = roleLbl[(emp.loma || emp.Loma || '').toLowerCase()] || emp.loma;
+    if (shiftSelector) shiftSelector.style.display = 'block';
     const sub = document.getElementById('loginSubtitle');
-    if (sub) sub.textContent = 'Ievadiet PIN kodu darbiniekam:';
+    if (sub) sub.textContent = 'Izvēlies maiņas tipu un ievadi PIN kodu:';
     const search = document.getElementById('employeeSearch');
     if (search) {
       search.value = '';
@@ -372,6 +374,8 @@ class LoginController {
     }
     const sel = document.getElementById('selectedEmployee');
     if (sel) sel.style.display = 'none';
+    const shiftSelector = document.getElementById('shiftTypeSelector');
+    if (shiftSelector) shiftSelector.style.display = 'none';
     const sub = document.getElementById('loginSubtitle');
     if (sub) sub.textContent = 'Izvēlies darbinieku un ievadi PIN kodu';
     this.refreshLoginButton();
@@ -401,6 +405,9 @@ class LoginController {
       return;
     }
 
+    const shiftTypeInput = document.querySelector('input[name="shiftType"]:checked');
+    const shiftType = shiftTypeInput ? shiftTypeInput.value : 'diennakts';
+
     const user = {
       id: employee.id || employee.ID,
       vards: employee.vards || employee.Vārds,
@@ -408,7 +415,8 @@ class LoginController {
       loma: employee.loma || employee.Loma,
       pin: pin,
       pinVerified: true,
-      loginTime: Date.now()
+      loginTime: Date.now(),
+      shiftType: shiftType
     };
 
     sessionStorage.setItem('careUser', JSON.stringify(user));

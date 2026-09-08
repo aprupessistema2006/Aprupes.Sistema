@@ -469,3 +469,54 @@ body {
   background: #2c3e50;
   color: white;
 }
+
+.shift-type-selector {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.shift-type-selector label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.shift-type-options {
+  display: flex;
+  gap: 10px;
+}
+
+.shift-type-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 2px solid #e0e6ed;
+  border-radius: 10px;
+  background: #fafbfc;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.shift-type-option:hover {
+  border-color: var(--accent);
+  background: #e8f5e9;
+}
+
+.shift-type-option input[type="radio"] {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+}
+
+.shift-type-option:has(input:checked) {
+  border-color: var(--accent);
+  background: #e8f5e9;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
+}

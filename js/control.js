@@ -7,7 +7,6 @@ class ControlPanel {
     this.allEmployees = [];
     this.allLog = [];
     this.allMarks = [];
-    this.allDiary = [];
     this.init();
   }
 
@@ -197,7 +196,6 @@ class ControlPanel {
     this.allEmployees = await this.db.getAll('darbinieki');
     this.allMarks = await this.db.getAll('atzimes');
     this.allLog = await this.db.getAll('atzimes_log');
-    this.allDiary = await this.db.getAll('dienas_ierakti');
 
     const diagEl = document.getElementById('dbStats');
     if (diagEl) {

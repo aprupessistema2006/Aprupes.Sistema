@@ -22,7 +22,6 @@ const CONFIG = {
     KLIENTI: 'klienti',
     ATZIMES: 'atzimes',
     ATZIMES_LOG: 'atzimes_log',
-    DIENAS_IERAKTI: 'dienas_ierakti',
     UZDEVOMI: 'uzdevomi'
   },
 

@@ -63,6 +63,19 @@
             </div>
             <button type="button" class="clear-selection" title="Notīrīt izvēli">✕</button>
           </div>
+          <div class="shift-type-selector" id="shiftTypeSelector" style="display:none;">
+            <label data-i18n="shiftTypeLabel">Maiņas tips:</label>
+            <div class="shift-type-options">
+              <label class="shift-type-option">
+                <input type="radio" name="shiftType" value="diennakts" checked>
+                <span>🌙 Diennakts</span>
+              </label>
+              <label class="shift-type-option">
+                <input type="radio" name="shiftType" value="dienas">
+                <span>☀️ Dienas</span>
+              </label>
+            </div>
+          </div>
           <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" data-i18n="pinPlaceholder" placeholder="PIN __ __" maxlength="6" disabled>
           <button type="submit" id="loginBtn" disabled data-i18n="loginBtn">✓ Ieiet</button>
         </form>

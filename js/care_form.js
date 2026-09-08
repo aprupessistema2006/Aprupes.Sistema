@@ -1487,20 +1487,22 @@ class CareFormController {
     const signBtn = document.getElementById('signBtn');
     const signedBy = document.getElementById('signedBy');
     const userRole = String(this.currentUser.loma || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const canSign = userRole === 'aprupetajs';
+    const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
+    const isDiennakts = userRole === 'aprupetajs' && shiftType === 'diennakts';
+    const canSign = isDiennakts;
 
     const signature = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
 
     if (signature) {
       const actor = this.empMap[signature.employeeId] || 'Nezināms';
-      signBtn.textContent = canSign ? '🔄 Pārparakstīt' : '👁️ Paraksts';
+      signBtn.textContent = canSign ? '🔄 Pārparakstīt' : '🔒 Nav tiesību';
       signBtn.classList.add('signed');
       signBtn.disabled = !canSign;
       const who = actor === this.empMap[this.currentUser.id] ? 'Tu' : actor;
       signedBy.textContent = 'Diennakts paraksts: ' + who + ' (' + this.extractTimeDisplay(this.getMarkTime(signature)) + ')';
       signedBy.style.display = 'block';
     } else {
-      signBtn.textContent = canSign ? '✍️ Parakstīties' : '🔒 Nav paraksta';
+      signBtn.textContent = canSign ? '✍️ Parakstīties' : '🔒 Nav tiesību';
       signBtn.classList.remove('signed');
       signBtn.disabled = !canSign;
       signedBy.style.display = 'none';
@@ -1509,8 +1511,13 @@ class CareFormController {
 
   async handleSign() {
     const userRole = (this.currentUser.loma || '').toLowerCase();
+    const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
     if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas') {
       this.toast('Tikai aprūpētāji var parakstīties');
+      return;
+    }
+    if (shiftType !== 'diennakts') {
+      this.toast('Tikai diennakts darbinieki var parakstīties');
       return;
     }
 

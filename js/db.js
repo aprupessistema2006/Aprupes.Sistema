@@ -24,7 +24,6 @@ class CareDB {
           klienti: { keyPath: 'id' },
           atzimes: { keyPath: 'id' },
           atzimes_log: { keyPath: 'id' },
-          dienas_ierakti: { keyPath: 'id' },
           uzdevomi: { keyPath: 'id' },
           meta: { keyPath: 'key' },
           sync_queue: { keyPath: 'id' }
@@ -41,7 +40,7 @@ class CareDB {
   _initMemory() {
     this._memory = {
       darbinieki: {}, klienti: {}, atzimes: {}, atzimes_log: {},
-      dienas_ierakti: {}, uzdevomi: {}, meta: {}, sync_queue: {}
+      uzdevomi: {}, meta: {}, sync_queue: {}
     };
     this.db = { _memory: this._memory, _isMemory: true };
     return this.db;

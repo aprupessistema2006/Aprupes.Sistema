@@ -186,7 +186,7 @@ class SyncManager {
       }
 
       const criticalStores = ['darbinieki', 'klienti'];
-      const otherStores = ['atzimes', 'atzimes_log', 'dienas_ierakti', 'uzdevomi'];
+      const otherStores = ['atzimes', 'atzimes_log', 'uzdevomi'];
       const counts = {};
 
       onProgress('Saglabāju darbiniekus un klientus...');

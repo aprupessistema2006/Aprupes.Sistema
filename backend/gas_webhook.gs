@@ -158,7 +158,6 @@ function routeAction(data) {
     if (action === 'mark') return handleMark(data);
     if (action === 'createTask') return handleCreateTask(data);
     if (action === 'updateTask') return handleUpdateTask(data);
-    if (action === 'logDay') return handleLogDay(data);
     return createResponse(200, { success: true });
   } catch (err) {
     return createResponse(500, { error: 'Kļūda: ' + err.toString() });
@@ -171,7 +170,6 @@ function handleLoad() {
     klienti: getSheetData(getSheet('klienti')),
     atzimes: getSheetData(getSheet('atzimes')),
     atzimes_log: getSheetData(getSheet('atzimes_log')),
-    dienas_ierakti: getSheetData(getSheet('dienas_ierakti')),
     uzdevomi: getSheetData(getSheet('uzdevomi'))
   });
 }
@@ -298,22 +296,6 @@ function handleUpdateTask(data) {
   if (t.pabeigtsLaiks !== undefined) setCellValue(sheet, row.row, 'pabeigts_laiks', t.pabeigtsLaiks || '');
   if (t.pabeigtajsId !== undefined) setCellValue(sheet, row.row, 'pabeigtajs_id', t.pabeigtajsId || '');
   return createResponse(200, { success: true });
-}
-
-function handleLogDay(data) {
-  const sheet = getSheet('dienas_ierakti');
-  const id = 'd_' + Date.now();
-  const today = data.data.date ? normalizeToDateString(data.data.date) : formatDate(new Date());
-  appendRow(sheet, {
-    id: id,
-    klients_id: data.data.clientId,
-    darbinieks_id: data.data.employeeId,
-    datums: today,
-    statuss: data.data.status || 'pabeigts',
-    pabeigts: data.data.completed !== false,
-    labotajs_id: data.data.employeeId
-  });
-  return createResponse(200, { success: true, id: id });
 }
 
 function createResponse(status, data) {
