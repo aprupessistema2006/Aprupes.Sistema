@@ -1489,20 +1489,43 @@ class CareFormController {
     const userRole = String(this.currentUser.loma || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
     const isDiennakts = userRole === 'aprupetajs' && shiftType === 'diennakts';
-    const canSign = isDiennakts;
+    const isAdmin = userRole === 'administrators';
+    const canSign = isDiennakts || isAdmin;
+    const currentShift = this.currentShift;
+    const today = this.getToday();
 
-    const signature = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
+    const signatureForShift = this.history.find(h => {
+      return h.category === 'paraksts' &&
+        h.field === 'aprupetaja_paraksts' &&
+        h.shift === currentShift &&
+        this.extractDateFromAnyField(h) === today;
+    });
+    const signatureAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
+
+    const signature = signatureForShift || signatureAny;
+    const shiftLabel = currentShift === 'V' ? 'Vakars' : 'Rīts';
 
     if (signature) {
       const actor = this.empMap[signature.employeeId] || 'Nezināms';
-      signBtn.textContent = canSign ? '🔄 Pārparakstīt' : '🔒 Nav tiesību';
-      signBtn.classList.add('signed');
-      signBtn.disabled = !canSign;
       const who = actor === this.empMap[this.currentUser.id] ? 'Tu' : actor;
-      signedBy.textContent = 'Diennakts paraksts: ' + who + ' (' + this.extractTimeDisplay(this.getMarkTime(signature)) + ')';
+      const time = this.extractTimeDisplay(this.getMarkTime(signature)) || '';
+      
+      if (signatureForShift && isAdmin) {
+        signBtn.textContent = '🔄 Admin: Pārparakstīt';
+      } else if (signatureForShift) {
+        signBtn.textContent = '✓ Parakstīts ' + shiftLabel;
+      } else if (isAdmin) {
+        signBtn.textContent = '🔄 Admin: Cita maiņa';
+      } else {
+        signBtn.textContent = '✓ Cita maiņa';
+      }
+      
+      signBtn.classList.add('signed');
+      signBtn.disabled = !isAdmin && signatureForShift;
+      signedBy.textContent = (signatureForShift ? shiftLabel + ' paraksts: ' : 'Cita maiņa: ') + who + ' (' + time + ')';
       signedBy.style.display = 'block';
     } else {
-      signBtn.textContent = canSign ? '✍️ Parakstīties' : '🔒 Nav tiesību';
+      signBtn.textContent = isAdmin ? '✍️ Admin paraksts' : '✍️ Parakstīties ' + shiftLabel;
       signBtn.classList.remove('signed');
       signBtn.disabled = !canSign;
       signedBy.style.display = 'none';
@@ -1512,11 +1535,11 @@ class CareFormController {
   async handleSign() {
     const userRole = (this.currentUser.loma || '').toLowerCase();
     const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
-    if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas') {
+    if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && userRole !== 'administrators') {
       this.toast('Tikai aprūpētāji var parakstīties');
       return;
     }
-    if (shiftType !== 'diennakts') {
+    if (shiftType !== 'diennakts' && userRole !== 'administrators') {
       this.toast('Tikai diennakts darbinieki var parakstīties');
       return;
     }
@@ -1525,17 +1548,30 @@ class CareFormController {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
     const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
+    const currentShift = this.currentShift;
 
-    const existing = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
+    const existingForShift = this.history.find(h => {
+      return h.category === 'paraksts' &&
+        h.field === 'aprupetaja_paraksts' &&
+        h.shift === currentShift &&
+        this.extractDateFromAnyField(h) === today;
+    });
+    const existingAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
+    const isResign = !!existingAny;
+    const isDuplicate = !!existingForShift;
+
+    if (isDuplicate && userRole !== 'administrators') {
+      this.toast((currentShift === 'R' ? 'Rīts' : 'Vakars') + ': jau ir parakstīts');
+      return;
+    }
+
     const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
-    const isResign = !!existing;
-
     const mark = {
-      id: existing ? existing.markId : this.db.generateId(),
+      id: existingAny ? existingAny.markId : this.db.generateId(),
       clientId: this.clientId,
       employeeId: this.currentUser.id,
       date: today,
-      shift: 'D',
+      shift: currentShift,
       category: 'paraksts',
       field: 'aprupetaja_paraksts',
       value: signatureValue,
@@ -1543,7 +1579,7 @@ class CareFormController {
       lastBy: this.currentUser.id
     };
 
-    const key = 'D|paraksts|aprupetaja_paraksts';
+    const key = currentShift + '|paraksts|aprupetaja_paraksts';
     this.marks.set(key, mark);
     await this.db.put('atzimes', mark);
 
@@ -1554,11 +1590,11 @@ class CareFormController {
       employeeId: this.currentUser.id,
       date: today,
       time: timeStr,
-      shift: 'D',
+      shift: currentShift,
       category: 'paraksts',
       field: 'aprupetaja_paraksts',
       value: signatureValue,
-      prevValue: existing ? existing.value : null,
+      prevValue: existingAny ? existingAny.value : null,
       type: isResign ? 'Labots' : 'Jauns',
       created: nowISO
     };
