@@ -50,18 +50,31 @@ class AprupeController {
 
     this.setupSearch();
     this.setupLanguageSwitcher();
-    await this.loadClients();
-    await this.loadTodayMarks();
-    this.filteredClients = [...this.clients];
-    this.renderCards();
-    await this.renderTaskBanner();
-    this.sync.loadInitialData().then(async () => {
+
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    if (overlay) overlay.style.display = 'flex';
+
+    try {
       await this.loadClients();
       await this.loadTodayMarks();
       this.filteredClients = [...this.clients];
       this.renderCards();
       await this.renderTaskBanner();
-    });
+
+      await this.sync.loadInitialData((msg) => {
+        if (loadingText) loadingText.textContent = msg;
+      });
+      await this.loadClients();
+      await this.loadTodayMarks();
+      this.filteredClients = [...this.clients];
+      this.renderCards();
+      await this.renderTaskBanner();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (overlay) overlay.style.display = 'none';
+    }
   }
 
   async renderTaskBanner() {

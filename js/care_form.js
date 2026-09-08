@@ -74,7 +74,14 @@ class CareFormController {
 
     this.setupLanguageSwitcher();
 
-    this.sync.loadInitialData().then(async () => {
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    if (overlay) overlay.style.display = 'flex';
+
+    try {
+      await this.sync.loadInitialData((msg) => {
+        if (loadingText) loadingText.textContent = msg;
+      });
       await new Promise(r => setTimeout(r, 200));
       await this.loadClient();
       await this.loadMarks();
@@ -87,7 +94,11 @@ class CareFormController {
       this.renderQuickTotals();
       this.renderTaskBanner();
       this.toast('✓ Dati sinhronizēti ar serveri');
-    });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (overlay) overlay.style.display = 'none';
+    }
 
     this.setupEventListeners();
   }
@@ -1248,17 +1259,6 @@ class CareFormController {
     this.renderQuickTotals();
     this.renderHistory();
   }
-    });
-
-    this.toast('✓ Maiņa pievienota (' + newCount + ')');
-    this.updateCategoryStatuses();
-    this.openCategoryModal('diapers');
-    await this.loadAllClientMarks();
-    await this.loadHistory();
-    this.renderTaskBanner();
-    this.renderQuickTotals();
-    this.renderHistory();
-  }
 
   async handleOptionSelect(shift, category, field, value, btn) {
     const key = shift + '|' + category + '|' + field;
@@ -1522,18 +1522,6 @@ class CareFormController {
       } else {
         signBtn.textContent = '✓ Cita maiņa';
       }
-      
-      signBtn.classList.add('signed');
-      signBtn.disabled = !isAdmin && signatureForShift;
-      signedBy.textContent = (signatureForShift ? shiftLabel + ' paraksts: ' : 'Cita maiņa: ') + who + ' (' + time + ')';
-      signedBy.style.display = 'block';
-    } else {
-      signBtn.textContent = isAdmin ? '✍️ Admin paraksts' : '✍️ Parakstīties ' + shiftLabel;
-      signBtn.classList.remove('signed');
-      signBtn.disabled = !canSign;
-      signedBy.style.display = 'none';
-    }
-  }
       
       signBtn.classList.add('signed');
       signBtn.disabled = !isAdmin && signatureForShift;

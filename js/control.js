@@ -35,15 +35,27 @@ class ControlPanel {
 
     this.setupUI();
     this.setupLanguageSwitcher();
-    await this.loadData();
-    this.renderAll();
-    await this.setupTasksUI();
 
-    this.sync.loadInitialData().then(async () => {
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    if (overlay) overlay.style.display = 'flex';
+
+    try {
+      await this.loadData();
+      this.renderAll();
+      await this.setupTasksUI();
+
+      await this.sync.loadInitialData((msg) => {
+        if (loadingText) loadingText.textContent = msg;
+      });
       await this.loadData();
       this.renderAll();
       await this.renderTasksList();
-    });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (overlay) overlay.style.display = 'none';
+    }
   }
 
   setupUI() {
