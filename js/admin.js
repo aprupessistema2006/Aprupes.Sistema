@@ -110,6 +110,20 @@ class AdminPanel {
       if (e.target.id === 'modal') this.closeModal();
     });
 
+    document.getElementById('enterAsCaregiverBtn').addEventListener('click', () => this.showCaregiverClientSelect());
+
+    const caregiverClose = document.querySelector('#caregiverModal .modal-close');
+    if (caregiverClose) {
+      caregiverClose.addEventListener('click', () => this.closeCaregiverModal());
+    }
+    document.getElementById('caregiverModal').addEventListener('click', (e) => {
+      if (e.target.id === 'caregiverModal') this.closeCaregiverModal();
+    });
+
+    document.getElementById('caregiverClientSearch').addEventListener('input', (e) => {
+      this.renderCaregiverClientList(e.target.value.trim().toLowerCase());
+    });
+
     document.getElementById('gasUrl').textContent = CONFIG.GAS_URL;
   }
 
@@ -224,6 +238,62 @@ class AdminPanel {
         </div>
       `;
     }).join('');
+  }
+
+  showCaregiverClientSelect() {
+    const modal = document.getElementById('caregiverModal');
+    const searchInput = document.getElementById('caregiverClientSearch');
+    if (modal) {
+      modal.style.display = 'flex';
+      if (searchInput) {
+        searchInput.value = '';
+        this.renderCaregiverClientList('');
+        setTimeout(() => searchInput.focus(), 100);
+      }
+    }
+  }
+
+  closeCaregiverModal() {
+    const modal = document.getElementById('caregiverModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  renderCaregiverClientList(filter) {
+    const list = document.getElementById('caregiverClientList');
+    let items = this.clients || [];
+    if (filter) {
+      const term = filter.toLowerCase();
+      items = items.filter(c => {
+        const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).toLowerCase();
+        return name.includes(term);
+      });
+    }
+
+    if (items.length === 0) {
+      list.innerHTML = '<div class="loading">Nav klientu</div>';
+      return;
+    }
+
+    list.innerHTML = items.map(c => {
+      const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
+      const id = c.id || c.ID;
+      return `
+        <div class="item-card" style="cursor:pointer;" onclick="window.adminPanel.enterAsCaregiver('${id}')">
+          <div class="item-info">
+            <div class="item-name">${this.escapeHtml(name)}</div>
+          </div>
+          <div class="item-actions">
+            <button class="item-btn primary">Atvērt</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  enterAsCaregiver(clientId) {
+    this.closeCaregiverModal();
+    sessionStorage.setItem('careAdminMode', 'true');
+    window.location.href = 'aprupetajs.html?client=' + clientId + '&mode=admin';
   }
 
   showClientForm(client) {

@@ -110,6 +110,26 @@ body {
   flex-shrink: 0;
 }
 
+.admin-mode-banner {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: white;
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  animation: slideDown 0.3s ease;
+}
+
+.admin-mode-banner strong {
+  font-weight: 700;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .main {
   padding: 14px;
   max-width: 800px;

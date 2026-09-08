@@ -85,6 +85,7 @@ const Logout = {
         }
       } catch (e) {}
       sessionStorage.removeItem('careUser');
+      sessionStorage.removeItem('careAdminMode');
       this.clearPending();
       window.location.href = 'index.html';
     }, 1800);

@@ -8,6 +8,7 @@ class CareFormController {
     this.marks = new Map();
     this.currentUser = null;
     this.history = [];
+    this.adminMode = false;
     this.init();
   }
 
@@ -49,6 +50,8 @@ class CareFormController {
       window.location.href = 'aprupe.html';
       return;
     }
+
+    this.adminMode = sessionStorage.getItem('careAdminMode') === 'true' || params.get('mode') === 'admin';
 
     this.db = new CareDB();
     await this.db.init();
@@ -1489,7 +1492,7 @@ class CareFormController {
     const userRole = String(this.currentUser.loma || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
     const isDiennakts = userRole === 'aprupetajs' && shiftType === 'diennakts';
-    const isAdmin = userRole === 'administrators';
+    const isAdmin = userRole === 'administrators' || this.adminMode;
     const canSign = isDiennakts || isAdmin;
     const currentShift = this.currentShift;
     const today = this.getToday();
@@ -1531,15 +1534,28 @@ class CareFormController {
       signedBy.style.display = 'none';
     }
   }
+      
+      signBtn.classList.add('signed');
+      signBtn.disabled = !isAdmin && signatureForShift;
+      signedBy.textContent = (signatureForShift ? shiftLabel + ' paraksts: ' : 'Cita maiņa: ') + who + ' (' + time + ')';
+      signedBy.style.display = 'block';
+    } else {
+      signBtn.textContent = isAdmin ? '✍️ Admin paraksts' : '✍️ Parakstīties ' + shiftLabel;
+      signBtn.classList.remove('signed');
+      signBtn.disabled = !canSign;
+      signedBy.style.display = 'none';
+    }
+  }
 
   async handleSign() {
     const userRole = (this.currentUser.loma || '').toLowerCase();
     const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
-    if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && userRole !== 'administrators') {
+    const isAdmin = userRole === 'administrators' || this.adminMode;
+    if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && !isAdmin) {
       this.toast('Tikai aprūpētāji var parakstīties');
       return;
     }
-    if (shiftType !== 'diennakts' && userRole !== 'administrators') {
+    if (shiftType !== 'diennakts' && !isAdmin) {
       this.toast('Tikai diennakts darbinieki var parakstīties');
       return;
     }
@@ -1560,7 +1576,7 @@ class CareFormController {
     const isResign = !!existingAny;
     const isDuplicate = !!existingForShift;
 
-    if (isDuplicate && userRole !== 'administrators') {
+    if (isDuplicate && !isAdmin) {
       this.toast((currentShift === 'R' ? 'Rīts' : 'Vakars') + ': jau ir parakstīts');
       return;
     }

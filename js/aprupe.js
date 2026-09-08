@@ -17,6 +17,7 @@ class AprupeController {
     }
 
     this.currentUser = JSON.parse(userData);
+    this.adminMode = sessionStorage.getItem('careAdminMode') === 'true';
 
     this.db = new CareDB();
     await this.db.init();
@@ -30,6 +31,22 @@ class AprupeController {
       syncStatusEl.textContent = e.detail;
       syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
     });
+
+    const adminBanner = document.getElementById('adminModeBanner');
+    if (adminBanner) {
+      adminBanner.style.display = this.adminMode ? 'block' : 'none';
+    }
+
+    const backBtn = document.getElementById('backBtn');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        if (this.adminMode) {
+          window.location.href = 'admin.html';
+        } else {
+          window.location.href = 'aprupe.html';
+        }
+      });
+    }
 
     this.setupSearch();
     this.setupLanguageSwitcher();
@@ -334,6 +351,7 @@ class AprupeController {
 
   logout() {
     sessionStorage.removeItem('careUser');
+    sessionStorage.removeItem('careAdminMode');
     window.location.href = 'index.html';
   }
 }
