@@ -24,6 +24,16 @@ class ControlPanel {
     window.careDB = this.db;
     this.sync = new SyncManager(this.db, CONFIG);
     window.careSync = this.sync;
+
+    const syncStatusEl = document.getElementById('syncStatus');
+    if (syncStatusEl) {
+      window.addEventListener('syncStatusChange', (e) => {
+        if (!syncStatusEl) return;
+        syncStatusEl.textContent = e.detail;
+        syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
+      });
+    }
+
     this.setupUI();
     this.setupLanguageSwitcher();
     await this.loadData();
@@ -343,7 +353,7 @@ class ControlPanel {
 
     let marks = this.allMarks.filter(filterBy);
     let log = this.allLog.filter(filterBy);
-    if (onlyEdited) log = log.filter(l => l.type === 'Labots' || l.type === 'Labots' || l.prevValue);
+    if (onlyEdited) log = log.filter(l => l.type === 'Labots');
 
     return { marks, log, date, clientId, employeeId, onlyEdited };
   }
@@ -374,7 +384,7 @@ class ControlPanel {
     const { marks, log, date, clientId } = data;
     const activeClients = this.allClients.filter(c => {
       const a = c.aktivs;
-      return a === true || a === 'true' || a === 'TRUE' || a === 1 || a === '1' || a === undefined;
+      return a === true || a === 'true' || a === 'TRUE' || a === 1 || a === '1';
     });
     const targetClients = clientId ? [clientId] : activeClients.map(c => c.id || c.ID);
 
@@ -409,7 +419,7 @@ class ControlPanel {
     });
 
     const incomplete = Math.max(0, targetClients.length - completed.size);
-    const edits = log.filter(l => l.type === 'Labots' || l.prevValue).length;
+    const edits = log.filter(l => l.type === 'Labots').length;
 
     const setText = (id, val) => {
       const el = document.getElementById(id);
@@ -563,7 +573,7 @@ class ControlPanel {
       const eid = String(l.employeeId || '');
       const clientName = clientMap[cid] || ('ID: ' + cid);
       const empName = empMap[eid] || ('ID: ' + eid);
-      const isEdit = l.type === 'Labots' || l.prevValue;
+      const isEdit = l.type === 'Labots';
       const value = l.value === '' || l.value === undefined ? '<em style="color:#999">(tukšs)</em>' : this.escapeHtml(String(l.value));
       return `
         <tr>
@@ -771,14 +781,22 @@ class ControlPanel {
       const overlay = document.getElementById('loadingOverlay');
       const loadingText = document.getElementById('loadingText');
       if (overlay) overlay.style.display = 'flex';
-      await this.sync.loadInitialData((msg) => {
-        if (loadingText) loadingText.textContent = msg;
-      });
+      if (window.careSync && navigator.onLine) {
+        window.careSync.sync().catch(() => {});
+      }
       const allMarks = window.state && window.state.marks ? window.state.marks : await this.db.getAll('atzimes');
       const cid = client.id || client.ID;
       const clientMarks = allMarks.filter(m => {
         const mcid = m.clientId || m.klientsId;
         return String(mcid) === String(cid);
+      });
+      clientMarks.sort((a, b) => {
+        const da = this.extractDateFromAnyField(a) || '';
+        const db = this.extractDateFromAnyField(b) || '';
+        if (da !== db) return db.localeCompare(da);
+        const ta = this.formatTimeForDisplay(a.time);
+        const tb = this.formatTimeForDisplay(b.time);
+        return tb.localeCompare(ta);
       });
       const filename = await exporter.generateMonth(client, year, month, clientMarks);
       this.toast('✓ Lejupielādejts: ' + filename);
@@ -814,14 +832,22 @@ class ControlPanel {
     const loadingText = document.getElementById('loadingText');
     if (overlay) overlay.style.display = 'flex';
     try {
-      await this.sync.loadInitialData((msg) => {
-        if (loadingText) loadingText.textContent = msg;
-      });
+      if (window.careSync && navigator.onLine) {
+        window.careSync.sync().catch(() => {});
+      }
       const allMarks = await this.db.getAll('atzimes');
       const cid = client.id || client.ID;
-      const clientMarks = allMarks.filter(m => {
+      let clientMarks = allMarks.filter(m => {
         const mcid = m.clientId || m.klientsId;
         return String(mcid) === String(cid);
+      });
+      clientMarks.sort((a, b) => {
+        const da = this.extractDateFromAnyField(a) || '';
+        const db = this.extractDateFromAnyField(b) || '';
+        if (da !== db) return db.localeCompare(da);
+        const ta = this.formatTimeForDisplay(a.time);
+        const tb = this.formatTimeForDisplay(b.time);
+        return tb.localeCompare(ta);
       });
 
       const daysInMonth = new Date(year, month, 0).getDate();

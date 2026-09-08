@@ -12,12 +12,7 @@ const TaskManager = {
       this.tasks = local || [];
       this.lastFetch = Date.now();
       if (window.careSync && navigator.onLine) {
-        window.careSync.loadInitialData().then(async () => {
-          const fresh = await window.careDB.getAll('uzdevomi');
-          this.tasks = fresh || [];
-          this.lastFetch = Date.now();
-          this._notifyListeners();
-        }).catch(() => {});
+        window.careSync.sync().catch(() => {});
       }
     } catch (e) {
       this.tasks = [];

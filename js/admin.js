@@ -22,6 +22,15 @@ class AdminPanel {
     this.sync = new SyncManager(this.db, CONFIG);
     window.careSync = this.sync;
 
+    const syncStatusEl = document.getElementById('syncStatus');
+    if (syncStatusEl) {
+      window.addEventListener('syncStatusChange', (e) => {
+        if (!syncStatusEl) return;
+        syncStatusEl.textContent = e.detail;
+        syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
+      });
+    }
+
     this.setupTabs();
     this.setupUI();
     this.setupLanguageSwitcher();
@@ -511,6 +520,8 @@ class AdminPanel {
     await this.db.clear('atzimes');
     await this.db.clear('atzimes_log');
     await this.db.clear('dienas_ierakti');
+    await this.db.clear('darbinieki');
+    await this.db.clear('sync_queue');
     this.toast('Lokālie dati notīrīti');
     await this.loadData();
     this.renderClientList();

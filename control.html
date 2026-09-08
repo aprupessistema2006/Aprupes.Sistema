@@ -17,25 +17,16 @@
       <button data-lang="en" class="lang-btn">EN</button>
     </div>
     <h1 data-i18n="loginTitle">Kontroliera panelis</h1>
+    <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
     <button id="logoutBtn" class="btn-icon logout-btn" data-i18n="logoutBtn" title="Izlogoties">⎋</button>
   </header>
 
   <main class="main">
     <section class="filter-bar">
       <div class="filter-row">
-        <label data-i18n="day">Datums:
-          <input type="date" id="dateFilter" value="">
-        </label>
-        <label data-i18n="client">Klients:
-          <select id="clientFilter">
-            <option value="">Visi klienti</option>
-          </select>
-        </label>
-        <label data-i18n="employee">Darbinieks:
-          <select id="employeeFilter">
-            <option value="">Visi</option>
-          </select>
-        </label>
+        <label><span data-i18n="date">Datums</span>: <input type="date" id="dateFilter" value=""></label>
+        <label><span data-i18n="client">Klients</span>: <select id="clientFilter"><option value="">Visi klienti</option></select></label>
+        <label><span data-i18n="employee">Darbinieks</span>: <select id="employeeFilter"><option value="">Visi</option></select></label>
       </div>
       <div class="filter-row">
         <label>
@@ -49,14 +40,8 @@
       <h3 data-i18n="export">📊 Excel eksports</h3>
       <p class="export-help" data-i18n="exportHelp">Izvēlies mēnesi un klientu, tad noklikšķini "Lejupielādēt".</p>
       <div class="export-row">
-        <label data-i18n="month">Mēnesis:
-          <input type="month" id="exportMonth" required>
-        </label>
-        <label data-i18n="client">Klients:
-          <select id="exportClient" required>
-            <option value="">— izvēlies klientu —</option>
-          </select>
-        </label>
+        <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="exportMonth" required></label>
+        <label><span data-i18n="client">Klients</span>: <select id="exportClient" required><option value="">— izvēlies klientu —</option></select></label>
         <button id="exportBtn" class="btn-primary" data-i18n="exportExcel">📥 Lejupielādēt Excel</button>
       </div>
     </section>
@@ -65,14 +50,8 @@
       <h3 data-i18n="monthView">📅 Mēneša apskats</h3>
       <p class="export-help" data-i18n="monthViewHelp">Izvēlies mēnesi un klientu, lai redzētu vizuālo apskatu.</p>
       <div class="export-row">
-        <label data-i18n="month">Mēnesis:
-          <input type="month" id="monthViewMonth" required>
-        </label>
-        <label data-i18n="client">Klients:
-          <select id="monthViewClient" required>
-            <option value="">— izvēlies klientu —</option>
-          </select>
-        </label>
+        <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="monthViewMonth" required></label>
+        <label><span data-i18n="client">Klients</span>: <select id="monthViewClient" required><option value="">— izvēlies klientu —</option></select></label>
         <button id="renderMonthView" class="btn-primary" data-i18n="renderMonth">👁️ Apskatīt</button>
       </div>
       <div id="monthViewContainer" class="month-view-container"></div>

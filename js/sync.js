@@ -142,9 +142,37 @@ class SyncManager {
     this.config = config;
     this.syncing = false;
     this.loaded = false;
+    this._queueProcessing = false;
+    this._queueTimer = null;
+    this._loading = false;
+    this._setupOfflineDetection();
+  }
+
+  _setupOfflineDetection() {
+    const updateStatus = () => {
+      this._updateSyncStatus(navigator.onLine ? 'Saglabāts' : 'Bezsaistē');
+    };
+    updateStatus();
+    window.addEventListener('online', () => {
+      updateStatus();
+      this._scheduleQueueProcessing();
+    });
+    window.addEventListener('offline', updateStatus);
+  }
+
+  _updateSyncStatus(status) {
+    try {
+      const event = new CustomEvent('syncStatusChange', { detail: status });
+      window.dispatchEvent(event);
+    } catch (e) {}
   }
 
   async loadInitialData(onProgress) {
+    if (this._loading) {
+      return { offline: true, error: 'Sinhronizācija jau notiek', count: {} };
+    }
+    this._loading = true;
+    this._updateSyncStatus('Sinhronizē...');
     onProgress = onProgress || function() {};
     try {
       onProgress('Ielādēju datus no servera...');
@@ -165,7 +193,6 @@ class SyncManager {
       for (const store of criticalStores) {
         const items = (data[store] || []).map(normalizeRow);
         counts[store] = items.length;
-        await this.db.clear(store);
         for (const item of items) {
           await this.db.put(store, item);
         }
@@ -175,45 +202,97 @@ class SyncManager {
       for (const store of otherStores) {
         const items = (data[store] || []).map(normalizeRow);
         counts[store] = items.length;
-        await this.db.clear(store);
         for (const item of items) {
           await this.db.put(store, item);
         }
       }
 
       await this.db.setMeta('lastSync', Date.now());
+      this._updateSyncStatus('Saglabāts');
       onProgress('✓ Dati veiksmīgi ielādēti');
       return { offline: false, count: counts };
     } catch (err) {
+      this._updateSyncStatus('Bezsaistē');
       onProgress('⚠️ Neizdevās ielādēt datus: ' + err.message);
       return { offline: true, error: err.message, count: {} };
+    } finally {
+      this._loading = false;
     }
   }
 
   async enqueueChange(change) {
     if (!SYNC_URL) return;
+    const queueItem = {
+      id: this.db.generateId(),
+      change: change,
+      timestamp: Date.now(),
+      retries: 0,
+      lastError: null
+    };
+    await this.db.add('sync_queue', queueItem);
+    this._scheduleQueueProcessing();
+  }
+
+  _scheduleQueueProcessing() {
+    if (this._queueTimer) return;
+    this._queueTimer = setTimeout(() => {
+      this._queueTimer = null;
+      this.processQueue();
+    }, 500);
+  }
+
+  async processQueue() {
+    if (this._queueProcessing || !SYNC_URL) return;
+    this._queueProcessing = true;
+    this._updateSyncStatus('Sinhronizē...');
     try {
-      await fetch(SYNC_URL, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(change)
-      });
-    } catch (e) {
-      console.error('[sync] send failed', e);
+      const items = await this.db.getAll('sync_queue');
+      if (items.length === 0) {
+        this._updateSyncStatus('Saglabāts');
+        return;
+      }
+
+      const sorted = items.sort((a, b) => a.timestamp - b.timestamp);
+      for (const item of sorted) {
+        try {
+          const response = await fetch(SYNC_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(item.change)
+          });
+          if (response.ok) {
+            await this.db.delete('sync_queue', item.id);
+          } else {
+            item.retries++;
+            item.lastError = 'HTTP ' + response.status;
+            await this.db.put('sync_queue', item);
+          }
+        } catch (e) {
+          item.retries++;
+          item.lastError = e.message;
+          await this.db.put('sync_queue', item);
+        }
+      }
+      const remaining = await this.db.getAll('sync_queue');
+      this._updateSyncStatus(remaining.length === 0 ? 'Saglabāts' : 'Gaida nosūtīšanu');
+    } finally {
+      this._queueProcessing = false;
     }
   }
 
   async getUnsyncedItems() {
-    return [];
+    const items = await this.db.getAll('sync_queue');
+    return items.map(i => i.change);
   }
 
   async getUnsyncedCount() {
-    return 0;
+    const items = await this.db.getAll('sync_queue');
+    return items.length;
   }
 
   async sync() {
-    this.syncing = false;
+    await this.processQueue();
   }
 
   async hasLocalData() {

@@ -2,7 +2,7 @@ class CareDB {
   constructor() {
     this.db = null;
     this.dbName = 'AprupesSistema';
-    this.version = 2;
+    this.version = 3;
   }
 
   async init() {
@@ -26,7 +26,8 @@ class CareDB {
           atzimes_log: { keyPath: 'id' },
           dienas_ierakti: { keyPath: 'id' },
           uzdevomi: { keyPath: 'id' },
-          meta: { keyPath: 'key' }
+          meta: { keyPath: 'key' },
+          sync_queue: { keyPath: 'id' }
         };
         Object.keys(migrations).forEach(storeName => {
           if (!db.objectStoreNames.contains(storeName)) {
@@ -40,7 +41,7 @@ class CareDB {
   _initMemory() {
     this._memory = {
       darbinieki: {}, klienti: {}, atzimes: {}, atzimes_log: {},
-      dienas_ierakti: {}, uzdevomi: {}, meta: {}
+      dienas_ierakti: {}, uzdevomi: {}, meta: {}, sync_queue: {}
     };
     this.db = { _memory: this._memory, _isMemory: true };
     return this.db;
@@ -51,6 +52,7 @@ class CareDB {
       const store = this.db._memory[storeName];
       const tx = {
         _s: store,
+        _isMemory: true,
         add: (val) => { store[val.id] = val; return { onsuccess: null, onerror: null, result: val.id }; },
         put: (val) => { store[val.id] = val; return { onsuccess: null, onerror: null, result: val.id }; },
         get: (key) => { return { onsuccess: null, onerror: null, result: store[key] }; },

@@ -44,6 +44,12 @@ class ExcelExporter {
 
     const daysInMonth = new Date(year, month, 0).getDate();
 
+    marks.sort((a, b) => {
+      const da = this.getMarkDate(a) || '';
+      const db = this.getMarkDate(b) || '';
+      return db.localeCompare(da);
+    });
+
     const dataByDay = {};
     marks.forEach(m => {
       const dateStr = this.getMarkDate(m);
