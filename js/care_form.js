@@ -917,6 +917,8 @@ class CareFormController {
 
   bindFormEvents() {
     document.querySelectorAll('.opt-btn:not(.diaper-btn):not(.fiziologija-select)').forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = '1';
       btn.addEventListener('click', (e) => {
         const cat = e.currentTarget.dataset.cat;
         const field = e.currentTarget.dataset.field;
@@ -927,6 +929,8 @@ class CareFormController {
     });
 
     document.querySelectorAll('.diaper-btn').forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = '1';
       btn.addEventListener('click', (e) => {
         const cat = e.currentTarget.dataset.cat;
         const field = e.currentTarget.dataset.field;
@@ -936,6 +940,8 @@ class CareFormController {
     });
 
     document.querySelectorAll('.fiziologija-select').forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = '1';
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         document.querySelectorAll('.fiziologija-select').forEach(b => b.classList.remove('selected'));
@@ -958,6 +964,8 @@ class CareFormController {
     });
 
     document.querySelectorAll('.submit-btn').forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = '1';
       btn.addEventListener('click', (e) => {
         const type = e.currentTarget.dataset.submit;
         if (type === 'temp') {
@@ -976,6 +984,8 @@ class CareFormController {
     });
 
     document.querySelectorAll('.number-input').forEach(input => {
+      if (input.dataset.bound) return;
+      input.dataset.bound = '1';
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
