@@ -495,16 +495,19 @@ class ControlPanel {
       return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0') + ':' + String(t.getSeconds()).padStart(2, '0');
     }
     if (typeof t === 'string') {
-      if (/^\d{2}:\d{2}:\d{2}/.test(t)) return t.substring(0, 8);
-      if (/^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
-      if (t.includes('T')) {
-        const d = new Date(t);
+      const trimmed = t.trim();
+      if (/^\d{2}:\d{2}:\d{2}/.test(trimmed)) return trimmed.substring(0, 8);
+      if (/^\d{2}:\d{2}/.test(trimmed)) return trimmed.substring(0, 5);
+      const timeMatch = trimmed.match(/(\d{2}:\d{2}(:\d{2})?)/);
+      if (timeMatch) return timeMatch[1];
+      if (trimmed.includes('T')) {
+        const d = new Date(trimmed);
         if (!isNaN(d.getTime())) {
           return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
         }
       }
     }
-    return String(t);
+    return '';
   }
 
   formatFieldLabel(category, field) {
