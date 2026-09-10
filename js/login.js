@@ -44,6 +44,11 @@ class LoginController {
       if (loadingOverlay) loadingOverlay.style.display = 'none';
     };
 
+    const safetyTimeout = setTimeout(() => {
+      console.warn('[login] safety timeout triggered');
+      hideLoading();
+    }, 15000);
+
     showLoading('Pārbaudām savienojumu...');
 
     let hasRemote = false;
@@ -54,6 +59,8 @@ class LoginController {
     } catch (e) {
       console.error('[login] connection check failed', e);
     }
+
+    clearTimeout(safetyTimeout);
 
     if (!hasRemote && !hasLocal) {
       hideLoading();

@@ -1,5 +1,18 @@
 const SYNC_URL = typeof CONFIG !== 'undefined' ? CONFIG.GAS_URL : null;
 
+async function fetchWithTimeout(url, timeout = 8000, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (e) {
+    clearTimeout(timeoutId);
+    throw e;
+  }
+}
+
 function normalizeKey(h) {
   return String(h)
     .toLowerCase()
@@ -177,7 +190,7 @@ class SyncManager {
     try {
       onProgress('Ielādēju datus no servera...');
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url, 10000);
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
 
@@ -255,7 +268,7 @@ class SyncManager {
       const sorted = items.sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
         try {
-          const response = await fetch(SYNC_URL, {
+          const response = await fetchWithTimeout(SYNC_URL, 8000, {
             method: 'POST',
             mode: 'cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -297,8 +310,12 @@ class SyncManager {
 
   async hasLocalData() {
     try {
-      const darbinieki = await this.db.getAll('darbinieki');
-      return darbinieki.length > 0;
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => resolve(false), 5000);
+      });
+      const dbPromise = this.db.getAll('darbinieki');
+      const darbinieki = await Promise.race([dbPromise, timeoutPromise]);
+      return darbinieki && darbinieki.length > 0;
     } catch (e) {
       return false;
     }
@@ -307,11 +324,7 @@ class SyncManager {
   async hasRemoteEmployees() {
     try {
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => resolve(false), 5000);
-      });
-      const fetchPromise = fetch(url);
-      const response = await Promise.race([fetchPromise, timeoutPromise]);
+      const response = await fetchWithTimeout(url, 5000);
       if (!response || !response.ok) return false;
       const data = await response.json();
       if (data.error) return false;
@@ -322,7 +335,7 @@ class SyncManager {
   }
 
   async createEmployee(data) {
-    const response = await fetch(SYNC_URL, {
+    const response = await fetchWithTimeout(SYNC_URL, 8000, {
       method: 'POST',
       mode: 'cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
