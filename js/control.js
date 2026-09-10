@@ -345,16 +345,16 @@ class ControlPanel {
     const employeeId = employeeEl ? employeeEl.value : '';
     const onlyEdited = onlyEditedEl ? onlyEditedEl.checked : false;
 
-    const extractAll = (row) => [
-      this.extractDateFromAnyField(row),
-      this.extractDateFromAnyFieldField(row, 'izveidots'),
-      this.extractDateFromAnyFieldField(row, 'created')
-    ].filter(Boolean);
+    const getPrimaryDate = (row) => {
+      const v = row.date || row.datums || '';
+      if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.match(/^(\d{4}-\d{2}-\d{2})/)[0];
+      return '';
+    };
 
     const filterBy = (row) => {
       if (date) {
-        const rowDates = extractAll(row);
-        if (rowDates.length > 0 && !rowDates.includes(date)) return false;
+        const rowDate = getPrimaryDate(row);
+        if (rowDate && rowDate !== date) return false;
       }
       if (clientId) {
         const cid = String(row.clientId || '');
@@ -590,7 +590,11 @@ class ControlPanel {
       const clientName = clientMap[cid] || ('ID: ' + cid);
       const empName = empMap[eid] || ('ID: ' + eid);
       const isEdit = l.type === 'Labots';
-      const value = l.value === '' || l.value === undefined ? '<em style="color:#999">(tukšs)</em>' : this.escapeHtml(String(l.value));
+      let displayValue = l.value;
+      if (typeof displayValue === 'string') {
+        displayValue = displayValue.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
+      }
+      const value = displayValue === '' || displayValue === undefined ? '<em style="color:#999">(tukšs)</em>' : this.escapeHtml(String(displayValue));
       return `
         <tr>
           <td><strong>${this.escapeHtml(date)}</strong></td>
