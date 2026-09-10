@@ -942,8 +942,12 @@ class ControlPanel {
         html += `<tr><td>${this.escapeHtml(f.label)}</td>`;
         for (let day = 1; day <= daysInMonth; day++) {
           const dayData = dataByDay[day] || {};
-          const valR = dayData['R|' + f.category + '|' + f.field];
-          const valV = dayData['V|' + f.category + '|' + f.field];
+          let valR = dayData['R|' + f.category + '|' + f.field];
+          let valV = dayData['V|' + f.category + '|' + f.field];
+          if (f.category === 'paraksts') {
+            if (typeof valR === 'string') valR = valR.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
+            if (typeof valV === 'string') valV = valV.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
+          }
           const rClass = valR ? '' : 'empty';
           const vClass = valV ? '' : 'empty';
           const rFever = (f.category === 'temp' && valR && parseFloat(valR) >= 37) ? ' fever' : '';
