@@ -53,6 +53,17 @@ class CareFormController {
 
     this.adminMode = sessionStorage.getItem('careAdminMode') === 'true' || params.get('mode') === 'admin';
 
+    const adminBanner = document.getElementById('adminModeBanner');
+    if (adminBanner) {
+      adminBanner.style.display = this.adminMode ? 'block' : 'none';
+    }
+
+    this.db = new CareDB();
+    await this.db.init();
+    window.careDB = this.db;
+    this.sync = new SyncManager(this.db, CONFIG);
+    window.careSync = this.sync;
+
     if (this.adminMode) {
       const caregiverId = sessionStorage.getItem('careAdminCaregiverId') || params.get('caregiverId');
       if (caregiverId) {
@@ -73,20 +84,10 @@ class CareFormController {
       }
     }
 
-    const adminBanner = document.getElementById('adminModeBanner');
-    if (adminBanner) {
-      adminBanner.style.display = this.adminMode ? 'block' : 'none';
-    }
     const adminCaregiverName = document.getElementById('adminModeCaregiverName');
     if (adminCaregiverName && this.adminMode && this.currentUser._adminOverride) {
       adminCaregiverName.textContent = (this.currentUser.vards || this.currentUser.Vārds || '') + ' ' + (this.currentUser.uzvards || this.currentUser.Uzvārds || '');
     }
-
-    this.db = new CareDB();
-    await this.db.init();
-    window.careDB = this.db;
-    this.sync = new SyncManager(this.db, CONFIG);
-    window.careSync = this.sync;
 
     window.addEventListener('syncComplete', async () => {
       await this.loadClient();
