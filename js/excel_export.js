@@ -62,7 +62,11 @@ class ExcelExporter {
         const shift = m.shift === 'D' ? 'D' : m.shift;
         const key = shift + '|' + m.category + '|' + m.field;
         if (dataByDay[day][key] === undefined) {
-          dataByDay[day][key] = m.value;
+          let value = m.value;
+          if (typeof value === 'string' && m.category === 'paraksts' && m.field === 'aprupetaja_paraksts') {
+            value = value.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
+          }
+          dataByDay[day][key] = value;
         }
       }
     });
