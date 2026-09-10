@@ -261,21 +261,56 @@ body {
 @media (max-width: 600px) {
   .client-grid {
     grid-template-columns: 1fr;
-    padding: 10px;
+    padding: 12px;
+    gap: 10px;
+  }
+  .header {
+    height: auto;
+    min-height: 56px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .header-logo {
+    width: 36px;
+    height: 36px;
   }
   .header h1 {
     font-size: 16px;
   }
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+    min-width: 44px;
+  }
+  .search-container {
+    padding: 12px;
+    top: 56px;
+  }
   #searchBox {
     font-size: 16px;
+    padding: 14px 16px;
+    min-height: 44px;
+  }
+  .client-card {
+    padding: 16px;
+    min-height: auto;
+  }
+  .client-card-name {
+    font-size: 17px;
+  }
+  .client-card .open-btn {
     padding: 12px 16px;
+    font-size: 14px;
+    min-height: 44px;
   }
 }
 
 @media (max-width: 480px) {
   .header {
-    height: 52px;
-    padding: 8px 12px;
+    min-height: 50px;
+    padding: 8px 10px;
+    gap: 6px;
   }
   .header-logo {
     width: 32px;
@@ -285,21 +320,23 @@ body {
     font-size: 14px;
   }
   .btn-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+    min-width: 44px;
   }
   .search-container {
-    padding: 12px;
-    top: 52px;
+    padding: 10px;
+    top: 50px;
   }
   #searchBox {
     font-size: 16px;
     padding: 12px 14px;
+    min-height: 44px;
   }
   .client-grid {
     grid-template-columns: 1fr;
-    padding: 8px;
+    padding: 10px;
     gap: 10px;
   }
   .client-card {
@@ -309,22 +346,26 @@ body {
   .client-card-name {
     font-size: 16px;
   }
-  .client-card .open-btn {
-    padding: 10px 14px;
+  .client-card-dob {
     font-size: 13px;
+  }
+  .client-card .open-btn {
+    padding: 12px 14px;
+    font-size: 14px;
     min-height: 44px;
   }
 }
 
 @media (min-width: 481px) and (max-width: 768px) {
-  .client-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .header {
-    height: 56px;
+    height: auto;
+    min-height: 56px;
   }
   .header h1 {
     font-size: 17px;
+  }
+  .client-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
