@@ -110,7 +110,7 @@ class AdminPanel {
       if (e.target.id === 'modal') this.closeModal();
     });
 
-    document.getElementById('enterAsCaregiverBtn').addEventListener('click', () => this.showCaregiverClientSelect());
+    document.getElementById('enterAsCaregiverBtn').addEventListener('click', () => this.showCaregiverSelectModal());
 
     const caregiverClose = document.querySelector('#caregiverModal .modal-close');
     if (caregiverClose) {
@@ -120,9 +120,7 @@ class AdminPanel {
       if (e.target.id === 'caregiverModal') this.closeCaregiverModal();
     });
 
-    document.getElementById('caregiverClientSearch').addEventListener('input', (e) => {
-      this.renderCaregiverClientList(e.target.value.trim().toLowerCase());
-    });
+    document.getElementById('caregiverConfirmBtn').addEventListener('click', () => this.confirmEnterAsCaregiver());
 
     document.getElementById('gasUrl').textContent = CONFIG.GAS_URL;
   }
@@ -240,17 +238,29 @@ class AdminPanel {
     }).join('');
   }
 
-  showCaregiverClientSelect() {
+  showCaregiverSelectModal() {
     const modal = document.getElementById('caregiverModal');
-    const searchInput = document.getElementById('caregiverClientSearch');
-    if (modal) {
-      modal.style.display = 'flex';
-      if (searchInput) {
-        searchInput.value = '';
-        this.renderCaregiverClientList('');
-        setTimeout(() => searchInput.focus(), 100);
-      }
-    }
+    const clientSelect = document.getElementById('caregiverClientSelect');
+    const employeeSelect = document.getElementById('caregiverEmployeeSelect');
+    if (!modal || !clientSelect || !employeeSelect) return;
+
+    clientSelect.innerHTML = '<option value="">— Izvēlies klientu —</option>';
+    (this.clients || []).forEach(c => {
+      const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
+      const id = c.id || c.ID;
+      clientSelect.innerHTML += `<option value="${this.escapeHtml(id)}">${this.escapeHtml(name)}</option>`;
+    });
+
+    employeeSelect.innerHTML = '<option value="">— Izvēlies aprūpētāju —</option>';
+    (this.employees || []).forEach(e => {
+      const loma = String(e.loma || e.Loma || '').toLowerCase();
+      if (!loma.includes('aprūpētājs') && !loma.includes('aprupetas') && !loma.includes('aprūpe')) return;
+      const name = (e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '');
+      const id = e.id || e.ID;
+      employeeSelect.innerHTML += `<option value="${this.escapeHtml(id)}">${this.escapeHtml(name)}</option>`;
+    });
+
+    modal.style.display = 'flex';
   }
 
   closeCaregiverModal() {
@@ -258,42 +268,21 @@ class AdminPanel {
     if (modal) modal.style.display = 'none';
   }
 
-  renderCaregiverClientList(filter) {
-    const list = document.getElementById('caregiverClientList');
-    let items = this.clients || [];
-    if (filter) {
-      const term = filter.toLowerCase();
-      items = items.filter(c => {
-        const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).toLowerCase();
-        return name.includes(term);
-      });
-    }
+  confirmEnterAsCaregiver() {
+    const clientSelect = document.getElementById('caregiverClientSelect');
+    const employeeSelect = document.getElementById('caregiverEmployeeSelect');
+    const clientId = clientSelect ? clientSelect.value : '';
+    const employeeId = employeeSelect ? employeeSelect.value : '';
 
-    if (items.length === 0) {
-      list.innerHTML = '<div class="loading">Nav klientu</div>';
+    if (!clientId || !employeeId) {
+      this.toast('Izvēlies gan klientu, gan aprūpētāju');
       return;
     }
 
-    list.innerHTML = items.map(c => {
-      const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
-      const id = c.id || c.ID;
-      return `
-        <div class="item-card" style="cursor:pointer;" onclick="window.adminPanel.enterAsCaregiver('${id}')">
-          <div class="item-info">
-            <div class="item-name">${this.escapeHtml(name)}</div>
-          </div>
-          <div class="item-actions">
-            <button class="item-btn primary">Atvērt</button>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  enterAsCaregiver(clientId) {
     this.closeCaregiverModal();
     sessionStorage.setItem('careAdminMode', 'true');
-    window.location.href = 'aprupetajs.html?client=' + clientId + '&mode=admin';
+    sessionStorage.setItem('careAdminCaregiverId', employeeId);
+    window.location.href = 'aprupetajs.html?client=' + clientId + '&mode=admin&caregiverId=' + employeeId;
   }
 
   showClientForm(client) {

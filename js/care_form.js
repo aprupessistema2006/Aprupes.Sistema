@@ -53,6 +53,35 @@ class CareFormController {
 
     this.adminMode = sessionStorage.getItem('careAdminMode') === 'true' || params.get('mode') === 'admin';
 
+    if (this.adminMode) {
+      const caregiverId = sessionStorage.getItem('careAdminCaregiverId') || params.get('caregiverId');
+      if (caregiverId) {
+        const caregiver = await this.db.get('darbinieki', caregiverId);
+        if (caregiver) {
+          this.currentUser = {
+            ...this.currentUser,
+            id: caregiver.id || caregiver.ID,
+            vards: caregiver.vards || caregiver.Vārds,
+            uzvards: caregiver.uzvards || caregiver.Uzvārds,
+            loma: caregiver.loma || caregiver.Loma,
+            pin: caregiver.pin || caregiver['PIN kods'],
+            shiftType: caregiver.shiftType || caregiver[' Maiņa tips'] || 'diennakts',
+            _adminOverride: true,
+            _adminName: (this.currentUser.vards || this.currentUser.Vārds || '') + ' ' + (this.currentUser.uzvards || this.currentUser.Uzvārds || '')
+          };
+        }
+      }
+    }
+
+    const adminBanner = document.getElementById('adminModeBanner');
+    if (adminBanner) {
+      adminBanner.style.display = this.adminMode ? 'block' : 'none';
+    }
+    const adminCaregiverName = document.getElementById('adminModeCaregiverName');
+    if (adminCaregiverName && this.adminMode && this.currentUser._adminOverride) {
+      adminCaregiverName.textContent = (this.currentUser.vards || this.currentUser.Vārds || '') + ' ' + (this.currentUser.uzvards || this.currentUser.Uzvārds || '');
+    }
+
     this.db = new CareDB();
     await this.db.init();
     window.careDB = this.db;
@@ -168,7 +197,11 @@ class CareFormController {
 
   setupEventListeners() {
     document.getElementById('backBtn').addEventListener('click', () => {
-      window.location.href = 'aprupe.html';
+      if (this.adminMode) {
+        window.location.href = 'admin.html';
+      } else {
+        window.location.href = 'aprupe.html';
+      }
     });
 
     const logoutBtn = document.getElementById('logoutBtn');
@@ -189,6 +222,8 @@ class CareFormController {
           if (ok) Logout.performLogout();
         } else {
           sessionStorage.removeItem('careUser');
+          sessionStorage.removeItem('careAdminMode');
+          sessionStorage.removeItem('careAdminCaregiverId');
           window.location.href = 'index.html';
         }
       });
@@ -1550,7 +1585,8 @@ class CareFormController {
       const actor = this.empMap[signature.employeeId] || 'Nezināms';
       const who = actor === this.empMap[this.currentUser.id] ? 'Tu' : actor;
       const time = this.extractTimeDisplay(this.getMarkTime(signature)) || '';
-      
+      const adminNote = this.currentUser._adminOverride ? ' (ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ')' : '';
+
       if (signatureForShift && isAdmin) {
         signBtn.textContent = '🔄 Admin: Pārparakstīt';
       } else if (signatureForShift) {
@@ -1560,10 +1596,10 @@ class CareFormController {
       } else {
         signBtn.textContent = '✓ Cita maiņa';
       }
-      
+
       signBtn.classList.add('signed');
       signBtn.disabled = !isAdmin && signatureForShift;
-      signedBy.textContent = (signatureForShift ? shiftLabel + ' paraksts: ' : 'Cita maiņa: ') + who + ' (' + time + ')';
+      signedBy.textContent = (signatureForShift ? shiftLabel + ' paraksts: ' : 'Cita maiņa: ') + who + adminNote + ' (' + time + ')';
       signedBy.style.display = 'block';
     } else {
       signBtn.textContent = isAdmin ? '✍️ Admin paraksts' : '✍️ Parakstīties ' + shiftLabel;
@@ -1608,6 +1644,8 @@ class CareFormController {
     }
 
     const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
+    const adminNote = this.currentUser._adminOverride ? ' [ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ']' : '';
+    const displayValue = signatureValue + adminNote;
     const mark = {
       id: existingAny ? existingAny.markId : this.db.generateId(),
       clientId: this.clientId,
@@ -1616,7 +1654,7 @@ class CareFormController {
       shift: currentShift,
       category: 'paraksts',
       field: 'aprupetaja_paraksts',
-      value: signatureValue,
+      value: displayValue,
       lastModified: nowISO,
       lastBy: this.currentUser.id
     };
@@ -1635,7 +1673,7 @@ class CareFormController {
       shift: currentShift,
       category: 'paraksts',
       field: 'aprupetaja_paraksts',
-      value: signatureValue,
+      value: displayValue,
       prevValue: existingAny ? existingAny.value : null,
       type: isResign ? 'Labots' : 'Jauns',
       created: nowISO
@@ -1657,8 +1695,8 @@ class CareFormController {
         shift: 'D',
         category: 'paraksts',
         field: 'aprupetaja_paraksts',
-        value: signatureValue,
-        reason: isResign ? 'Pārparakstīts' : 'Diennakts paraksts'
+        value: displayValue,
+        reason: isResign ? 'Pārparakstīts' : (this.currentUser._adminOverride ? 'Admin paraksts: ' + (this.currentUser._adminName || 'Administrators') : 'Diennakts paraksts')
       }
     });
 

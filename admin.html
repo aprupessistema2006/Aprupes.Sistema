@@ -116,12 +116,23 @@
   </div>
 
   <div id="caregiverModal" class="modal" style="display:none;">
-    <div class="modal-content" style="max-width:500px;">
+    <div class="modal-content" style="max-width:520px;">
       <span class="modal-close">×</span>
-      <h3 data-i18n="selectClientForCaregiver">Izvēlies klientu</h3>
-      <p style="color:#666;font-size:13px;margin-bottom:12px;">Izvēlies klientu, kuram vēlies ierakstīties kā aprūpētājs</p>
-      <input type="text" id="caregiverClientSearch" data-i18n="searchPlaceholder" placeholder="Meklēt klientu..." class="search-input" style="width:100%;padding:10px 12px;border:2px solid #e0e6ed;border-radius:8px;margin-bottom:10px;">
-      <div id="caregiverClientList" class="item-list" style="max-height:300px;overflow-y:auto;"></div>
+      <h3 data-i18n="selectClientForCaregiver">Izvēlies klientu un aprūpētāju</h3>
+      <p style="color:#666;font-size:13px;margin-bottom:14px;">Izvēlies klientu un aprūpētāju, kura identitātē vēlies strādāt</p>
+      <div class="form-group">
+        <label>Klients *</label>
+        <select id="caregiverClientSelect" class="search-input" style="width:100%;padding:10px 12px;border:2px solid #e0e6ed;border-radius:8px;margin-bottom:10px;">
+          <option value="">— Izvēlies klientu —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Aprūpētājs *</label>
+        <select id="caregiverEmployeeSelect" class="search-input" style="width:100%;padding:10px 12px;border:2px solid #e0e6ed;border-radius:8px;margin-bottom:10px;">
+          <option value="">— Izvēlies aprūpētāju —</option>
+        </select>
+      </div>
+      <button id="caregiverConfirmBtn" class="btn-primary" style="width:100%;margin-top:4px;">🔄 Ieiet kā aprūpētājs</button>
     </div>
   </div>
 
