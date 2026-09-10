@@ -310,12 +310,8 @@ class SyncManager {
 
   async hasLocalData() {
     try {
-      const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => resolve(false), 5000);
-      });
-      const dbPromise = this.db.getAll('darbinieki');
-      const darbinieki = await Promise.race([dbPromise, timeoutPromise]);
-      return darbinieki && darbinieki.length > 0;
+      const darbinieki = await this.db.getAll('darbinieki');
+      return darbinieki.length > 0;
     } catch (e) {
       return false;
     }
@@ -324,7 +320,7 @@ class SyncManager {
   async hasRemoteEmployees() {
     try {
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const response = await fetchWithTimeout(url, 5000);
+      const response = await fetchWithTimeout(url, 15000);
       if (!response || !response.ok) return false;
       const data = await response.json();
       if (data.error) return false;

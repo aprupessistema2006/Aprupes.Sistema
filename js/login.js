@@ -54,10 +54,23 @@ class LoginController {
     let hasRemote = false;
     let hasLocal = false;
     try {
-      hasRemote = await this.sync.hasRemoteEmployees();
       hasLocal = await this.sync.hasLocalData();
     } catch (e) {
-      console.error('[login] connection check failed', e);
+      console.error('[login] local check failed', e);
+    }
+
+    if (hasLocal) {
+      clearTimeout(safetyTimeout);
+      hideLoading();
+      await this.loadEmployees();
+      return;
+    }
+
+    showLoading('Pārbaudām savienojumu...');
+    try {
+      hasRemote = await this.sync.hasRemoteEmployees();
+    } catch (e) {
+      console.error('[login] remote check failed', e);
     }
 
     clearTimeout(safetyTimeout);
@@ -79,8 +92,6 @@ class LoginController {
       } catch (e) {
         if (statusMsg) statusMsg.textContent = '⚠️ Neizdevās ielādēt datus. Mēģinam lokāli...';
       }
-    } else if (hasLocal) {
-      if (statusMsg) statusMsg.textContent = '⚠️ Bezsaistē (lokāli dati)';
     }
 
     hideLoading();
