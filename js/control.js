@@ -204,10 +204,16 @@ class ControlPanel {
   }
 
   async loadData() {
-    this.allClients = await this.db.getAll('klienti');
-    this.allEmployees = await this.db.getAll('darbinieki');
-    this.allMarks = await this.db.getAll('atzimes');
-    this.allLog = await this.db.getAll('atzimes_log');
+    const [clients, employees, marks, log] = await Promise.all([
+      this.db.getAll('klienti'),
+      this.db.getAll('darbinieki'),
+      this.db.getAll('atzimes'),
+      this.db.getAll('atzimes_log')
+    ]);
+    this.allClients = clients;
+    this.allEmployees = employees;
+    this.allMarks = marks;
+    this.allLog = log;
 
     const diagEl = document.getElementById('dbStats');
     if (diagEl) {

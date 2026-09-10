@@ -83,10 +83,12 @@ class CareFormController {
         if (loadingText) loadingText.textContent = msg;
       });
       await new Promise(r => setTimeout(r, 200));
-      await this.loadClient();
-      await this.loadMarks();
-      await this.loadHistory();
-      await this.loadAllClientMarks();
+      await Promise.all([
+        this.loadClient(),
+        this.loadMarks(),
+        this.loadHistory(),
+        this.loadAllClientMarks()
+      ]);
       this.renderForm();
       this.renderHistory();
       this.renderSignature();
@@ -366,13 +368,13 @@ class CareFormController {
   async loadMarks() {
     const today = this.getToday();
     const allMarks = await this.db.getAll('atzimes');
-    console.log('[care_form] loadMarks: clientId=' + this.clientId + ' total=' + allMarks.length);
     if (allMarks.length > 0) {
       const sample = allMarks[0];
-      console.log('[care_form] sample keys:', Object.keys(sample).join(','));
-      console.log('[care_form] sample date/datums/lastModified/pedeja_laiks/created:',
-        sample.date, '|', sample.datums, '|', sample.lastModified, '|', sample.pedeja_laiks, '|', sample.created);
-      console.log('[care_form] today=' + today + ' sample recent=' + this.isRecent(sample, today));
+      if (sample.date || sample.datums || sample.lastModified || sample.pedeja_laiks || sample.created) {
+        console.log('[care_form] sample dates:',
+          sample.date, '|', sample.datums, '|', sample.lastModified, '|', sample.pedeja_laiks, '|', sample.created,
+          '| today=', today, '| recent=', this.isRecent(sample, today));
+      }
     }
     this.marks.clear();
     let matched = 0;
@@ -386,7 +388,6 @@ class CareFormController {
               const key = shift + '|' + m.category + '|' + m.field;
               this.marks.set(key, m);
             });
-    console.log('[care_form] loadMarks: matched=' + matched + ' marks.size=' + this.marks.size);
   }
 
   isRecent(m, today) {
@@ -443,7 +444,6 @@ class CareFormController {
         const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.lastModified || b.created || b.izveidots || '';
         return String(tb).localeCompare(String(ta));
       });
-    console.log('[care_form] loadHistory: total=' + allLog.length + ' history=' + this.history.length);
 
     const employees = await this.db.getAll('darbinieki');
     const empMap = {};

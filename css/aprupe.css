@@ -272,6 +272,62 @@ body {
   }
 }
 
+@media (max-width: 480px) {
+  .header {
+    height: 52px;
+    padding: 8px 12px;
+  }
+  .header-logo {
+    width: 32px;
+    height: 32px;
+  }
+  .header h1 {
+    font-size: 14px;
+  }
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  .search-container {
+    padding: 12px;
+    top: 52px;
+  }
+  #searchBox {
+    font-size: 16px;
+    padding: 12px 14px;
+  }
+  .client-grid {
+    grid-template-columns: 1fr;
+    padding: 8px;
+    gap: 10px;
+  }
+  .client-card {
+    padding: 14px;
+    min-height: auto;
+  }
+  .client-card-name {
+    font-size: 16px;
+  }
+  .client-card .open-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .client-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .header {
+    height: 56px;
+  }
+  .header h1 {
+    font-size: 17px;
+  }
+}
+
 .logout-btn { color: #e74c3c !important; background: rgba(231,76,60,0.08) !important; border-radius: 50% !important; }
 .logout-btn:hover { background: #e74c3c !important; color: white !important; transform: scale(1.08); }
 

@@ -115,6 +115,25 @@ class CareDB {
     });
   }
 
+  async batchPut(storeName, items) {
+    if (this.db && this.db._isMemory) {
+      items.forEach(item => { this.db._memory[storeName][item.id] = item; });
+      return items.map(item => item.id);
+    }
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const results = [];
+      items.forEach(item => {
+        const req = store.put(item);
+        req.onsuccess = () => results.push(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      tx.oncomplete = () => resolve(results);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
   async delete(storeName, key) {
     if (this.db && this.db._isMemory) {
       if (this.db._memory[storeName]) delete this.db._memory[storeName][key];

@@ -872,3 +872,188 @@ body {
   background: #2c3e50;
   color: white;
 }
+
+@media (max-width: 768px) {
+  .header {
+    padding: 10px 12px;
+    height: 54px;
+    gap: 8px;
+  }
+  .header h1 {
+    font-size: 16px;
+  }
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  .main {
+    padding: 12px;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat-card {
+    padding: 12px;
+  }
+  .stat-value {
+    font-size: 20px;
+  }
+  .filter-bar {
+    padding: 12px;
+  }
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .export-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .export-row input,
+  .export-row select {
+    min-width: auto;
+    width: 100%;
+  }
+  .data-table {
+    font-size: 12px;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 8px 10px;
+  }
+  .table-wrapper {
+    max-height: 400px;
+  }
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    padding: 10px 16px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+  .item-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+    min-height: 40px;
+  }
+  .search-input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .month-view-container {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    height: 48px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .header h1 {
+    font-size: 14px;
+  }
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  .main {
+    padding: 10px;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-card {
+    padding: 10px;
+  }
+  .stat-label {
+    font-size: 11px;
+  }
+  .stat-value {
+    font-size: 18px;
+  }
+  .filter-bar {
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+  .filter-row label {
+    font-size: 13px;
+  }
+  .filter-row input,
+  .filter-row select {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .data-section {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .data-section h2 {
+    font-size: 16px;
+  }
+  .data-table {
+    font-size: 11px;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 6px 8px;
+  }
+  .table-wrapper {
+    max-height: 300px;
+  }
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    padding: 10px 14px;
+    font-size: 12px;
+    min-height: 42px;
+  }
+  .item-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+    min-height: 36px;
+  }
+  .search-input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .section-header h2 {
+    font-size: 16px;
+  }
+  .modal-content {
+    padding: 16px;
+    max-height: 85vh;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .month-table {
+    font-size: 10px;
+  }
+  .month-table th,
+  .month-table td {
+    padding: 3px 4px;
+  }
+  .month-table td:first-child {
+    min-width: 100px;
+  }
+}

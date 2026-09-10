@@ -193,8 +193,8 @@ class SyncManager {
       for (const store of criticalStores) {
         const items = (data[store] || []).map(normalizeRow);
         counts[store] = items.length;
-        for (const item of items) {
-          await this.db.put(store, item);
+        if (items.length > 0) {
+          await this.db.batchPut(store, items);
         }
       }
 
@@ -202,8 +202,8 @@ class SyncManager {
       for (const store of otherStores) {
         const items = (data[store] || []).map(normalizeRow);
         counts[store] = items.length;
-        for (const item of items) {
-          await this.db.put(store, item);
+        if (items.length > 0) {
+          await this.db.batchPut(store, items);
         }
       }
 

@@ -56,8 +56,10 @@ class AprupeController {
     if (overlay) overlay.style.display = 'flex';
 
     try {
-      await this.loadClients();
-      await this.loadTodayMarks();
+      await Promise.all([
+        this.loadClients(),
+        this.loadTodayMarks()
+      ]);
       this.filteredClients = [...this.clients];
       this.renderCards();
       await this.renderTaskBanner();
@@ -65,8 +67,10 @@ class AprupeController {
       await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
       });
-      await this.loadClients();
-      await this.loadTodayMarks();
+      await Promise.all([
+        this.loadClients(),
+        this.loadTodayMarks()
+      ]);
       this.filteredClients = [...this.clients];
       this.renderCards();
       await this.renderTaskBanner();
