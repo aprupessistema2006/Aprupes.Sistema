@@ -296,14 +296,23 @@ class SyncManager {
   }
 
   async hasLocalData() {
-    const darbinieki = await this.db.getAll('darbinieki');
-    return darbinieki.length > 0;
+    try {
+      const darbinieki = await this.db.getAll('darbinieki');
+      return darbinieki.length > 0;
+    } catch (e) {
+      return false;
+    }
   }
 
   async hasRemoteEmployees() {
     try {
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const response = await fetch(url);
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => resolve(false), 5000);
+      });
+      const fetchPromise = fetch(url);
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+      if (!response || !response.ok) return false;
       const data = await response.json();
       if (data.error) return false;
       return (data.darbinieki || []).length > 0;

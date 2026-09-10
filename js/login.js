@@ -46,8 +46,14 @@ class LoginController {
 
     showLoading('Pārbaudām savienojumu...');
 
-    const hasRemote = await this.sync.hasRemoteEmployees();
-    const hasLocal = await this.sync.hasLocalData();
+    let hasRemote = false;
+    let hasLocal = false;
+    try {
+      hasRemote = await this.sync.hasRemoteEmployees();
+      hasLocal = await this.sync.hasLocalData();
+    } catch (e) {
+      console.error('[login] connection check failed', e);
+    }
 
     if (!hasRemote && !hasLocal) {
       hideLoading();
