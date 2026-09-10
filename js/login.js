@@ -44,11 +44,6 @@ class LoginController {
       if (loadingOverlay) loadingOverlay.style.display = 'none';
     };
 
-    const safetyTimeout = setTimeout(() => {
-      console.warn('[login] safety timeout triggered');
-      hideLoading();
-    }, 15000);
-
     showLoading('Pārbaudām savienojumu...');
 
     let hasRemote = false;
@@ -60,7 +55,6 @@ class LoginController {
     }
 
     if (hasLocal) {
-      clearTimeout(safetyTimeout);
       hideLoading();
       await this.loadEmployees();
       return;
@@ -72,8 +66,6 @@ class LoginController {
     } catch (e) {
       console.error('[login] remote check failed', e);
     }
-
-    clearTimeout(safetyTimeout);
 
     if (!hasRemote && !hasLocal) {
       hideLoading();
