@@ -178,8 +178,13 @@ class ExcelExporter {
         const cV = ws.getCell(`${addrV}${row}`);
 
         if (isSig) {
-          const valD = dayData['D|' + category + '|' + field];
-          if (valD !== undefined && valD !== '') cR.value = valD;
+          let valD = dayData['D|' + category + '|' + field];
+          if (valD !== undefined && valD !== '') {
+            if (typeof valD === 'string') {
+              valD = valD.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
+            }
+            cR.value = valD || null;
+          }
         } else {
           const valR = dayData['R|' + category + '|' + field];
           const valV = dayData['V|' + category + '|' + field];
