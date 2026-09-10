@@ -498,7 +498,7 @@ class ControlPanel {
       const trimmed = t.trim();
       if (/^\d{2}:\d{2}:\d{2}/.test(trimmed)) return trimmed.substring(0, 8);
       if (/^\d{2}:\d{2}/.test(trimmed)) return trimmed.substring(0, 5);
-      const timeMatch = trimmed.match(/(\d{2}:\d{2}(:\d{2})?)/);
+      const timeMatch = trimmed.match(/(?:^|[ T])(\d{2}:\d{2}(:\d{2})?)/);
       if (timeMatch) return timeMatch[1];
       if (trimmed.includes('T')) {
         const d = new Date(trimmed);
