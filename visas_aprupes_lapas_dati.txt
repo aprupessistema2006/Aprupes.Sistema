@@ -1,0 +1,74 @@
+========================================
+DARBA LAPA: APRŪPES DOKUMANTĀCIJA_1
+========================================
+
+Rinda 1 -> [A1]: VISPĀRĒJĀS APRŪPES DOKUMANTĀCIJA
+Rinda 3 -> [A3]: Klienta vārds, uzvārds, vecums (pilni gadi):
+Rinda 5 -> [A5]: Saskarsmes īpatnības: kurls, mēms, akls utt.: | [N5]: Diētas forma:
+Rinda 6 -> [A6]: Atzīmēšanas kritērijs: X - izpildīts; P - patstāvīgi;  A – atteicās           * ēdināšana: X – visa porcija; ½ puse porcijas;            * vēdera izeja: N - normāla; A - aizcietējumi; S - svecīte; C - caureja; K - klizma
+Rinda 7 -> [J7]: Mēnesis
+Rinda 8 -> [A8]: Datums | [C8]: 1 | [E8]: 2 | [G8]: 3 | [I8]: 4 | [K8]: 5 | [M8]: 6 | [O8]: 7 | [Q8]: 8 | [S8]: 9 | [U8]: 10 | [W8]: 11 | [Y8]: 12 | [Col_268]: 13 | [Col_288]: 14 | [Col_308]: 15
+Rinda 9 -> [C9]: R | [D9]: V | [E9]: R | [F9]: V | [G9]: R | [H9]: V | [I9]: R | [J9]: V | [K9]: R | [L9]: V | [M9]: R | [N9]: V | [O9]: R | [P9]: V | [Q9]: R | [R9]: V | [S9]: R | [T9]: V | [U9]: R | [V9]: V | [W9]: R | [X9]: V | [Y9]: R | [Z9]: V | [Col_269]: R | [Col_279]: V | [Col_289]: R | [Col_299]: V | [Col_309]: R | [Col_319]: V
+Rinda 10 -> [A10]: Temperatūra
+Ja temperatūra ir 37°C vai vairāk — rakstām sarkani, cik ir. Ja zem 37°C — rakstām N.
+Rinda 11 -> [A11]: Higiēna | [B11]: Mutes dobuma kopšana (Zobu kopšana) Protēzes
+Rinda 12 -> [B12]: Vanna, duša
+Rinda 13 -> [B13]: Daļēja apmazgāšana
+Rinda 14 -> [B14]: Veļas maiņa
+Rinda 15 -> [B15]: Nagu kopšana
+Rinda 16 -> [B16]: Matu kopšana (ķemmēšana un mazgāšana pēc vajadzības)
+Rinda 17 -> [B17]: Bārdas skūšana
+Rinda 18 -> [A18]: Aktivitātes | [B18]: Pārvietojas ar palīglīdzekli
+Rinda 19 -> [B19]: Stāv ar palīdzību
+Rinda 20 -> [B20]: Sēž ar palīdzību
+Rinda 21 -> [A21]: * Ēšana | [B21]: Brokastis
+Rinda 22 -> [B22]: Pusdienas
+Rinda 23 -> [B23]: Launags
+Rinda 24 -> [B24]: Vakariņas
+Rinda 25 -> [A25]: Šķidrumi | [B25]: Diennakts urīna daudzums (ml)
+Rinda 26 -> [B26]: Uzņemts H2O (24h daudzums (ml))
+Rinda 27 -> [A27]: Ādas kopšanas līdzekļi
+Rinda 28 -> [A28]: * Vēdera izeja
+Rinda 29 -> [A29]: Pastaigas svaigā gaisā (laukā)
+Rinda 30 -> [A30]: Ciemiņi
+Rinda 31 -> [A31]: Autiņbiksīšu maiņa (diennakts skaits)
+Rinda 32 -> [A32]: Aprūpētāju paraksts
+
+
+========================================
+DARBA LAPA: APRŪPES DOKUMANTĀCIJA_2
+========================================
+
+Rinda 1 -> [A1]: Atzīmēšanas kritērijs: X - izpildīts; P - patstāvīgi;  A – atteicās                                                                              * ēdināšana: X – visa porcija; ½ puse porcijas;            
+
+* vēdera izeja: N - normāla; A - aizcietējumi; S - svecīte; C - caureja; K - klizma
+Rinda 2 -> [A2]: Datums | [C2]: 16 | [E2]: 17 | [G2]: 18 | [I2]: 19 | [K2]: 20 | [M2]: 21 | [O2]: 22 | [Q2]: 23 | [S2]: 24 | [U2]: 25 | [W2]: 26 | [Y2]: 27 | [Col_262]: 28 | [Col_282]: 29 | [Col_302]: 30 | [Col_322]: 31
+Rinda 3 -> [C3]: R | [D3]: V | [E3]: R | [F3]: V | [G3]: R | [H3]: V | [I3]: R | [J3]: V | [K3]: R | [L3]: V | [M3]: R | [N3]: V | [O3]: R | [P3]: V | [Q3]: R | [R3]: V | [S3]: R | [T3]: V | [U3]: R | [V3]: V | [W3]: R | [X3]: V | [Y3]: R | [Z3]: V | [Col_263]: R | [Col_273]: V | [Col_283]: R | [Col_293]: V | [Col_303]: R | [Col_313]: V | [Col_323]: R | [Col_333]: V
+Rinda 4 -> [A4]: Temperatūra
+Ja temperatūra ir 37°C vai vairāk — rakstām sarkani, cik ir. Ja zem 37°C — rakstām N.
+Rinda 5 -> [A5]: Higiēna | [B5]: Mutes dobuma kopšana (Zobu kopšana) Protēzes
+Rinda 6 -> [B6]: Vanna, duša
+Rinda 7 -> [B7]: Daļēja apmazgāšana
+Rinda 8 -> [B8]: Veļas maiņa
+Rinda 9 -> [B9]: Nagu kopšana
+Rinda 10 -> [B10]: Matu kopšana (ķemmēšana un mazgāšana pēc vajadzības)
+Rinda 11 -> [B11]: Bārdas skūšana
+Rinda 12 -> [A12]: Aktivitātes | [B12]: Pārvietojas ar palīglīdzekli
+Rinda 13 -> [B13]: Stāv ar palīdzību
+Rinda 14 -> [B14]: Sēž ar palīdzību
+Rinda 15 -> [A15]: * Ēšana | [B15]: Brokastis
+Rinda 16 -> [B16]: Pusdienas
+Rinda 17 -> [B17]: Launags
+Rinda 18 -> [B18]: Vakariņas
+Rinda 19 -> [A19]: Šķidrumi | [B19]: Diennakts urīna daudzums (ml)
+Rinda 20 -> [B20]: Uzņemts H2O (24h daudzums (ml))
+Rinda 21 -> [A21]: Ādas kopšanas līdzekļi
+Rinda 22 -> [A22]: * Vēdera izeja
+Rinda 23 -> [A23]: Pastaigas svaigā gaisā (laukā)
+Rinda 24 -> [A24]: Ciemiņi
+Rinda 25 -> [A25]: Autiņbiksīšu maiņa (diennakts skaits)
+Rinda 26 -> [A26]: Aprūpētāju paraksts
+
+
+
+
