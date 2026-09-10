@@ -26,10 +26,15 @@ function getSheetData(sheet) {
       if (v !== '' && v !== null && v !== undefined) {
         hasData = true;
       }
+      const headerKey = normalizeKey(headers[j]);
       if (v instanceof Date) {
-        row[normalizeKey(headers[j])] = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+        if (headerKey === 'laiks') {
+          row[headerKey] = Utilities.formatDate(v, TZ, 'HH:mm:ss');
+        } else {
+          row[headerKey] = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+        }
       } else {
-        row[normalizeKey(headers[j])] = v;
+        row[headerKey] = v;
       }
     }
     if (hasData) rows.push(row);
@@ -54,7 +59,12 @@ function appendRow(sheet, data) {
     if (idx !== undefined) {
       let v = data[k];
       if (v instanceof Date) {
-        v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+        const normalizedKey = normalizeKey(k);
+        if (normalizedKey === 'laiks') {
+          v = Utilities.formatDate(v, TZ, 'HH:mm:ss');
+        } else {
+          v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+        }
       } else if (typeof v === 'boolean') {
         v = v ? 'TRUE' : 'FALSE';
       } else if (v === null || v === undefined) {
@@ -100,7 +110,12 @@ function setCellValue(sheet, rowNum, field, value) {
   if (idx !== undefined) {
     let v = value;
     if (v instanceof Date) {
-      v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+      const normalizedField = normalizeKey(field);
+      if (normalizedField === 'laiks') {
+        v = Utilities.formatDate(v, TZ, 'HH:mm:ss');
+      } else {
+        v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+      }
     } else if (typeof v === 'boolean') {
       v = v ? 'TRUE' : 'FALSE';
     } else if (v === null || v === undefined) {
@@ -222,14 +237,17 @@ function handleMark(data) {
   const m = data.data;
   const id = 'm_' + Date.now();
   const today = m.date ? normalizeToDateString(m.date) : formatDate(new Date());
-  const nowStr = formatDateTimeLV(new Date());
+  const now = new Date();
+  const nowDateStr = formatDate(now);
+  const nowTimeStr = formatTimeOnly(now);
+  const nowDateTimeStr = formatDateTimeLV(now);
 
   appendRow(atzimesSheet, {
     id: id,
     klients_id: m.clientId,
     darbinieks_id: m.employeeId,
     datums: today,
-    laiks: nowStr,
+    laiks: nowTimeStr,
     periods: m.shift || 'R',
     kategorija: m.category,
     lauka_nosaukums: m.field,
@@ -241,13 +259,13 @@ function handleMark(data) {
     atzimes_id: id,
     klients_id: m.clientId,
     darbinieks_id: m.employeeId,
-    datums: today,
-    laiks: nowStr,
+    datums: nowDateStr,
+    laiks: nowTimeStr,
     periods: m.shift || 'R',
     kategorija: m.category,
     lauka_nosaukums: m.field,
     vertiba: m.value,
-    izveidots: nowStr
+    izveidots: nowDateTimeStr
   });
 
   return createResponse(200, { success: true, id: id });
@@ -306,6 +324,10 @@ function createResponse(status, data) {
 
 function formatDate(d) {
   return Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+}
+
+function formatTimeOnly(d) {
+  return Utilities.formatDate(d, TZ, 'HH:mm:ss');
 }
 
 function formatDateTimeLV(d) {
