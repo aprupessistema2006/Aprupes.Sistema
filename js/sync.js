@@ -198,20 +198,25 @@ class SyncManager {
         throw new Error(data.error);
       }
 
-      const criticalStores = ['darbinieki', 'klienti'];
-      const otherStores = ['atzimes', 'atzimes_log', 'uzdevomi'];
-      const counts = {};
-
-      onProgress('Saglabāju darbiniekus un klientus...');
-      for (const store of criticalStores) {
-        const items = (data[store] || []).map(normalizeRow);
-        counts[store] = items.length;
-        if (items.length > 0) {
-          await this.db.batchPut(store, items);
-        }
+      const allStores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue'];
+      onProgress('Dzēšu visus vietējos datus...');
+      for (const store of allStores) {
+        await this.db.clear(store);
       }
 
-      onProgress('Saglabāju atzīmes un uzdevumus...');
+      const counts = {};
+
+      onProgress('Ierakstu darbiniekus un klientus...');
+      const criticalItems = (data.darbinieki || []).concat(data.klienti || []).map(normalizeRow);
+      if (criticalItems.length > 0) {
+        await this.db.batchPut('darbinieki', (data.darbinieki || []).map(normalizeRow));
+        await this.db.batchPut('klienti', (data.klienti || []).map(normalizeRow));
+      }
+      counts.darbinieki = (data.darbinieki || []).length;
+      counts.klienti = (data.klienti || []).length;
+
+      onProgress('Ierakstu atzīmes un uzdevumus...');
+      const otherStores = ['atzimes', 'atzimes_log', 'uzdevomi'];
       for (const store of otherStores) {
         const items = (data[store] || []).map(normalizeRow);
         counts[store] = items.length;
