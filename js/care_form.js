@@ -82,7 +82,6 @@ class CareFormController {
       await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
       });
-      await new Promise(r => setTimeout(r, 200));
       await Promise.all([
         this.loadClient(),
         this.loadMarks(),
@@ -380,7 +379,7 @@ class CareFormController {
     let matched = 0;
     allMarks.filter(m => this.clientIdsMatch(m, this.clientId))
             .filter(m => {
-              if (this.isRecent(m, today)) { matched++; return true; }
+              if (this.isToday(m, today)) { matched++; return true; }
               return false;
             })
             .forEach(m => {
@@ -388,6 +387,16 @@ class CareFormController {
               const key = shift + '|' + m.category + '|' + m.field;
               this.marks.set(key, m);
             });
+  }
+
+  isToday(m, today) {
+    const date = this.extractDate(m.pedeja_laiks) ||
+                 this.extractDate(m.lastModified) ||
+                 this.extractDate(m.created) ||
+                 this.extractDate(m.izveidots) ||
+                 this.extractDate(m.date) ||
+                 this.extractDate(m.datums);
+    return date === today;
   }
 
   isRecent(m, today) {
@@ -438,7 +447,7 @@ class CareFormController {
     const allLog = await this.db.getAll('atzimes_log');
     this.history = allLog
       .filter(l => this.clientIdsMatch(l, this.clientId))
-      .filter(l => this.isRecent(l, today))
+      .filter(l => this.isToday(l, today))
       .sort((a, b) => {
         const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.lastModified || a.created || a.izveidots || '';
         const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.lastModified || b.created || b.izveidots || '';
@@ -819,7 +828,7 @@ class CareFormController {
     const today = this.getToday();
     if (this.allClientMarks) {
       this.allClientMarks.forEach(m => {
-        if (!this.isRecent(m, today)) return;
+        if (!this.isToday(m, today)) return;
         if (m.category !== 'sikdrumi') return;
         const v = parseInt(m.value);
         if (isNaN(v)) return;
@@ -1124,13 +1133,13 @@ class CareFormController {
     const allMarks = await this.db.getAll('atzimes');
     this.allClientMarks = allMarks.filter(m => {
       if (!this.clientIdsMatch(m, this.clientId)) return false;
-      return this.isRecent(m, today);
+      return this.isToday(m, today);
     });
 
     const allLog = await this.db.getAll('atzimes_log');
     this.allClientLog = allLog.filter(l => {
       if (!this.clientIdsMatch(l, this.clientId)) return false;
-      return this.isRecent(l, today);
+      return this.isToday(l, today);
     });
   }
 
