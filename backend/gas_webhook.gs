@@ -1,5 +1,5 @@
 const SHEET_ID = '1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E';
-const TZ = Session.getScriptTimeZone() || 'Europe/Riga';
+const TZ = 'Europe/Riga';
 
 function getSpreadsheet() {
   return SpreadsheetApp.openById(SHEET_ID);
