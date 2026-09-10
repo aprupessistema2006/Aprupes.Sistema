@@ -507,7 +507,7 @@ class ControlPanel {
         }
       }
     }
-    return '';
+    return String(t);
   }
 
   formatFieldLabel(category, field) {
