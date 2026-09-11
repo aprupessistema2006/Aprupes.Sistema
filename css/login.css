@@ -51,7 +51,7 @@ body.online {
 .login-card {
   background: rgba(255, 255, 255, 0.97);
   border-radius: var(--border-radius);
-  padding: 40px;
+  padding: 20px;
   text-align: center;
   box-shadow: var(--shadow);
   animation: slideUp 0.4s ease;
@@ -513,14 +513,14 @@ body.online {
 
 @media (max-width: 480px) {
   .login-card {
-    padding: 24px 16px;
-    margin: 10px;
+    padding: 16px;
+    margin: 0;
   }
   .login-card h1 {
-    font-size: 22px;
+    font-size: 24px;
   }
   .login-card p {
-    font-size: 14px;
+    font-size: 15px;
   }
   #pinInput {
     font-size: 20px;
@@ -531,7 +531,7 @@ body.online {
     max-height: 200px;
   }
   .login-logo {
-    width: 80px;
+    width: 120px;
   }
   #loginBtn {
     font-size: 16px;
@@ -568,7 +568,7 @@ body.online {
 
 @media (min-width: 481px) and (max-width: 768px) {
   .login-card {
-    padding: 32px 24px;
+    padding: 28px 20px;
   }
   .login-card h1 {
     font-size: 24px;
