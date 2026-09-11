@@ -28,6 +28,7 @@ body {
   justify-content: center;
   color: var(--dark);
   transition: background 0.3s ease;
+  overflow-x: hidden;
 }
 
 body.online {
@@ -96,7 +97,7 @@ body.online {
 .form-group select {
   width: 100%;
   padding: 12px 14px;
-  font-size: 15px;
+  font-size: 16px;
   border: 2px solid #e0e6ed;
   border-radius: 10px;
   outline: none;

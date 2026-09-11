@@ -850,37 +850,227 @@ body {
 @media (max-width: 600px) {
   .main {
     padding: 10px;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  .modal-card {
+    max-width: 100% !important;
   }
   .client-info-name {
     font-size: 19px;
   }
   .category-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 10px;
+    width: 100%;
   }
   .category-card {
-    padding: 16px 10px;
-    min-height: 105px;
+    padding: 16px;
+    min-height: auto;
+    width: 100%;
   }
   .cat-emoji {
     font-size: 36px;
   }
   .cat-title {
-    font-size: 13px;
+    font-size: 14px;
   }
   .cat-status {
-    font-size: 11px;
+    font-size: 12px;
   }
   .opt-btn {
+    width: 100% !important;
     padding: 16px 14px;
     font-size: 17px;
     min-height: 54px;
   }
+  .header {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
   .header h1 {
     font-size: 15px;
   }
+  .btn-icon {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    font-size: 18px !important;
+  }
+  .shift-tabs {
+    width: 100%;
+  }
+  .shift-tab {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .quick-totals {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .qt-card {
+    width: 100%;
+  }
+  .opt-group {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+    width: 100%;
+  }
+  .number-input {
+    width: 100% !important;
+    font-size: 16px !important;
+    padding: 14px 16px !important;
+    min-height: 50px !important;
+  }
+  .submit-btn {
+    width: 100% !important;
+    font-size: 16px !important;
+    padding: 14px 16px !important;
+    min-height: 50px !important;
+  }
+  .sign-btn {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+  .section-card {
+    width: 100%;
+    padding: 16px;
+  }
+  input, select, textarea {
+    width: 100% !important;
+    font-size: 16px !important;
+    min-height: 44px !important;
+  }
 }
 
+@media (max-width: 480px) {
+  .header {
+    width: 100% !important;
+    padding: 8px 10px !important;
+    min-height: 50px !important;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .header h1 {
+    font-size: 14px;
+  }
+  .btn-icon {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    font-size: 18px !important;
+  }
+  .main {
+    padding: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  .client-info-card {
+    padding: 14px 16px;
+    width: 100%;
+  }
+  .client-info-name {
+    font-size: 17px;
+  }
+  .client-info-meta {
+    font-size: 12px;
+  }
+  .shift-tabs {
+    gap: 6px;
+    padding: 4px;
+    width: 100%;
+  }
+  .shift-tab {
+    padding: 10px 12px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+  .category-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .category-card {
+    padding: 18px 14px;
+    min-height: auto;
+    width: 100%;
+  }
+  .cat-emoji {
+    font-size: 32px;
+  }
+  .cat-title {
+    font-size: 14px;
+  }
+  .quick-totals {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    width: 100%;
+  }
+  .qt-card {
+    padding: 10px;
+    width: 100%;
+  }
+  .qt-value {
+    font-size: 20px;
+  }
+  .opt-btn {
+    padding: 14px 12px;
+    font-size: 16px;
+    min-height: 50px;
+    width: 100% !important;
+  }
+  .opt-group {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+    width: 100%;
+  }
+  .number-input {
+    padding: 14px 16px;
+    font-size: 16px;
+    min-height: 50px;
+    width: 100% !important;
+  }
+  .submit-btn {
+    padding: 14px 16px;
+    font-size: 15px;
+    min-height: 50px;
+    width: 100% !important;
+  }
+  .sign-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+    min-height: 44px;
+    width: 100% !important;
+  }
+  .section-card {
+    padding: 16px;
+    width: 100%;
+  }
+  .section-row-label {
+    font-size: 15px;
+  }
+  .modal-card {
+    max-height: 95vh;
+    width: 100%;
+  }
+  .modal-header {
+    height: 50px;
+    padding: 10px 12px;
+  }
+  .modal-header h2 {
+    font-size: 16px;
+  }
+  input, select, textarea {
+    width: 100% !important;
+    font-size: 16px !important;
+    min-height: 44px !important;
+  }
+}
 @media (max-width: 480px) {
   .header {
     height: 50px;
@@ -946,7 +1136,7 @@ body {
     min-height: 50px;
   }
   .opt-group {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr !important;
     gap: 8px;
   }
   .number-input {
@@ -983,11 +1173,20 @@ body {
 }
 
 @media (min-width: 481px) and (max-width: 768px) {
+  .main {
+    padding: 10px;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  .modal-card {
+    max-width: 100% !important;
+  }
   .category-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
   .quick-totals {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 

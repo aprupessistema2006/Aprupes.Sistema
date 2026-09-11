@@ -136,9 +136,10 @@ body {
   font-size: 14px;
   color: var(--text-light);
   display: block;
-  max-width: 600px;
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
+  text-align: center;
 }
 
 .client-grid {
@@ -263,12 +264,15 @@ body {
     grid-template-columns: 1fr;
     padding: 12px;
     gap: 10px;
+    max-width: 100%;
   }
   .header {
     height: auto;
     min-height: 56px;
     padding: 10px 12px;
     gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   .header-logo {
     width: 36px;
@@ -291,6 +295,7 @@ body {
     font-size: 16px;
     padding: 14px 16px;
     min-height: 44px;
+    max-width: 100%;
   }
   .client-card {
     padding: 16px;
@@ -311,6 +316,8 @@ body {
     min-height: 50px;
     padding: 8px 10px;
     gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   .header-logo {
     width: 32px;
@@ -333,11 +340,13 @@ body {
     font-size: 16px;
     padding: 12px 14px;
     min-height: 44px;
+    max-width: 100%;
   }
   .client-grid {
     grid-template-columns: 1fr;
     padding: 10px;
     gap: 10px;
+    max-width: 100%;
   }
   .client-card {
     padding: 14px;
@@ -366,6 +375,7 @@ body {
   }
   .client-grid {
     grid-template-columns: repeat(2, 1fr);
+    max-width: 100%;
   }
 }
 
