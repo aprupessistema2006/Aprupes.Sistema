@@ -444,8 +444,8 @@ body {
   background: white;
   border-radius: var(--border-radius);
   padding: 24px;
-  max-width: 500px;
   width: 100%;
+  max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
@@ -460,6 +460,8 @@ body {
     border-radius: 16px 16px 0 0;
     max-height: 92vh;
     padding: 20px;
+    max-width: 100% !important;
+    width: 100% !important;
   }
 }
 
