@@ -188,6 +188,7 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   margin-bottom: 14px;
+  width: 100%;
 }
 
 .team-summary {
@@ -258,6 +259,7 @@ body {
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin-bottom: 14px;
+  width: 100%;
 }
 
 .category-card {
@@ -275,7 +277,7 @@ body {
   gap: 6px;
   position: relative;
   overflow: hidden;
-  min-height: 130px;
+  box-sizing: border-box;
 }
 
 .category-card::before {
@@ -345,6 +347,7 @@ body {
   align-items: flex-end;
   justify-content: center;
   animation: fadeIn 0.2s ease;
+  box-sizing: border-box;
 }
 
 @keyframes fadeIn {
@@ -361,6 +364,7 @@ body {
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease;
+  box-sizing: border-box;
 }
 
 @keyframes slideUp {
@@ -396,10 +400,11 @@ body {
 
 .section-card {
   background: white;
-  border-radius: var(--radius);
   padding: 20px 22px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   border-left: 5px solid var(--info);
+  box-sizing: border-box;
 }
 
 .section-card.section-temp { border-left-color: var(--danger); }
@@ -464,6 +469,8 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   gap: 10px;
+  margin-bottom: 14px;
+  width: 100%;
 }
 
 .opt-btn {
@@ -481,6 +488,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  box-sizing: border-box;
 }
 
 .opt-btn:hover {
@@ -569,6 +577,7 @@ body {
   margin-top: 8px;
   min-height: 52px;
   box-shadow: 0 3px 10px rgba(39, 174, 96, 0.3);
+  box-sizing: border-box;
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -646,6 +655,7 @@ body {
   transition: var(--transition);
   font-family: inherit;
   min-height: 58px;
+  box-sizing: border-box;
 }
 
 .number-input:focus {
@@ -714,6 +724,7 @@ body {
   min-height: 44px;
   white-space: nowrap;
   width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 600px) {
@@ -781,6 +792,7 @@ body {
   border-radius: var(--radius-sm);
   font-size: 13px;
   animation: slideIn 0.3s ease;
+  box-sizing: border-box;
 }
 
 @keyframes slideIn {
@@ -1260,6 +1272,7 @@ body {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 14px;
+  width: 100%;
 }
 
 .qt-card {
@@ -1272,6 +1285,7 @@ body {
   gap: 10px;
   border-left: 4px solid;
   transition: var(--transition);
+  box-sizing: border-box;
 }
 
 .qt-card[data-counter="fluid"] { border-left-color: #2196f3; }
@@ -1356,6 +1370,7 @@ body {
   padding: 10px 12px;
   margin-bottom: 8px;
   border-left: 3px solid #3498db;
+  box-sizing: border-box;
 }
 .task-item.overdue {
   border-left-color: #e74c3c;

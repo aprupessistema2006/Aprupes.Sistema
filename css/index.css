@@ -24,17 +24,27 @@ body {
   background: url('../logo/logo_admin.png') center/cover no-repeat fixed;
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   color: var(--dark);
   transition: background 0.3s ease;
   overflow-x: hidden;
+  padding-top: 24px;
+}
+
+@media (min-width: 769px) {
+  body {
+    justify-content: center;
+    padding-top: 0;
+  }
 }
 
 .login-container {
   width: 100%;
   max-width: 100%;
-  padding: 12px;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 @media (min-width: 769px) {
@@ -47,11 +57,19 @@ body {
 .login-card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: var(--border-radius);
-  padding: 20px;
+  padding: 24px;
   width: 100%;
   text-align: center;
   box-shadow: var(--shadow);
   animation: slideUp 0.4s ease;
+  box-sizing: border-box;
+}
+
+.login-logo {
+  width: 100px;
+  height: auto;
+  margin-bottom: 24px;
+  box-sizing: border-box;
 }
 
 .login-header {
@@ -60,6 +78,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 4px;
+  box-sizing: border-box;
 }
 
 .login-logo {
@@ -76,18 +95,20 @@ body {
   padding: 4px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
 }
 
 .login-card h1 {
   font-size: 26px;
   color: var(--primary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .login-card p {
   color: #7f8c8d;
-  font-size: 15px;
+  font-size: 16px;
   margin-bottom: 20px;
+  box-sizing: border-box;
 }
 
 .employee-search-row {
@@ -134,6 +155,7 @@ body {
   border-bottom: 1px solid #ecf0f1;
   transition: var(--transition);
   text-align: left;
+  box-sizing: border-box;
 }
 
 .employee-item:last-child {
@@ -190,6 +212,7 @@ body {
   border-radius: 10px;
   margin-bottom: 12px;
   text-align: left;
+  box-sizing: border-box;
 }
 
 .selected-avatar {
@@ -300,6 +323,7 @@ body {
   border-radius: var(--border-radius);
   margin-top: 16px;
   font-size: 14px;
+  box-sizing: border-box;
 }
 
 .status-message {
@@ -307,6 +331,7 @@ body {
   font-size: 13px;
   margin-top: 16px;
   min-height: 16px;
+  box-sizing: border-box;
 }
 
 .loading-overlay {
@@ -321,6 +346,7 @@ body {
   align-items: center;
   justify-content: center;
   animation: fadeIn 0.3s ease;
+  box-sizing: border-box;
 }
 
 .loading-modal {
@@ -332,6 +358,7 @@ body {
   max-width: 320px;
   width: 90%;
   animation: scaleIn 0.3s ease;
+  box-sizing: border-box;
 }
 
 .loading-spinner {
@@ -361,6 +388,7 @@ body {
 .form-group {
   margin-bottom: 14px;
   text-align: left;
+  box-sizing: border-box;
 }
 
 .form-group label {
@@ -380,6 +408,7 @@ body {
   outline: none;
   transition: var(--transition);
   background: #fafbfc;
+  box-sizing: border-box;
 }
 
 .form-group input:focus {
@@ -400,6 +429,7 @@ body {
   cursor: pointer;
   transition: var(--transition);
   margin-top: 6px;
+  box-sizing: border-box;
 }
 
 .btn-primary:hover {
@@ -444,10 +474,10 @@ body {
     margin: 0;
   }
   .login-card h1 {
-    font-size: 24px;
+    font-size: 26px;
   }
   .login-card p {
-    font-size: 15px;
+    font-size: 16px;
   }
   #pinInput {
     font-size: 20px;
@@ -458,13 +488,20 @@ body {
     max-height: 200px;
   }
   .login-logo {
-    width: 120px;
+    width: 140px;
   }
   #loginBtn {
     font-size: 16px;
     padding: 14px;
     min-height: 44px;
   }
+  .form-group input,
+  .form-group select {
+    font-size: 16px;
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+}
   .btn-primary {
     font-size: 16px;
     padding: 14px;
@@ -568,6 +605,7 @@ body {
   font-size: 14px;
   font-weight: 600;
   color: var(--primary);
+  box-sizing: border-box;
 }
 
 .shift-type-option:hover {
