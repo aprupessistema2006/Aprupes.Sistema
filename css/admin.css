@@ -96,6 +96,14 @@ body {
   margin: 0 auto;
 }
 
+@media (max-width: 768px) {
+  .main {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 12px !important;
+  }
+}
+
 .tab-content {
   display: none;
 }
@@ -110,6 +118,13 @@ body {
   gap: 12px;
   margin-bottom: 20px;
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
 }
 
 .stat-card {
@@ -262,6 +277,20 @@ body {
 .item-actions {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .item-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .item-btn {
+    width: 100% !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+    min-height: 44px !important;
+  }
 }
 
 .item-btn {
@@ -1017,6 +1046,17 @@ body {
     align-items: stretch;
     gap: 10px;
   }
+  .task-form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .task-form-row label {
+    min-width: auto;
+  }
+  .task-form button {
+    align-self: stretch;
+    width: 100%;
+  }
   .export-row {
     flex-direction: column;
     align-items: stretch;
@@ -1044,7 +1084,8 @@ body {
   }
   .btn-primary,
   .btn-secondary,
-  .btn-danger {
+  .btn-danger,
+  .btn-sm {
     padding: 12px 18px;
     font-size: 14px;
     min-height: 44px;
@@ -1153,7 +1194,8 @@ body {
   }
   .btn-primary,
   .btn-secondary,
-  .btn-danger {
+  .btn-danger,
+  .btn-sm {
     padding: 12px 16px;
     font-size: 14px;
     min-height: 44px;
