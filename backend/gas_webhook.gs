@@ -167,13 +167,6 @@ function wrapResponse(params, data) {
     callback ? (callback + '(' + json + ');') : json
   );
   output.setMimeType(callback ? ContentService.MimeType.TEXT : ContentService.MimeType.JSON);
-  output.setHeader('Access-Control-Allow-Origin', '*');
-  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  output.setHeader('Vary', 'Origin');
-  if (callback) {
-    output.setHeader('Content-Type', 'application/javascript');
-  }
   return output;
 }
 
@@ -349,31 +342,11 @@ function handleUpdateTask(data) {
 }
 
 function doOptions(e) {
-  const params = (e && e.parameter) || {};
-  const callback = params.callback;
-  const output = ContentService.createTextOutput(callback ? (callback + '(null);') : '');
-  if (callback) {
-    output.setMimeType(ContentService.MimeType.TEXT);
-    output.setHeader('Content-Type', 'application/javascript');
-  } else {
-    output.setMimeType(ContentService.MimeType.JSON);
-  }
-  output.setHeader('Access-Control-Allow-Origin', '*');
-  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  output.setHeader('Access-Control-Max-Age', '86400');
-  output.setHeader('Vary', 'Origin');
-  return output;
+  return ContentService.createTextOutput('').setMimeType(ContentService.MimeType.JSON);
 }
 
 function createResponse(status, data) {
-  const output = ContentService.createTextOutput(JSON.stringify(data));
-  output.setMimeType(ContentService.MimeType.JSON);
-  output.setHeader('Access-Control-Allow-Origin', '*');
-  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  output.setHeader('Vary', 'Origin');
-  return output;
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function formatDate(d) {
