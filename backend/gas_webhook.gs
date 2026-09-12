@@ -335,7 +335,8 @@ function doOptions(e) {
     .setHeader('Access-Control-Allow-Origin', '*')
     .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    .setHeader('Access-Control-Max-Age', '86400');
+    .setHeader('Access-Control-Max-Age', '86400')
+    .setHeader('Vary', 'Origin');
 }
 
 function createResponse(status, data) {
@@ -344,7 +345,8 @@ function createResponse(status, data) {
     .setMimeType(ContentService.MimeType.JSON)
     .setHeader('Access-Control-Allow-Origin', '*')
     .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    .setHeader('Vary', 'Origin');
 }
 
 function formatDate(d) {
