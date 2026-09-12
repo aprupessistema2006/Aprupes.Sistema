@@ -163,23 +163,18 @@ function doGet(e) {
 function wrapResponse(params, data) {
   const json = JSON.stringify(data);
   const callback = params.callback;
+  const output = ContentService.createTextOutput(
+    callback ? (callback + '(' + json + ');') : json
+  );
+  output.setMimeType(callback ? ContentService.MimeType.TEXT : ContentService.MimeType.JSON);
+  output.setHeader('Access-Control-Allow-Origin', '*');
+  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  output.setHeader('Vary', 'Origin');
   if (callback) {
-    return ContentService
-      .createTextOutput(callback + '(' + json + ');')
-      .setMimeType(ContentService.MimeType.TEXT)
-      .setHeader('Content-Type', 'application/javascript')
-      .setHeader('Access-Control-Allow-Origin', '*')
-      .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-      .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-      .setHeader('Vary', 'Origin');
+    output.setHeader('Content-Type', 'application/javascript');
   }
-  return ContentService
-    .createTextOutput(json)
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    .setHeader('Vary', 'Origin');
+  return output;
 }
 
 function doPost(e) {
@@ -356,33 +351,29 @@ function handleUpdateTask(data) {
 function doOptions(e) {
   const params = (e && e.parameter) || {};
   const callback = params.callback;
-  let output;
+  const output = ContentService.createTextOutput(callback ? (callback + '(null);') : '');
   if (callback) {
-    output = ContentService
-      .createTextOutput(callback + '(null);')
-      .setMimeType(ContentService.MimeType.TEXT)
-      .setHeader('Content-Type', 'application/javascript');
+    output.setMimeType(ContentService.MimeType.TEXT);
+    output.setHeader('Content-Type', 'application/javascript');
   } else {
-    output = ContentService
-      .createTextOutput('')
-      .setMimeType(ContentService.MimeType.JSON);
+    output.setMimeType(ContentService.MimeType.JSON);
   }
-  return output
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    .setHeader('Access-Control-Max-Age', '86400')
-    .setHeader('Vary', 'Origin');
+  output.setHeader('Access-Control-Allow-Origin', '*');
+  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  output.setHeader('Access-Control-Max-Age', '86400');
+  output.setHeader('Vary', 'Origin');
+  return output;
 }
 
 function createResponse(status, data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    .setHeader('Vary', 'Origin');
+  const output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  output.setHeader('Access-Control-Allow-Origin', '*');
+  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  output.setHeader('Vary', 'Origin');
+  return output;
 }
 
 function formatDate(d) {
