@@ -753,10 +753,16 @@ body.online {
 
 /* Tablet & Mobile: full-screen card */
 @media (max-width: 1024px) {
-  html, body {
+  html {
+    height: 100%;
+    height: 100dvh;
+    height: calc(var(--vh, 1vh) * 100);
+  }
+  body {
     height: 100%;
     min-height: 100dvh;
     min-height: calc(var(--vh, 1vh) * 100);
+    min-height: -webkit-fill-available;
     margin: 0;
     padding: 0;
   }
@@ -764,11 +770,14 @@ body.online {
     padding: 0;
     max-width: 100%;
     height: 100%;
-  }
-  .login-card {
     min-height: 100dvh;
     min-height: calc(var(--vh, 1vh) * 100);
     min-height: -webkit-fill-available;
+  }
+  .login-card {
+    height: 100dvh;
+    height: calc(var(--vh, 1vh) * 100);
+    height: -webkit-fill-available;
     border-radius: 0;
     box-shadow: none;
     width: 100%;
@@ -807,9 +816,9 @@ body.online {
 
 @media (max-width: 480px) {
   .login-card {
-    min-height: 100dvh;
-    min-height: calc(var(--vh, 1vh) * 100);
-    min-height: -webkit-fill-available;
+    height: 100dvh;
+    height: calc(var(--vh, 1vh) * 100);
+    height: -webkit-fill-available;
     padding: 16px;
     flex-grow: 1;
   }
@@ -866,9 +875,9 @@ body.online {
 /* Landscape orientation for phones */
 @media (orientation: landscape) and (max-height: 700px) {
   .login-card {
-    min-height: 100dvh;
-    min-height: calc(var(--vh, 1vh) * 100);
-    min-height: -webkit-fill-available;
+    height: 100dvh;
+    height: calc(var(--vh, 1vh) * 100);
+    height: -webkit-fill-available;
     padding: 12px;
   }
   #pinInput {
