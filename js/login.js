@@ -31,6 +31,7 @@ class LoginController {
 
     this.setupUI();
     this.setupLanguageSwitcher();
+    this.hideSplash();
 
     const statusMsg = document.getElementById('statusMessage');
     const loadingOverlay = document.getElementById('loadingOverlay');
@@ -490,6 +491,18 @@ class LoginController {
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+  }
+
+  hideSplash() {
+    const splash = document.getElementById('splashScreen');
+    if (!splash) return;
+    setTimeout(() => {
+      splash.classList.add('hidden');
+      splash.style.pointerEvents = 'none';
+      setTimeout(() => {
+        splash.style.display = 'none';
+      }, 600);
+    }, 800);
   }
 }
 

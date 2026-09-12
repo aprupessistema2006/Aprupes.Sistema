@@ -943,22 +943,22 @@ body {
   }
   .category-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 14px;
     width: 100%;
   }
   .category-card {
-    padding: 16px;
-    min-height: auto;
+    padding: 24px 20px;
+    min-height: 110px;
     width: 100%;
   }
   .cat-emoji {
-    font-size: 36px;
+    font-size: 48px;
   }
   .cat-title {
-    font-size: 14px;
+    font-size: 18px;
   }
   .cat-status {
-    font-size: 12px;
+    font-size: 14px;
   }
   .opt-btn {
     width: 100% !important;
@@ -998,13 +998,21 @@ body {
     min-height: 44px;
     font-size: 14px;
   }
-  .quick-totals {
+    .quick-totals {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 12px;
     width: 100%;
   }
   .qt-card {
     width: 100%;
+    padding: 18px 16px;
+    min-height: 90px;
+  }
+  .qt-unit {
+    font-size: 14px;
+  }
+  .qt-value {
+    font-size: 24px;
   }
   .opt-group {
     grid-template-columns: 1fr !important;

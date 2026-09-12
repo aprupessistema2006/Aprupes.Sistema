@@ -1,6 +1,7 @@
 const I18N = {
   lv: {
     appName: 'Aprūpes sistēma',
+    splashSubtitle: 'Sistēma pieaugušo aprūpes ierakwiem',
     loginTitle: 'Aprūpes sistēma',
     loginSubtitle: 'Izvēlieties darbinieku un ievadiet PIN kodu',
     pinPlaceholder: 'PIN ____',
@@ -342,6 +343,7 @@ const I18N = {
   },
   ru: {
     appName: 'Система ухода',
+    splashSubtitle: 'Система учета записей уходящих',
     loginTitle: 'Система ухода',
     loginSubtitle: 'Выберите сотрудника и введите PIN-код',
     pinPlaceholder: 'PIN __ __',
@@ -668,6 +670,7 @@ const I18N = {
   },
   en: {
     appName: 'Care System',
+    splashSubtitle: 'System for care records',
     loginTitle: 'Care System',
     loginSubtitle: 'Select an employee and enter PIN code',
     pinPlaceholder: 'PIN __ __',
