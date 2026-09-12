@@ -557,9 +557,9 @@ class AdminPanel {
     result.textContent = 'Pārbaudām...';
 
     try {
-      const response = await fetch(CONFIG.GAS_URL + '?action=load&t=' + Date.now());
-      const text = await response.text();
-      if (text) {
+      const url = CONFIG.GAS_URL + '?action=load&t=' + Date.now();
+      const data = await jsonpRequest(url, 10000);
+      if (data) {
         result.className = 'connection-result success';
         result.textContent = '✓ Savienojums ar Google Sheets ir aktīvs';
       } else {

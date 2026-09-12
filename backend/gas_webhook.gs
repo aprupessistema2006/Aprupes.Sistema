@@ -141,37 +141,55 @@ function doGet(e) {
   try {
     const params = (e && e.parameter) || {};
     if (params.action === 'load') {
-      return handleLoad();
+      const response = handleLoad();
+      return handleJsonp(params, response);
     }
     if (params.data) {
       let data;
       try { data = JSON.parse(params.data); } catch (pe) {
-        return createResponse(400, { error: 'Nederīgs JSON' });
+        return handleJsonp(params, createResponse(400, { error: 'Nederīgs JSON' }));
       }
-      return routeAction(data);
+      return handleJsonp(params, routeAction(data));
     }
     if (params.action) {
-      return routeAction({ action: params.action, data: params });
+      return handleJsonp(params, routeAction({ action: params.action, data: params }));
     }
-    return createResponse(400, { error: 'Nezināma darbība' });
+    return handleJsonp(params, createResponse(400, { error: 'Nezināma darbība' }));
   } catch (err) {
-    return createResponse(500, { error: 'Kļūda: ' + err.toString() });
+    return handleJsonp(params || {}, createResponse(500, { error: 'Kļūda: ' + err.toString() }));
   }
 }
 
+function handleJsonp(params, response) {
+  const callback = params.callback;
+  if (callback) {
+    const content = response.getContent();
+    const output = callback + '(' + content + ');';
+    return ContentService
+      .createTextOutput(output)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT)
+      .setHeader('Access-Control-Allow-Origin', '*')
+      .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+      .setHeader('Vary', 'Origin');
+  }
+  return response;
+}
+
 function doPost(e) {
+  const params = (e && e.parameter) || {};
   try {
     let data;
     if (e && e.postData && e.postData.contents) {
       data = JSON.parse(e.postData.contents);
-    } else if (e && e.parameter && e.parameter.data) {
-      data = JSON.parse(e.parameter.data);
+    } else if (params.data) {
+      data = JSON.parse(params.data);
     } else {
-      return createResponse(400, { error: 'Nav datu' });
+      return handleJsonp(params, createResponse(400, { error: 'Nav datu' }));
     }
-    return routeAction(data);
+    return handleJsonp(params, routeAction(data));
   } catch (err) {
-    return createResponse(500, { error: 'Kļūda: ' + err.toString() });
+    return handleJsonp(params, createResponse(500, { error: 'Kļūda: ' + err.toString() }));
   }
 }
 
@@ -329,9 +347,19 @@ function handleUpdateTask(data) {
 }
 
 function doOptions(e) {
-  return ContentService
-    .createTextOutput('')
-    .setMimeType(ContentService.MimeType.JSON)
+  const params = (e && e.parameter) || {};
+  const callback = params.callback;
+  let output;
+  if (callback) {
+    output = ContentService
+      .createTextOutput(callback + '(null);')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  } else {
+    output = ContentService
+      .createTextOutput('')
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  return output
     .setHeader('Access-Control-Allow-Origin', '*')
     .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')

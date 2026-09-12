@@ -6,7 +6,8 @@ async function fetchWithTimeout(url, timeout = 8000, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   try {
-    const urlWithCacheBuster = url + (url.includes('?') ? '&' : '?') + '_t=' + CACHE_BUSTER();
+    const separator = url.includes('?') ? '&' : '?';
+    const urlWithCacheBuster = url + separator + '_t=' + CACHE_BUSTER();
     const response = await fetch(urlWithCacheBuster, { ...options, signal: controller.signal });
     clearTimeout(timeoutId);
     return response;
@@ -14,6 +15,73 @@ async function fetchWithTimeout(url, timeout = 8000, options = {}) {
     clearTimeout(timeoutId);
     throw e;
   }
+}
+
+function jsonpRequest(url, timeout = 15000) {
+  return new Promise((resolve, reject) => {
+    const callbackName = 'jsonp_cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    let script;
+
+    const cleanup = () => {
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      delete window[callbackName];
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('JSONP timeout'));
+    }, timeout);
+
+    window[callbackName] = function (data) {
+      clearTimeout(timer);
+      cleanup();
+      resolve(data);
+    };
+
+    const separator = url.includes('?') ? '&' : '?';
+    const jsonpUrl = url + separator + 'callback=' + callbackName + '&_t=' + CACHE_BUSTER();
+    script = document.createElement('script');
+    script.src = jsonpUrl;
+    script.onerror = function () {
+      clearTimeout(timer);
+      cleanup();
+      reject(new Error('JSONP script load error'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+function jsonpAction(action, data, timeout = 15000) {
+  const payload = encodeURIComponent(JSON.stringify({ action: action, data: data }));
+  const url = SYNC_URL + '?data=' + payload + '&t=' + Date.now();
+  return jsonpRequest(url, timeout);
+}
+
+function normalizeKey(h) {
+    } else {
+      normalizedRow[k] = row[k];
+    }
+  });
+
+  if (row.id) normalizedRow.id = row.id;
+
+  const idTs = String(normalizedRow.id || '').match(/^[a-z]+_(\d+)/);
+  if (idTs) {
+    const d = new Date(parseInt(idTs[1], 10));
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      normalizedRow.date = y + '-' + m + '-' + day;
+    }
+  }
+
+  if (normalizedRow.clientId && !normalizedRow.klientsId) normalizedRow.klientsId = normalizedRow.clientId;
+  if (normalizedRow.employeeId && !normalizedRow.darbinieksId) normalizedRow.darbinieksId = normalizedRow.employeeId;
+
+  return normalizedRow;
 }
 
 function normalizeKey(h) {
@@ -205,9 +273,7 @@ class SyncManager {
     try {
       onProgress('Ielādēju datus no servera...');
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const response = await fetchWithTimeout(url, 10000);
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const data = await response.json();
+      const data = await jsonpRequest(url, 10000);
 
       if (data.error) {
         throw new Error(data.error);
@@ -288,17 +354,12 @@ class SyncManager {
       const sorted = items.sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
         try {
-          const response = await fetchWithTimeout(SYNC_URL, 8000, {
-            method: 'POST',
-            mode: 'cors',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(item.change)
-          });
-          if (response.ok) {
+          const result = await jsonpAction(item.change.action || item.change.type || 'mark', item.change);
+          if (!result.error) {
             await this.db.delete('sync_queue', item.id);
           } else {
             item.retries++;
-            item.lastError = 'HTTP ' + response.status;
+            item.lastError = result.error;
             await this.db.put('sync_queue', item);
           }
         } catch (e) {
@@ -340,9 +401,7 @@ class SyncManager {
   async hasRemoteEmployees() {
     try {
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const response = await fetchWithTimeout(url, 15000);
-      if (!response || !response.ok) return false;
-      const data = await response.json();
+      const data = await jsonpRequest(url, 15000);
       if (data.error) return false;
       return (data.darbinieki || []).length > 0;
     } catch (e) {
@@ -351,14 +410,7 @@ class SyncManager {
   }
 
   async createEmployee(data) {
-    const response = await fetchWithTimeout(SYNC_URL, 8000, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'createEmployee', data })
-    });
-    if (!response.ok) throw new Error('Neizdevās izveidot darbinieku');
-    const result = await response.json();
+    const result = await jsonpAction('createEmployee', data);
     return result;
   }
 }
