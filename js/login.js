@@ -57,7 +57,7 @@ class LoginController {
       console.error('[login] remote check failed', e);
     }
 
-    if (hasLocal === false) {
+    if (!hasRemote) {
       try {
         hasLocal = await this.sync.hasLocalData();
       } catch (e) {
@@ -71,17 +71,15 @@ class LoginController {
       return;
     }
 
-    if (hasRemote) {
-      showLoading('Ielādēju datus no Google...');
-      try {
-        await this.sync.loadInitialData((msg) => {
-          showLoading(msg);
-        });
-        if (statusMsg) statusMsg.textContent = '✓ Savienojums ar Google aktīvs';
-        document.body.classList.add('online');
-      } catch (e) {
-        if (statusMsg) statusMsg.textContent = '⚠️ Neizdevās ielādēt no Google. Mēģinam lokāli...';
-      }
+    showLoading('Ielādēju datus no Google...');
+    try {
+      await this.sync.loadInitialData((msg) => {
+        showLoading(msg);
+      });
+      if (statusMsg) statusMsg.textContent = '✓ Savienojums ar Google aktīvs';
+      document.body.classList.add('online');
+    } catch (e) {
+      if (statusMsg) statusMsg.textContent = '⚠️ Neizdevās ielādēt no Google. Iegūstu lokāli...';
     }
 
     hideLoading();
