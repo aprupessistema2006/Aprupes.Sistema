@@ -138,8 +138,8 @@ function setCellValue(sheet, rowNum, field, value) {
 }
 
 function doGet(e) {
+  const params = (e && e.parameter) || {};
   try {
-    const params = (e && e.parameter) || {};
     let result;
     if (params.action === 'load') {
       result = handleLoadData();
@@ -156,7 +156,7 @@ function doGet(e) {
     }
     return wrapResponse(params, result);
   } catch (err) {
-    return wrapResponse(params || {}, { error: 'Kļūda: ' + err.toString() });
+    return wrapResponse(params, { error: 'Kļūda: ' + err.toString() });
   }
 }
 
