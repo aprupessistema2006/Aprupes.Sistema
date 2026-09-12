@@ -99,7 +99,7 @@ body {
   margin: 0 auto;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .main {
     max-width: 100% !important;
     margin: 0 !important;
@@ -124,7 +124,7 @@ body {
   box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .stats-grid {
     grid-template-columns: 1fr !important;
     gap: 10px;
@@ -287,7 +287,7 @@ body {
   flex-wrap: wrap;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .item-actions {
     flex-direction: column;
     gap: 8px;
@@ -386,7 +386,7 @@ body {
   background: #f8f9fa;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .data-table {
     min-width: 500px;
     font-size: 12px;
@@ -1016,7 +1016,7 @@ body {
   color: white;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .header {
     padding: 10px 12px;
     height: auto;
@@ -1273,7 +1273,7 @@ body {
   }
 }
 
-@media (min-width: 481px) and (max-width: 768px) {
+@media (min-width: 481px) and (max-width: 1024px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1294,41 +1294,4 @@ body {
   }
 }
 
-/* Horizontālā orientācija tālruņos - modālie logi pilna platuma */
-@media (orientation: landscape) and (max-height: 700px) {
-  .modal {
-    align-items: flex-end;
-    padding: 0;
-  }
-  .modal-content {
-    border-radius: 16px 16px 0 0;
-    max-height: 95vh;
-    padding: 16px;
-    max-width: 100% !important;
-    width: 100% !important;
-    height: 95vh !important;
-    box-sizing: border-box;
-  }
-  .header {
-    padding: 8px 10px;
-    min-height: 50px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .header h1 {
-    font-size: 14px;
-  }
-  .btn-icon {
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    font-size: 18px !important;
-  }
-  .btn-primary,
-  .btn-secondary,
-  .btn-danger {
-    padding: 10px 14px;
-    font-size: 13px;
-    min-height: 44px;
-  }
-}
+

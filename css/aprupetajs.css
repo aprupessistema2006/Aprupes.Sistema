@@ -727,7 +727,7 @@ body {
   box-sizing: border-box;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 1024px) {
   .sign-btn {
     width: 100% !important;
     min-height: 44px !important;
@@ -870,7 +870,10 @@ body {
 }
 
 /* Modālie logi un kartiņas pilna platuma mobilajās ierīcēs */
-@media (max-width: 600px) {
+@media (max-width: 1024px) {
+  body {
+    padding-bottom: 0 !important;
+  }
   .main {
     padding: 10px;
     width: 100% !important;
@@ -1129,7 +1132,7 @@ body {
   }
 }
 
-@media (min-width: 481px) and (max-width: 768px) {
+@media (min-width: 481px) and (max-width: 1024px) {
   .main {
     padding: 10px;
     width: 100% !important;
@@ -1147,7 +1150,7 @@ body {
   }
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .category-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1373,7 +1376,9 @@ body {
   text-overflow: ellipsis;
 }
 
-@media (max-width: 720px) {
+/* Ātraji kopsavilkuma kartiņas vienkolonna
+   (iekļauts 1024px pārmainā, lai sedzētu fonējās telefonskātes) */
+@media (max-width: 1024px) {
   .quick-totals {
     grid-template-columns: 1fr;
   }
@@ -1507,7 +1512,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: url('../logo/logo_admin.png') center/cover no-repeat fixed;
+  background: url('../logo/logo_admin.png') center/cover no-repeat scroll;
   z-index: 99999;
   display: flex;
   align-items: center;
@@ -1566,86 +1571,4 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Horizontālā orientācija tālruņos - modālie logi un kartiņas pilna platuma */
-@media (orientation: landscape) and (max-height: 700px) {
-  .main {
-    padding: 8px !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-  }
-  .modal-overlay {
-    align-items: flex-end !important;
-    padding: 0 !important;
-  }
-  .modal-card {
-    max-width: 100% !important;
-    width: 100% !important;
-    max-height: 95vh !important;
-    height: 95vh !important;
-    border-radius: 16px 16px 0 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-  .modal-body {
-    flex: 1 !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding: 14px !important;
-  }
-  .modal-header {
-    min-height: 48px;
-    padding: 8px 12px;
-  }
-  .modal-header h2 {
-    font-size: 15px;
-  }
-  .category-grid {
-    grid-template-columns: 1fr !important;
-    gap: 8px;
-    width: 100%;
-  }
-  .category-card {
-    padding: 14px;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  .cat-emoji {
-    font-size: 30px;
-  }
-  .cat-title {
-    font-size: 13px;
-  }
-  .opt-btn {
-    width: 100% !important;
-    padding: 14px;
-    font-size: 15px;
-    min-height: 48px;
-  }
-  .opt-group {
-    grid-template-columns: 1fr !important;
-    gap: 8px;
-  }
-  .number-input {
-    width: 100% !important;
-    font-size: 16px !important;
-    padding: 12px 14px !important;
-    min-height: 44px !important;
-  }
-  .submit-btn {
-    width: 100% !important;
-    font-size: 15px !important;
-    padding: 12px 14px !important;
-    min-height: 44px !important;
-  }
-  .sign-btn {
-    width: 100% !important;
-    min-height: 44px !important;
-    padding: 10px 16px !important;
-    font-size: 13px !important;
-  }
-  input, select, textarea {
-    width: 100% !important;
-    font-size: 16px !important;
-    min-height: 44px !important;
-  }
-}
+
