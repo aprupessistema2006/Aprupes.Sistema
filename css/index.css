@@ -36,8 +36,22 @@ body {
   background: var(--gradient);
 }
 
+@media (min-width: 1025px) {
+  body {
+    background: var(--gradient), url('../logo/logo_admin.png') center/cover no-repeat scroll;
+    background-attachment: fixed;
+  }
+}
+
 body.online {
   background: var(--gradient);
+}
+
+@media (min-width: 1025px) {
+  body.online {
+    background: var(--gradient), url('../logo/logo_admin.png') center/cover no-repeat scroll;
+    background-attachment: fixed;
+  }
 }
 
 /* Splash Screen */
@@ -47,6 +61,10 @@ body.online {
   left: 0;
   right: 0;
   bottom: 0;
+  width: 100vw;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
+  min-height: -webkit-fill-available;
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -543,6 +561,10 @@ body.online {
   left: 0;
   right: 0;
   bottom: 0;
+  width: 100vw;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
+  min-height: -webkit-fill-available;
   background: var(--gradient);
   z-index: 99999;
   display: flex;
@@ -731,9 +753,27 @@ body.online {
 
 /* Tablet & Mobile: full-screen card */
 @media (max-width: 1024px) {
+  html, body {
+    height: auto;
+    min-height: 100%;
+  }
   .login-container {
     padding: 0;
     max-width: 100%;
+  }
+  .login-card {
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    border-radius: 0;
+    box-shadow: none;
+    width: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px 16px;
   }
   .employee-list-wrap {
     max-height: 220px;
@@ -764,8 +804,10 @@ body.online {
 
 @media (max-width: 480px) {
   .login-card {
-    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
     padding: 16px;
+    flex-grow: 1;
   }
   .login-card h1 {
     font-size: 22px;
@@ -820,7 +862,8 @@ body.online {
 /* Landscape orientation for phones */
 @media (orientation: landscape) and (max-height: 700px) {
   .login-card {
-    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
     padding: 12px;
   }
   #pinInput {

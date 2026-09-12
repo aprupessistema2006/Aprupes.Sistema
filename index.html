@@ -115,6 +115,14 @@
   <script src="js/login.js?v=20250912-1300"></script>
   <script>
     (function() {
+      var vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', vh + 'px');
+      window.addEventListener('resize', function() {
+        var vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', vh + 'px');
+      });
+    })();
+    (function() {
       var particles = document.getElementById('splashParticles');
       if (!particles) return;
       var count = window.innerWidth <= 768 ? 30 : 60;
