@@ -15,7 +15,7 @@ class LoginController {
     this.db = new CareDB();
     await this.db.init();
     window.careDB = this.db;
-    this.sync = new SyncManager(this.db, CONFIG);
+    this.sync = new CareSync(this.db, CONFIG);
     window.careSync = this.sync;
 
     const savedUser = sessionStorage.getItem('careUser');

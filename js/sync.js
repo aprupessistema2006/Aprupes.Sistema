@@ -60,31 +60,6 @@ function jsonpAction(action, data, timeout = 15000) {
 }
 
 function normalizeKey(h) {
-    } else {
-      normalizedRow[k] = row[k];
-    }
-  });
-
-  if (row.id) normalizedRow.id = row.id;
-
-  const idTs = String(normalizedRow.id || '').match(/^[a-z]+_(\d+)/);
-  if (idTs) {
-    const d = new Date(parseInt(idTs[1], 10));
-    if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      normalizedRow.date = y + '-' + m + '-' + day;
-    }
-  }
-
-  if (normalizedRow.clientId && !normalizedRow.klientsId) normalizedRow.klientsId = normalizedRow.clientId;
-  if (normalizedRow.employeeId && !normalizedRow.darbinieksId) normalizedRow.darbinieksId = normalizedRow.employeeId;
-
-  return normalizedRow;
-}
-
-function normalizeKey(h) {
   return String(h)
     .toLowerCase()
     .trim()
@@ -232,7 +207,7 @@ function normalizeRow(raw) {
   return normalizedRow;
 }
 
-class SyncManager {
+class CareSync {
   constructor(db, config) {
     this.db = db;
     this.config = config;
@@ -416,9 +391,9 @@ class SyncManager {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { normalizeRow, SyncManager };
+  module.exports = { normalizeRow, CareSync };
 }
 if (typeof globalThis !== 'undefined') {
   globalThis.normalizeRow = normalizeRow;
-  globalThis.SyncManager = SyncManager;
+  globalThis.CareSync = CareSync;
 }
