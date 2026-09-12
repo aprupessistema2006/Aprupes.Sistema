@@ -1053,6 +1053,11 @@ body {
   .stat-value {
     font-size: 22px;
   }
+  /* Modālie logi: pilna platuma tabletēm un lielākiem tālrunkiem */
+  .modal-content {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
   .filter-bar {
     padding: 12px;
   }

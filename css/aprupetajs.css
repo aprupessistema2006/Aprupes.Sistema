@@ -869,6 +869,7 @@ body {
   font-size: 14px;
 }
 
+/* Modālie logi un kartiņas pilna platuma mobilajās ierīcēs */
 @media (max-width: 600px) {
   .main {
     padding: 10px;
@@ -876,8 +877,24 @@ body {
     max-width: 100% !important;
     margin: 0 !important;
   }
+  /* Modālais logs: pilna platuma un 95% ekrāna augstuma, velkas no apakšas */
   .modal-card {
     max-width: 100% !important;
+    width: 100% !important;
+    max-height: 95vh !important;
+    height: 95vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .modal-body {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 16px !important;
+  }
+  .modal-overlay {
+    padding: 0 !important;
   }
   .client-info-name {
     font-size: 19px;
@@ -1079,9 +1096,24 @@ body {
   .section-row-label {
     font-size: 15px;
   }
+  /* Modālais logs: pilna platuma un 95% ekrāna augstume, velkas no apakšas */
   .modal-card {
     max-height: 95vh;
-    width: 100%;
+    height: 95vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .modal-body {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 16px !important;
+  }
+  .modal-overlay {
+    padding: 0 !important;
   }
   .modal-header {
     min-height: 50px;
@@ -1261,10 +1293,6 @@ body {
 .logout-goodbye-sub {
   font-size: 16px;
   opacity: 0.95;
-}
-
-
-
 }
 
 .quick-totals {

@@ -293,6 +293,7 @@ body {
 }
 
 @media (max-width: 600px) {
+  /* Klientu kartiņas: viena kolonna, pilna platuma */
   .client-grid {
     grid-template-columns: 1fr;
     padding: 12px;
@@ -302,6 +303,8 @@ body {
   .client-card {
     height: auto;
     min-height: auto;
+    width: 100% !important;
+    box-sizing: border-box;
   }
   .header {
     height: auto;
