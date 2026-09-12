@@ -9,11 +9,9 @@
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
-  <header class="header">
+   <header class="header">
     <div class="header-left">
-      <button id="logoutBtn" class="btn-icon logout-btn" title="Izlogoties">
-        <span data-i18n="logoutBtn">⎋</span>
-      </button>
+      <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
     </div>
     <div class="header-center">
       <img src="logo/logo_admin.png" alt="Logo" class="header-logo">
@@ -26,8 +24,9 @@
         <button data-lang="ru" class="lang-btn">RU</button>
         <button data-lang="en" class="lang-btn">EN</button>
       </div>
+      <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
     </div>
-  </header>
+   </header>
 
   <main class="main">
     <div id="taskBannerContainer"></div>

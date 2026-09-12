@@ -100,6 +100,45 @@ body {
   transform: scale(0.95);
 }
 
+/* Redzama teksta poga ar ikonu - atpakaļ un iziet */
+.btn-text-icon {
+  width: auto;
+  height: auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  transition: var(--transition);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.btn-text-icon:hover {
+  background: var(--gray-light);
+}
+
+.logout-btn.btn-text-icon {
+  color: var(--danger) !important;
+  background: rgba(231, 76, 60, 0.08) !important;
+  border-radius: 8px !important;
+  width: auto !important;
+  height: auto !important;
+  transform: none !important;
+}
+
+.logout-btn.btn-text-icon:hover {
+  background: var(--danger) !important;
+  color: white !important;
+  transform: none !important;
+}
+
 .sync-badge {
   font-size: 12px;
   padding: 5px 10px;
