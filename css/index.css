@@ -315,6 +315,42 @@ body.online {
   }
 }
 
+/* Role Filter */
+.role-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+}
+
+.role-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.role-btn:hover {
+  background: rgba(39, 174, 96, 0.08);
+  color: var(--primary);
+}
+
+.role-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
 /* Employee Search */
 .employee-search-row {
   margin-bottom: 16px;
@@ -337,81 +373,82 @@ body.online {
   box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
 }
 
-/* Employee List */
-.employee-list-wrap {
-  max-height: 320px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 14px;
+/* Employee Card Grid */
+.employee-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
   margin-bottom: 20px;
-  background: #fafbfc;
+}
+
+@media (min-width: 1025px) {
+  .employee-card-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .employee-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 1024px) {
+  .employee-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .employee-list {
+  display: contents;
+}
+
+.employee-card {
   display: flex;
   flex-direction: column;
-}
-
-.employee-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 16px;
   cursor: pointer;
-  border-bottom: 1px solid #ecf0f1;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: var(--border-radius-sm);
   transition: var(--transition);
-  text-align: left;
+  text-align: center;
   box-sizing: border-box;
-  border-radius: 0;
+  height: 100%;
+  box-shadow: var(--shadow-sm);
 }
 
-.employee-item:hover {
-  background: #e8f5e9;
-  transform: translateX(4px);
+.employee-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(44, 62, 80, 0.12);
+  border-color: var(--accent);
 }
 
-.employee-item.selected {
-  background: linear-gradient(135deg, #c8e6c9, #a5d6a7);
-  font-weight: 600;
+.employee-card.selected {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-color: var(--accent);
+  transform: scale(1.02);
 }
 
-.employee-item:last-child {
-  border-bottom: none;
-}
-
-.employee-item.selected {
-  border-left: 3px solid var(--accent);
-}
-
-.emp-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--gradient);
-  color: white;
+.emp-card-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  flex-shrink: 0;
+  gap: 8px;
 }
 
-.emp-meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.emp-name {
-  font-size: 16px;
-  color: var(--primary);
+.emp-card-title {
+  font-size: 15px;
   font-weight: 600;
+  color: var(--primary);
 }
 
-.emp-role {
+.emp-card-role {
   font-size: 13px;
+  font-weight: 600;
   color: #7f8c8d;
-  margin-top: 3px;
 }
 
 /* Selected Employee */
@@ -787,11 +824,11 @@ body.online {
     justify-content: center;
     padding: 16px;
   }
-  .employee-list-wrap {
-    max-height: 220px;
+  .employee-card-grid {
+    grid-template-columns: 1fr;
   }
-  .employee-item {
-    padding: 12px 14px;
+  .employee-card {
+    padding: 14px;
   }
   .emp-avatar {
     width: 40px;
@@ -833,8 +870,12 @@ body.online {
     letter-spacing: 4px;
     padding: 14px;
   }
-  .employee-list-wrap {
-    max-height: 200px;
+  .employee-card-grid {
+    gap: 10px;
+  }
+  .employee-card {
+    padding: 14px;
+    font-size: 14px;
   }
   .login-logo {
     width: 120px;
@@ -870,6 +911,16 @@ body.online {
     padding: 8px 10px;
     font-size: 11px;
   }
+  .role-filter {
+    padding: 4px;
+  }
+  .role-btn {
+    padding: 8px 8px;
+    font-size: 11px;
+  }
+  .employee-card-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Landscape orientation for phones */
@@ -885,8 +936,9 @@ body.online {
     letter-spacing: 4px;
     padding: 12px;
   }
-  .employee-list-wrap {
-    max-height: 160px;
+  .employee-card-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
   .login-logo {
     width: 100px;

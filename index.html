@@ -63,7 +63,14 @@
           <input type="text" id="employeeSearch" data-i18n="searchPlaceholder" placeholder="🔍 Meklēt darbinieku..." autocomplete="off">
         </div>
 
-        <div class="employee-list-wrap">
+        <div class="role-filter" id="roleFilter">
+          <button type="button" class="role-btn active" data-role="all" data-i18n="allEmployees">Visi</button>
+          <button type="button" class="role-btn" data-role="administrators" data-i18n="admins">👑 Administrators</button>
+          <button type="button" class="role-btn" data-role="kontroliere" data-i18n="controllers">📊 Kontroliere</button>
+          <button type="button" class="role-btn" data-role="aprupetas" data-i18n="caregivers">🤝 Aprūpētāji</button>
+        </div>
+
+        <div class="employee-card-grid">
           <div class="employee-list" id="employeeList">
             <div class="loading" data-i18n="loading">Ielādēju...</div>
           </div>

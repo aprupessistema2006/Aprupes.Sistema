@@ -177,6 +177,17 @@ class LoginController {
       });
     }
 
+    const roleFilter = document.getElementById('roleFilter');
+    if (roleFilter) {
+      roleFilter.addEventListener('click', (e) => {
+        const btn = e.target.closest('.role-btn');
+        if (!btn) return;
+        document.querySelectorAll('#roleFilter .role-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.filterByRole(btn.dataset.role);
+      });
+    }
+
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -296,23 +307,42 @@ class LoginController {
   }
 
   filterEmployees(term) {
-    if (!term) {
-      this.filteredEmployees = [...this.employees];
-      return;
+    this.applyFilters(term || '');
+  }
+
+  applyFilters(searchTerm) {
+    const role = this.activeRoleFilter || 'all';
+    let result = this.employees;
+    if (role !== 'all') {
+      result = result.filter(e => {
+        const l = (e.loma || e.Loma || '').toLowerCase();
+        return l === role || l === (CONFIG.ROLES[role] || role);
+      });
     }
-    this.filteredEmployees = this.employees.filter(e => {
-      const v = (e.vards || e.Vārds || '').toLowerCase();
-      const u = (e.uzvards || e.Uzvārds || '').toLowerCase();
-      const l = (e.loma || e.Loma || '').toLowerCase();
-      return v.includes(term) || u.includes(term) || l.includes(term);
-    });
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(e => {
+        const v = (e.vards || e.Vārds || '').toLowerCase();
+        const u = (e.uzvards || e.Uzvārds || '').toLowerCase();
+        const l = (e.loma || e.Loma || '').toLowerCase();
+        return v.includes(term) || u.includes(term) || l.includes(term);
+      });
+    }
+    this.filteredEmployees = [...result];
+  }
+
+  filterByRole(role) {
+    this.activeRoleFilter = role;
+    const searchTerm = document.getElementById('employeeSearch')?.value || '';
+    this.applyFilters(searchTerm);
+    this.renderEmployeeList();
   }
 
   renderEmployeeList() {
     const list = document.getElementById('employeeList');
     if (!list) return;
     if (this.filteredEmployees.length === 0) {
-      list.innerHTML = '<div class="loading">Nav darbinieku, kas atbilst meklēšanai</div>';
+      list.innerHTML = '<div class="no-results" data-i18n="noEmployees">Nav darbinieku, kas atbilst meklēšanai</div>';
       return;
     }
     const roleLabel = (l) => {
@@ -324,6 +354,12 @@ class LoginController {
       const u = (e.uzvards || e.Uzvārds || '').trim();
       return ((v[0] || '?') + (u[0] || '')).toUpperCase();
     };
+    const roleColor = (l) => {
+      const r = (l || '').toLowerCase();
+      if (r === 'administrators' || r === 'admins' || r === 'admin') return 'var(--danger)';
+      if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
+      return 'var(--accent)';
+    };
     list.innerHTML = this.filteredEmployees.map(e => {
       const id = e.id || e.ID;
       const v = e.vards || e.Vārds || '';
@@ -331,16 +367,16 @@ class LoginController {
       const l = e.loma || e.Loma || '';
       const sel = this.selectedEmployee && String(this.selectedEmployee.id || this.selectedEmployee.ID) === String(id) ? 'selected' : '';
       return `
-        <div class="employee-item ${sel}" data-id="${id}">
-          <div class="emp-avatar">${initials(e)}</div>
-          <div class="emp-meta">
-            <div class="emp-name">${this.escapeHtml(v)} ${this.escapeHtml(u)}</div>
-            <div class="emp-role">${roleLabel(l)}</div>
+        <div class="employee-card ${sel}" data-id="${id}">
+          <div class="emp-card-header">
+            <div class="emp-avatar" style="background:${roleColor(l)}20;color:${roleColor(l)}">${initials(e)}</div>
+            <div class="emp-card-title">${this.escapeHtml(v)} ${this.escapeHtml(u)}</div>
           </div>
+          <div class="emp-card-role" style="color:${roleColor(l)}">${roleLabel(l)}</div>
         </div>
       `;
     }).join('');
-    list.querySelectorAll('.employee-item').forEach(el => {
+    list.querySelectorAll('.employee-card').forEach(el => {
       el.addEventListener('click', () => {
         const id = el.dataset.id;
         const emp = this.employees.find(x => String(x.id || x.ID) === String(id));
@@ -372,18 +408,25 @@ class LoginController {
     if (shiftSelector) shiftSelector.style.display = 'block';
     const sub = document.getElementById('loginSubtitle');
     if (sub) sub.textContent = 'Izvēlies maiņas tipu un ievadi PIN kodu:';
-    const search = document.getElementById('employeeSearch');
-    if (search) {
-      search.value = '';
-      this.filteredEmployees = [...this.employees];
-      this.renderEmployeeList();
-    }
+     const search = document.getElementById('employeeSearch');
+     if (search) {
+       search.value = '';
+       this.applyFilters('');
+       this.renderEmployeeList();
+     }
     this.refreshLoginButton();
   }
 
   clearSelection() {
     this.selectedEmployee = null;
     this.pin = '';
+    this.activeRoleFilter = 'all';
+    const roleBtns = document.querySelectorAll('#roleFilter .role-btn');
+    if (roleBtns.length) {
+      roleBtns.forEach(b => b.classList.remove('active'));
+      const allBtn = document.querySelector('#roleFilter .role-btn[data-role="all"]');
+      if (allBtn) allBtn.classList.add('active');
+    }
     const pinInput = document.getElementById('pinInput');
     if (pinInput) {
       pinInput.value = '';
@@ -395,6 +438,8 @@ class LoginController {
     if (shiftSelector) shiftSelector.style.display = 'none';
     const sub = document.getElementById('loginSubtitle');
     if (sub) sub.textContent = 'Izvēlies darbinieku un ievadi PIN kodu';
+    this.applyFilters('');
+    this.renderEmployeeList();
     this.refreshLoginButton();
   }
 
