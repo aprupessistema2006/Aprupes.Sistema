@@ -54,8 +54,15 @@ function appendRow(sheet, data) {
     keyMap[h] = i;
   });
 
+  const fieldAliases = {
+    dzimis: 'dzimsanas_datums',
+    saskarsmes: 'saskarsmes_ipatnibas'
+  };
+
   Object.keys(data).forEach(k => {
-    const idx = keyMap[normalizeKey(k)] !== undefined ? keyMap[normalizeKey(k)] : keyMap[k];
+    const nk = normalizeKey(k);
+    const canonicalKey = fieldAliases[nk] || nk;
+    const idx = keyMap[canonicalKey] !== undefined ? keyMap[canonicalKey] : keyMap[k];
     if (idx !== undefined) {
       let v = data[k];
       if (v instanceof Date) {
@@ -106,7 +113,12 @@ function setCellValue(sheet, rowNum, field, value) {
   const colMap = {};
   headers.forEach((h, i) => { colMap[normalizeKey(h)] = i; });
 
-  const idx = colMap[normalizeKey(field)];
+  const fieldAliases = {
+    dzimis: 'dzimsanas_datums',
+    saskarsmes: 'saskarsmes_ipatnibas'
+  };
+  const canonicalField = fieldAliases[normalizeKey(field)] || field;
+  const idx = colMap[normalizeKey(canonicalField)];
   if (idx !== undefined) {
     let v = value;
     if (v instanceof Date) {
@@ -197,9 +209,9 @@ function handleCreateClient(data) {
     id: id,
     vards: c.vards || '',
     uzvards: c.uzvards || '',
-    dzimis: c.dzimis || '',
+    dzimsanas_datums: c.dzimis || c.dzimsanas_datums || '',
     dieta: c.dieta || '',
-    saskarsmes: c.saskarsmes || '',
+    saskarsmes_ipatnibas: c.saskarsmes || c.saskarsmes_ipatnibas || '',
     aktivs: true
   });
   return createResponse(200, { success: true, id: id });
