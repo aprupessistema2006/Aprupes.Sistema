@@ -558,7 +558,7 @@ class AdminPanel {
 
     try {
       const url = CONFIG.GAS_URL + '?action=load&t=' + Date.now();
-      const data = await jsonpRequest(url, 10000);
+      const data = await requestData(url, 10000);
       if (data) {
         result.className = 'connection-result success';
         result.textContent = '✓ Savienojums ar Google Sheets ir aktīvs';

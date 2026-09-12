@@ -53,6 +53,32 @@ function jsonpRequest(url, timeout = 15000) {
   });
 }
 
+function requestJson(url, timeout = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  return fetch(url + (url.includes('?') ? '&' : '?') + '_t=' + CACHE_BUSTER(), {
+    mode: 'cors',
+    signal: controller.signal
+  })
+    .then(r => {
+      clearTimeout(timer);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .catch(e => {
+      clearTimeout(timer);
+      throw e;
+    });
+}
+
+function requestData(url, timeout = 15000) {
+  return jsonpRequest(url, timeout).catch(jsonpErr => {
+    return requestJson(url, timeout).catch(fetchErr => {
+      throw new Error('Savienojuma kļūda: ' + jsonpErr.message + ', ' + fetchErr.message);
+    });
+  });
+}
+
 function jsonpAction(action, data, timeout = 15000) {
   const payload = encodeURIComponent(JSON.stringify({ action: action, data: data }));
   const url = SYNC_URL + '?data=' + payload + '&t=' + Date.now();
@@ -248,7 +274,7 @@ class CareSync {
     try {
       onProgress('Ielādēju datus no servera...');
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const data = await jsonpRequest(url, 10000);
+      const data = await requestData(url, 10000);
 
       if (data.error) {
         throw new Error(data.error);
@@ -376,7 +402,7 @@ class CareSync {
   async hasRemoteEmployees() {
     try {
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const data = await jsonpRequest(url, 15000);
+      const data = await requestData(url, 15000);
       if (data.error) return false;
       return (data.darbinieki || []).length > 0;
     } catch (e) {
