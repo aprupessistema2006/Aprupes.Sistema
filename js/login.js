@@ -45,27 +45,24 @@ class LoginController {
       if (loadingOverlay) loadingOverlay.style.display = 'none';
     };
 
-    showLoading('Pārbaudām savienojumu...');
+    showLoading('Pārbaudām savienojumu ar Google...');
 
     let hasRemote = false;
     let hasLocal = false;
-    try {
-      hasLocal = await this.sync.hasLocalData();
-    } catch (e) {
-      console.error('[login] local check failed', e);
-    }
 
-    if (hasLocal) {
-      hideLoading();
-      await this.loadEmployees();
-      return;
-    }
-
-    showLoading('Pārbaudām savienojumu...');
+    showLoading('Mēģinām pieslēgties Google...');
     try {
       hasRemote = await this.sync.hasRemoteEmployees();
     } catch (e) {
       console.error('[login] remote check failed', e);
+    }
+
+    if (hasLocal === false) {
+      try {
+        hasLocal = await this.sync.hasLocalData();
+      } catch (e) {
+        console.error('[login] local check failed', e);
+      }
     }
 
     if (!hasRemote && !hasLocal) {
@@ -75,15 +72,15 @@ class LoginController {
     }
 
     if (hasRemote) {
-      showLoading('Ielādēju datus...');
+      showLoading('Ielādēju datus no Google...');
       try {
         await this.sync.loadInitialData((msg) => {
           showLoading(msg);
         });
-        if (statusMsg) statusMsg.textContent = '✓ Savienojums aktīvs';
+        if (statusMsg) statusMsg.textContent = '✓ Savienojums ar Google aktīvs';
         document.body.classList.add('online');
       } catch (e) {
-        if (statusMsg) statusMsg.textContent = '⚠️ Neizdevās ielādēt datus. Mēģinam lokāli...';
+        if (statusMsg) statusMsg.textContent = '⚠️ Neizdevās ielādēt no Google. Mēģinam lokāli...';
       }
     }
 

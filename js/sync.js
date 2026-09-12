@@ -1,10 +1,13 @@
 const SYNC_URL = typeof CONFIG !== 'undefined' ? CONFIG.GAS_URL : null;
 
+const CACHE_BUSTER = () => Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
 async function fetchWithTimeout(url, timeout = 8000, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    const urlWithCacheBuster = url + (url.includes('?') ? '&' : '?') + '_t=' + CACHE_BUSTER();
+    const response = await fetch(urlWithCacheBuster, { ...options, signal: controller.signal });
     clearTimeout(timeoutId);
     return response;
   } catch (e) {
