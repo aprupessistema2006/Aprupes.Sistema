@@ -640,3 +640,52 @@ body {
   background: #e8f5e9;
   box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
 }
+
+/* Horizontālā orientācija tālruņos - ekrāns ir plašāks, bet stīvs */
+@media (orientation: landscape) and (max-height: 700px) {
+  body {
+    justify-content: center;
+    padding-top: 0;
+    min-height: 100vh;
+  }
+  .login-container {
+    padding: 0;
+    max-width: 100%;
+  }
+  .login-card {
+    min-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  #pinInput {
+    font-size: 18px;
+    letter-spacing: 4px;
+    padding: 12px;
+  }
+  .employee-list-wrap {
+    max-height: 160px;
+  }
+  .login-logo {
+    width: 120px;
+  }
+  .btn-primary {
+    font-size: 15px;
+    padding: 12px;
+    min-height: 44px;
+  }
+  .form-group input,
+  .form-group select {
+    font-size: 16px;
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+  .lang-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}
