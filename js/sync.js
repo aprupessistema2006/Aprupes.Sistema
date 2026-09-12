@@ -355,7 +355,7 @@ class CareSync {
       const sorted = items.sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
         try {
-          const result = await jsonpAction(item.change.action || item.change.type || 'mark', item.change);
+          const result = await jsonpAction(item.change.action || item.change.type || 'mark', item.change.data || item.change);
           if (!result.error) {
             await this.db.delete('sync_queue', item.id);
           } else {
