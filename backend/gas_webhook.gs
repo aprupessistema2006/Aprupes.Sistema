@@ -140,40 +140,45 @@ function setCellValue(sheet, rowNum, field, value) {
 function doGet(e) {
   try {
     const params = (e && e.parameter) || {};
+    let result;
     if (params.action === 'load') {
-      const response = handleLoad();
-      return handleJsonp(params, response);
-    }
-    if (params.data) {
+      result = handleLoadData();
+    } else if (params.data) {
       let data;
       try { data = JSON.parse(params.data); } catch (pe) {
-        return handleJsonp(params, createResponse(400, { error: 'Nederīgs JSON' }));
+        return wrapResponse(params, { error: 'Nederīgs JSON' });
       }
-      return handleJsonp(params, routeAction(data));
+      result = routeActionData(data);
+    } else if (params.action) {
+      result = routeActionData({ action: params.action, data: params });
+    } else {
+      result = { error: 'Nezināma darbība' };
     }
-    if (params.action) {
-      return handleJsonp(params, routeAction({ action: params.action, data: params }));
-    }
-    return handleJsonp(params, createResponse(400, { error: 'Nezināma darbība' }));
+    return wrapResponse(params, result);
   } catch (err) {
-    return handleJsonp(params || {}, createResponse(500, { error: 'Kļūda: ' + err.toString() }));
+    return wrapResponse(params || {}, { error: 'Kļūda: ' + err.toString() });
   }
 }
 
-function handleJsonp(params, response) {
+function wrapResponse(params, data) {
+  const json = JSON.stringify(data);
   const callback = params.callback;
   if (callback) {
-    const content = response.getContent();
-    const output = callback + '(' + content + ');';
     return ContentService
-      .createTextOutput(output)
+      .createTextOutput(callback + '(' + json + ');')
       .setMimeType(ContentService.MimeType.JAVASCRIPT)
       .setHeader('Access-Control-Allow-Origin', '*')
       .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
       .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
       .setHeader('Vary', 'Origin');
   }
-  return response;
+  return ContentService
+    .createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    .setHeader('Vary', 'Origin');
 }
 
 function doPost(e) {
@@ -185,15 +190,15 @@ function doPost(e) {
     } else if (params.data) {
       data = JSON.parse(params.data);
     } else {
-      return handleJsonp(params, createResponse(400, { error: 'Nav datu' }));
+      return wrapResponse(params, { error: 'Nav datu' });
     }
-    return handleJsonp(params, routeAction(data));
+    return wrapResponse(params, routeActionData(data));
   } catch (err) {
-    return handleJsonp(params, createResponse(500, { error: 'Kļūda: ' + err.toString() }));
+    return wrapResponse(params, { error: 'Kļūda: ' + err.toString() });
   }
 }
 
-function routeAction(data) {
+function routeActionData(data) {
   const action = data.action;
   try {
     if (action === 'createClient') return handleCreateClient(data);
@@ -203,20 +208,21 @@ function routeAction(data) {
     if (action === 'mark') return handleMark(data);
     if (action === 'createTask') return handleCreateTask(data);
     if (action === 'updateTask') return handleUpdateTask(data);
-    return createResponse(200, { success: true });
+    return { success: true };
   } catch (err) {
-    return createResponse(500, { error: 'Kļūda: ' + err.toString() });
+    return { error: 'Kļūda: ' + err.toString() };
   }
 }
 
-function handleLoad() {
-  return createResponse(200, {
+function handleLoadData() {
+  return {
     darbinieki: getSheetData(getSheet('darbinieki')),
     klienti: getSheetData(getSheet('klienti')),
     atzimes: getSheetData(getSheet('atzimes')),
     atzimes_log: getSheetData(getSheet('atzimes_log')),
-    uzdevomi: getSheetData(getSheet('uzdevomi'))
-  });
+    uzdevomi: getSheetData(getSheet('uzdevomi')),
+    success: true
+  };
 }
 
 function handleCreateClient(data) {
@@ -232,7 +238,7 @@ function handleCreateClient(data) {
     saskarsmes_ipatnibas: c.saskarsmes || c.saskarsmes_ipatnibas || '',
     aktivs: true
   });
-  return createResponse(200, { success: true, id: id });
+  return { success: true, id: id };
 }
 
 function handleCreateEmployee(data) {
@@ -248,17 +254,17 @@ function handleCreateEmployee(data) {
     aktivs: true,
     parole: e.parole || ''
   });
-  return createResponse(200, { success: true, id: id });
+  return { success: true, id: id };
 }
 
 function handleUpdate(data, sheetName) {
   const sheet = getSheet(sheetName);
   const row = findRow(sheet, [['id', data.data.id]]);
-  if (!row) return createResponse(404, { error: 'Nav atrasts' });
+  if (!row) return { error: 'Nav atrasts' };
   Object.keys(data.data).forEach(f => {
     if (f !== 'id' && data.data[f] !== undefined) setCellValue(sheet, row.row, f, data.data[f]);
   });
-  return createResponse(200, { success: true });
+  return { success: true };
 }
 
 function handleMark(data) {
@@ -298,7 +304,7 @@ function handleMark(data) {
     izveidots: nowDateTimeStr
   });
 
-  return createResponse(200, { success: true, id: id });
+  return { success: true, id: id };
 }
 
 function ensureColumns(sheet, requiredColumns) {
@@ -331,19 +337,19 @@ function handleCreateTask(data) {
     pabeigts_laiks: t.pabeigtsLaiks || '',
     pabeigtajs_id: t.pabeigtajsId || ''
   });
-  return createResponse(200, { success: true, id: id });
+  return { success: true, id: id };
 }
 
 function handleUpdateTask(data) {
   const sheet = getSheet('uzdevomi');
   const t = data.data;
   const row = findRow(sheet, [['id', t.id]]);
-  if (!row) return createResponse(404, { error: 'Uzdevums nav atrasts' });
+  if (!row) return { error: 'Uzdevums nav atrasts' };
   if (t.statuss !== undefined) setCellValue(sheet, row.row, 'statuss', t.statuss);
   if (t.irPabeigts !== undefined) setCellValue(sheet, row.row, 'pabeigts', t.irPabeigts === true || t.irPabeigts === 'true');
   if (t.pabeigtsLaiks !== undefined) setCellValue(sheet, row.row, 'pabeigts_laiks', t.pabeigtsLaiks || '');
   if (t.pabeigtajsId !== undefined) setCellValue(sheet, row.row, 'pabeigtajs_id', t.pabeigtajsId || '');
-  return createResponse(200, { success: true });
+  return { success: true };
 }
 
 function doOptions(e) {
