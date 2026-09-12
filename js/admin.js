@@ -403,6 +403,12 @@ class AdminPanel {
   async createClient(data) {
     const id = this.db.generateId();
     const client = { id, ...data };
+    if (data.dzimis) {
+      client.dzimsanas_datums = data.dzimis;
+    }
+    if (data.saskarsmes) {
+      client.saskarsmes_ipatnibas = data.saskarsmes;
+    }
     await this.db.add('klienti', client);
 
     this.sync.enqueueChange({
@@ -422,12 +428,25 @@ class AdminPanel {
     const client = await this.db.get('klienti', id);
     if (!client) return;
     Object.assign(client, data);
+    if (data.dzimis) {
+      client.dzimsanas_datums = data.dzimis;
+    }
+    if (data.saskarsmes) {
+      client.saskarsmes_ipatnibas = data.saskarsmes;
+    }
     await this.db.put('klienti', client);
 
+    const syncData = { id, ...data };
+    if (data.dzimis) {
+      syncData.dzimsanas_datums = data.dzimis;
+    }
+    if (data.saskarsmes) {
+      syncData.saskarsmes_ipatnibas = data.saskarsmes;
+    }
     this.sync.enqueueChange({
       action: 'updateClient',
       table: 'klienti',
-      data: { id, ...data }
+      data: syncData
     });
 
     await this.loadData();
