@@ -279,7 +279,7 @@ class CareFormController {
     const uzvards = this.client.uzvards || this.client.Uzvārds || '';
     document.getElementById('clientName').textContent = vards + ' ' + uzvards;
     document.getElementById('clientName2').textContent = vards + ' ' + uzvards;
-    document.getElementById('clientDob').textContent = 'Dzimis: ' + this.formatDob(this.client.dzimis || this.client['Dzimšanas datums']);
+    document.getElementById('clientDob').textContent = 'Dzimis: ' + this.formatDob(this.client.dzimis || this.client['Dzimšanas datums'] || this.client.dzimsans_datums || this.client.birth_date);
     const diet = this.client.dieta || this.client.Diēta || '';
     const saskarsme = this.client.saskarsmes || this.client['Saskarsmes īpatnības'] || '';
     document.getElementById('clientDiet').textContent = diet || 'Diēta nav norādīta';

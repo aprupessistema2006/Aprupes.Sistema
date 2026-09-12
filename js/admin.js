@@ -181,7 +181,7 @@ class AdminPanel {
 
     list.innerHTML = items.map(c => {
       const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
-      const dob = c.dzimis || c['Dzimšanas datums'] || '';
+       const dob = c.dzimis || c['Dzimšanas datums'] || c.dzimsans_datums || c.dzimšans_datums || c.birth_date || '';
       const active = c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1';
       const id = c.id || c.ID;
 
@@ -290,7 +290,7 @@ class AdminPanel {
     const id = client ? (client.id || client.ID) : '';
     const vards = client ? (client.vards || client.Vārds || '') : '';
     const uzvards = client ? (client.uzvards || client.Uzvārds || '') : '';
-    const dzimis = client ? (client.dzimis || client['Dzimšanas datums'] || '') : '';
+    const dzimis = client ? (client.dzimis || client['Dzimšanas datums'] || client.dzimsans_datums || client.birth_date || '') : '';
     const dieta = client ? (client.dieta || client.Diēta || '') : '';
     const saskarsmes = client ? (client.saskarsmes || client['Saskarsmes īpatnības'] || '') : '';
 

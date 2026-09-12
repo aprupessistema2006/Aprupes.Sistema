@@ -117,7 +117,19 @@ function normalizeRow(raw) {
     pin: 'pin',
     pinKods: 'pin',
     pin_kods: 'pin',
-    parole: 'parole'
+    parole: 'parole',
+    dzimsans_datums: 'dzimis',
+    dzimšans_datums: 'dzimis',
+    dzimis: 'dzimis',
+    birth_date: 'dzimis',
+    date_of_birth: 'dzimis',
+    dieta: 'dieta',
+    diet: 'dieta',
+    saskarsmes: 'saskarsmes',
+    saskarsmesīpatnības: 'saskarsmes',
+    saskarsmes_ipatnibas: 'saskarsmes',
+    contacts: 'saskarsmes',
+    contact: 'saskarsmes'
   };
 
   const normalizedRow = {};

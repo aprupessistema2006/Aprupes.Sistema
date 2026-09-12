@@ -280,7 +280,7 @@ class AprupeController {
       const id = client.id || client.ID;
       const vards = client.vards || client.Vārds || '';
       const uzvards = client.uzvards || client.Uzvārds || '';
-      const dzimis = client.dzimis || client['Dzimšanas datums'] || '';
+      const dzimis = client.dzimis || client['Dzimšanas datums'] || client.dzimsans_datums || client.birth_date || '';
       const dieta = client.dieta || client.Diēta || '';
       const saskarsmes = client.saskarsmes || client['Saskarsmes īpatnības'] || '';
 
