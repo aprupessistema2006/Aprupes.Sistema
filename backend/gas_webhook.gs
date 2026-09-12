@@ -166,7 +166,8 @@ function wrapResponse(params, data) {
   if (callback) {
     return ContentService
       .createTextOutput(callback + '(' + json + ');')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT)
+      .setMimeType(ContentService.MimeType.TEXT)
+      .setHeader('Content-Type', 'application/javascript')
       .setHeader('Access-Control-Allow-Origin', '*')
       .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
       .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -359,7 +360,8 @@ function doOptions(e) {
   if (callback) {
     output = ContentService
       .createTextOutput(callback + '(null);')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+      .setMimeType(ContentService.MimeType.TEXT)
+      .setHeader('Content-Type', 'application/javascript');
   } else {
     output = ContentService
       .createTextOutput('')
