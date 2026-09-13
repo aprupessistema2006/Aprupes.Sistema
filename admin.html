@@ -10,7 +10,7 @@
 </head>
 <body>
    <header class="header">
-    <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
+    <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ" data-i18n-title="backBtn"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
     <div class="lang-switcher">
       <button data-lang="lv" class="lang-btn active">LV</button>
       <button data-lang="ru" class="lang-btn">RU</button>
@@ -18,7 +18,7 @@
     </div>
     <h1 data-i18n="loginTitle">Administratora panelis</h1>
     <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
-    <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
+    <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet" data-i18n-title="logout"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
     <button id="enterAsCaregiverBtn" class="btn-primary btn-sm" data-i18n="enterAsCaregiver">Ieiet kā aprūpētājs</button>
    </header>
 
@@ -83,8 +83,8 @@
     <section id="settings" class="tab-content">
       <h2 data-i18n="settingsTitle">Sistēmas iestatījumi</h2>
       <div class="settings-group">
-        <h3>Google Sheets savienojums</h3>
-        <p>URL: <span id="gasUrl">-</span></p>
+      <h3 data-i18n="googleSheetsConnection">Google Sheets savienojums</h3>
+      <p><span data-i18n="connectionUrl">URL:</span> <span id="gasUrl">-</span></p>
         <button id="testConnection" class="btn-secondary" data-i18n="connectionOk">Pārbaudīt savienojumu</button>
       </div>
       <div class="settings-group">
@@ -119,20 +119,20 @@
     <div class="modal-content">
       <span class="modal-close">×</span>
       <h3 data-i18n="selectClientForCaregiver">Izvēlies klientu un aprūpētāju</h3>
-      <p style="color:#666;font-size:13px;margin-bottom:14px;">Izvēlies klientu un aprūpētāju, kura identitātē vēlies strādāt</p>
+      <p style="color:#666;font-size:13px;margin-bottom:14px;" data-i18n="caregiverSelectHelp">Izvēlies klientu un aprūpētāju, kura identitātē vēlies strādāt</p>
       <div class="form-group">
-        <label>Klients *</label>
+        <label data-i18n="clientRequired">Klients *</label>
         <select id="caregiverClientSelect" class="search-input" style="width:100%;padding:10px 12px;border:2px solid #e0e6ed;border-radius:8px;margin-bottom:10px;">
-          <option value="">— Izvēlies klientu —</option>
+          <option value="" data-i18n="selectClientShort">— Izvēlies klientu —</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Aprūpētājs *</label>
+        <label data-i18n="caregiverRequired">Aprūpētājs *</label>
         <select id="caregiverEmployeeSelect" class="search-input" style="width:100%;padding:10px 12px;border:2px solid #e0e6ed;border-radius:8px;margin-bottom:10px;">
-          <option value="">— Izvēlies aprūpētāju —</option>
+          <option value="" data-i18n="selectCaregiverShort">— Izvēlies aprūpētāju —</option>
         </select>
       </div>
-      <button id="caregiverConfirmBtn" class="btn-primary" style="width:100%;margin-top:4px;">🔄 Ieiet kā aprūpētājs</button>
+      <button id="caregiverConfirmBtn" class="btn-primary" style="width:100%;margin-top:4px;" data-i18n="enterAsCaregiverConfirm">🔄 Ieiet kā aprūpētājs</button>
     </div>
   </div>
 

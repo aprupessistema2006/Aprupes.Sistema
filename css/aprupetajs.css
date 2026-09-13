@@ -333,7 +333,8 @@ body {
 .category-card.cat-higiena::before { background: linear-gradient(90deg, #9b59b6, #c39bd3); }
 .category-card.cat-aktivitate::before { background: linear-gradient(90deg, #3498db, #74b9ff); }
 .category-card.cat-edinasana::before { background: linear-gradient(90deg, #f39c12, #fdcb6e); }
-.category-card.cat-sikdrumi::before { background: linear-gradient(90deg, #27ae60, #55efc4); }
+.category-card.cat-h2o::before { background: linear-gradient(90deg, #27ae60, #55efc4); }
+.category-card.cat-urina::before { background: linear-gradient(90deg, #0984e3, #74b9ff); }
 .category-card.cat-fiziologija::before { background: linear-gradient(90deg, #16a085, #1abc9c); }
 .category-card.cat-ada::before { background: linear-gradient(90deg, #fd79a8, #fab1a0); }
 .category-card.cat-pastaiga::before { background: linear-gradient(90deg, #00b894, #55efc4); }
@@ -450,7 +451,8 @@ body {
 .section-card.section-higiena { border-left-color: var(--purple); }
 .section-card.section-aktivitate { border-left-color: var(--info); }
 .section-card.section-edinasana { border-left-color: var(--warning); }
-.section-card.section-sikdrumi { border-left-color: var(--accent); }
+.section-card.section-h2o { border-left-color: var(--accent); }
+.section-card.section-urina { border-left-color: var(--blue); }
 .section-card.section-fiziologija { border-left-color: var(--teal); }
 .section-card.section-citi { border-left-color: var(--gray); }
 

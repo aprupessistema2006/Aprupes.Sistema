@@ -483,8 +483,7 @@ class ControlPanel {
         dates.sort();
         rangeEl.textContent = dates[0] + ' — ' + dates[dates.length - 1];
       } else {
-        rangeEl.textContent = 'Nav ierakstu';
-      }
+        rangeEl.textContent = t('noRecordsShort');
     }
   }
 
@@ -617,7 +616,7 @@ class ControlPanel {
     }).join('');
 
     const countEl = document.getElementById('historyCount');
-    if (countEl) countEl.textContent = log.length + ' ierakstu';
+    if (countEl) countEl.textContent = log.length + ' ' + t('recordsSuffix');
   }
 
   async setupTasksUI() {
@@ -629,7 +628,7 @@ class ControlPanel {
     if (deadline) deadline.value = this.todayLocal();
 
     if (assignee) {
-      assignee.innerHTML = '<option value="">— izvēlies darbinieku —</option>' +
+      assignee.innerHTML = '<option value="">' + t('selectEmployeePrompt') + '</option>' +
         this.allEmployees.map(e => {
           const id = e.id || e.ID;
           const v = e.vards || e.Vārds || '';
@@ -698,8 +697,7 @@ class ControlPanel {
     const active = all.filter(t => !t.irPabeigts && t.irPabeigts !== 'true' && t.irPabeigts !== 'TRUE');
     const completed = all.filter(t => t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE');
 
-    if (countEl) countEl.textContent = active.length + ' aktīvi / ' + completed.length + ' pabeigti';
-
+    if (countEl) countEl.textContent = active.length + ' ' + t('activeTasks') + ' / ' + completed.length + ' ' + t('completedTasks');
     const empMap = {};
     this.allEmployees.forEach(e => {
       empMap[String(e.id || e.ID)] = (e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '');

@@ -10,7 +10,7 @@
 </head>
 <body>
    <header class="header">
-    <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
+    <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ" data-i18n-title="backBtn"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
     <div class="lang-switcher">
       <button data-lang="lv" class="lang-btn active">LV</button>
       <button data-lang="ru" class="lang-btn">RU</button>
@@ -18,15 +18,15 @@
     </div>
     <h1 data-i18n="loginTitle">Kontroliera panelis</h1>
     <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
-    <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
+    <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet" data-i18n-title="logout"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
    </header>
 
   <main class="main">
     <section class="filter-bar">
       <div class="filter-row">
         <label><span data-i18n="date">Datums</span>: <input type="date" id="dateFilter" value=""></label>
-        <label><span data-i18n="client">Klients</span>: <select id="clientFilter"><option value="">Visi klienti</option></select></label>
-        <label><span data-i18n="employee">Darbinieks</span>: <select id="employeeFilter"><option value="">Visi</option></select></label>
+        <label><span data-i18n="client">Klients</span>: <select id="clientFilter"><option value="" data-i18n="allClients">Visi klienti</option></select></label>
+        <label><span data-i18n="employee">Darbinieks</span>: <select id="employeeFilter"><option value="" data-i18n="all">Visi</option></select></label>
       </div>
       <div class="filter-row">
         <label>
@@ -41,7 +41,7 @@
       <p class="export-help" data-i18n="exportHelp">Izvēlies mēnesi un klientu, tad noklikšķini "Lejupielādēt".</p>
       <div class="export-row">
         <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="exportMonth" required></label>
-        <label><span data-i18n="client">Klients</span>: <select id="exportClient" required><option value="">— izvēlies klientu —</option></select></label>
+        <label><span data-i18n="client">Klients</span>: <select id="exportClient" required><option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option></select></label>
         <button id="exportBtn" class="btn-primary" data-i18n="exportExcel">📥 Lejupielādēt Excel</button>
       </div>
     </section>
@@ -51,7 +51,7 @@
       <p class="export-help" data-i18n="monthViewHelp">Izvēlies mēnesi un klientu, lai redzētu vizuālo apskatu.</p>
       <div class="export-row">
         <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="monthViewMonth" required></label>
-        <label><span data-i18n="client">Klients</span>: <select id="monthViewClient" required><option value="">— izvēlies klientu —</option></select></label>
+        <label><span data-i18n="client">Klients</span>: <select id="monthViewClient" required><option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option></select></label>
         <button id="renderMonthView" class="btn-primary" data-i18n="renderMonth">👁️ Apskatīt</button>
       </div>
       <div id="monthViewContainer" class="month-view-container"></div>
@@ -128,7 +128,7 @@
             </label>
             <label data-i18n="client">Klients (nav obligāti):
               <select id="taskClient">
-                <option value="">— bez klienta —</option>
+                <option value="" data-i18n="noClient">— bez klienta —</option>
               </select>
             </label>
           </div>
@@ -138,15 +138,15 @@
             </label>
             <label data-i18n="taskPriority">Prioritāte:
               <select id="taskPriority">
-                <option value="videja">🟡 Vidēja</option>
-                <option value="augsta">🔴 Augsta</option>
-                <option value="zema">🟢 Zema</option>
+                <option value="videja" data-i18n="priorityMediumOption">🟡 Vidēja</option>
+                <option value="augsta" data-i18n="priorityHighOption">🔴 Augsta</option>
+                <option value="zema" data-i18n="priorityLowOption">🟢 Zema</option>
               </select>
             </label>
           </div>
           <div class="task-form-row">
             <label style="flex:1;" data-i18n="taskDescription">Uzdevuma teksts:
-              <input type="text" id="taskText" placeholder="Piem. Zvanīt ģimenei par..." required maxlength="300">
+              <input type="text" id="taskText" data-i18n="taskDescPlaceholder" placeholder="Piem. Zvanīt ģimenei par..." required maxlength="300">
             </label>
           </div>
           <button type="submit" class="btn-primary" data-i18n="submitBtn">📤 Nosūtīt uzdevumu</button>

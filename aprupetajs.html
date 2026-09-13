@@ -10,7 +10,7 @@
 </head>
 <body>
    <header class="header">
-    <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
+    <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ" data-i18n-title="backBtn"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
     <div class="lang-switcher">
       <button data-lang="lv" class="lang-btn active">LV</button>
       <button data-lang="ru" class="lang-btn">RU</button>
@@ -18,7 +18,7 @@
     </div>
     <h1 id="clientName">...</h1>
     <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
-    <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
+    <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet" data-i18n-title="logout"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
    </header>
 
   <main class="main">
@@ -57,7 +57,7 @@
         <div class="qt-emoji">💧</div>
         <div class="qt-info">
           <div class="qt-value" id="qtFluidValue">0 <span class="qt-unit">ml</span></div>
-          <div class="qt-label" data-i18n="fluids">Šķidrumi</div>
+          <div class="qt-label" data-i18n="h2o">H2O</div>
           <div class="qt-meta" id="qtFluidMeta"></div>
         </div>
       </div>
@@ -65,7 +65,7 @@
         <div class="qt-emoji">🚽</div>
         <div class="qt-info">
           <div class="qt-value" id="qtStoolValue">0 <span class="qt-unit">reizes</span></div>
-          <div class="qt-label" data-i18n="physiology">Fiziologija</div>
+          <div class="qt-label" data-i18n="bowelMovement">Vēdera izeja</div>
           <div class="qt-meta" id="qtStoolMeta"></div>
         </div>
       </div>
@@ -73,7 +73,7 @@
         <div class="qt-emoji">🧻</div>
         <div class="qt-info">
           <div class="qt-value" id="qtDiaperValue">0 <span class="qt-unit">maiņas</span></div>
-          <div class="qt-label" data-i18n="hygiene">Higiēna</div>
+          <div class="qt-label" data-i18n="diaperChange">Autiņbikšu maiņa</div>
           <div class="qt-meta" id="qtDiaperMeta"></div>
         </div>
       </div>
@@ -100,34 +100,39 @@
         <div class="cat-title" data-i18n="meals">Ēdīšana</div>
         <div class="cat-status" id="status-edinasana">—</div>
       </button>
-      <button class="category-card cat-sikdrumi" data-cat="sikdrumi">
+      <button class="category-card cat-h2o" data-cat="h2o">
         <div class="cat-emoji">💧</div>
-        <div class="cat-title" data-i18n="fluids">Šķidrumi</div>
-        <div class="cat-status" id="status-sikdrumi">—</div>
+        <div class="cat-title" data-i18n="h2o">H2O</div>
+        <div class="cat-status" id="status-h2o">—</div>
+      </button>
+      <button class="category-card cat-urina" data-cat="urina">
+        <div class="cat-emoji">💧</div>
+        <div class="cat-title" data-i18n="urineOutput">Urīna daudzums</div>
+        <div class="cat-status" id="status-urina">—</div>
       </button>
       <button class="category-card cat-fiziologija" data-cat="fiziologija">
         <div class="cat-emoji">🚽</div>
-        <div class="cat-title" data-i18n="physiology">Fiziologija</div>
+        <div class="cat-title" data-i18n="bowelMovement">Vēdera izeja</div>
         <div class="cat-status" id="status-fiziologija">—</div>
       </button>
       <button class="category-card cat-ada" data-cat="ada">
         <div class="cat-emoji">🧴</div>
-        <div class="cat-title" data-i18n="other">Citi pasākumi</div>
+        <div class="cat-title" data-i18n="skinCare">Ādas kopšana</div>
         <div class="cat-status" id="status-ada">—</div>
       </button>
       <button class="category-card cat-pastaiga" data-cat="pastaiga">
         <div class="cat-emoji">🌳</div>
-        <div class="cat-title" data-i18n="other">Citi pasākumi</div>
+        <div class="cat-title" data-i18n="walk">Pastaiga</div>
         <div class="cat-status" id="status-pastaiga">—</div>
       </button>
       <button class="category-card cat-ciemini" data-cat="ciemini">
         <div class="cat-emoji">👥</div>
-        <div class="cat-title" data-i18n="other">Citi pasākumi</div>
+        <div class="cat-title" data-i18n="visitors">Ciemiņi</div>
         <div class="cat-status" id="status-ciemini">—</div>
       </button>
       <button class="category-card cat-diapers" data-cat="diapers">
         <div class="cat-emoji">🧻</div>
-        <div class="cat-title" data-i18n="hygiene">Higiēna</div>
+        <div class="cat-title" data-i18n="diaperChange">Autiņbikšu maiņa</div>
         <div class="cat-status" id="status-diapers">—</div>
       </button>
     </div>

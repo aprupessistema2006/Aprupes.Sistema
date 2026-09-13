@@ -583,19 +583,27 @@ class CareFormController {
       }
     }
 
-    const urins = this.getMark(shift, 'sikdrumi', 'urina_daudzums');
     const uznemts = this.getMark(shift, 'sikdrumi', 'uznemts_ml');
-    const sikEl = document.getElementById('status-sikdrumi');
-    if (sikEl) {
-      if (urins || uznemts) {
-        const latest = urins && uznemts
-          ? (urins.lastModified > uznemts.lastModified ? urins : uznemts)
-          : (urins || uznemts);
-        sikEl.innerHTML = '✓ Ierakstīts' + lastByFor(latest);
-        sikEl.className = 'cat-status completed';
+    const h2oEl = document.getElementById('status-h2o');
+    if (h2oEl) {
+      if (uznemts && uznemts.value) {
+        h2oEl.innerHTML = '✓ ' + uznemts.value + ' ml' + lastByFor(uznemts);
+        h2oEl.className = 'cat-status completed';
       } else {
-        sikEl.textContent = 'Nav ierakstu';
-        sikEl.className = 'cat-status';
+        h2oEl.textContent = 'Nav ieraksta';
+        h2oEl.className = 'cat-status';
+      }
+    }
+
+    const urins = this.getMark(shift, 'sikdrumi', 'urina_daudzums');
+    const urinaEl = document.getElementById('status-urina');
+    if (urinaEl) {
+      if (urins && urins.value) {
+        urinaEl.innerHTML = '✓ ' + urins.value + ' ml' + lastByFor(urins);
+        urinaEl.className = 'cat-status completed';
+      } else {
+        urinaEl.textContent = 'Nav ieraksta';
+        urinaEl.className = 'cat-status';
       }
     }
 
@@ -670,7 +678,8 @@ class CareFormController {
       higiena: '🧼 Higiēna',
       aktivitate: '🚶 Aktivitāte',
       edinasana: '🍽️ Ēdīšana',
-      sikdrumi: '💧 H2O',
+      h2o: '💧 H2O',
+      urina: '💧 Urīna daudzums',
       fiziologija: '🚽 Vēdera izeja',
       ada: '🧴 Ādas kopšana',
       pastaiga: '🌳 Pastaiga',
@@ -683,7 +692,8 @@ class CareFormController {
     else if (cat === 'higiena') html = this.renderHigienaSection(shift);
     else if (cat === 'aktivitate') html = this.renderAktivitateSection(shift);
     else if (cat === 'edinasana') html = this.renderEdinasanaSection(shift);
-    else if (cat === 'sikdrumi') html = this.renderSikdrumiSection(shift);
+    else if (cat === 'h2o') html = this.renderH2oSection(shift);
+    else if (cat === 'urina') html = this.renderUrinaSection(shift);
     else if (cat === 'fiziologija') html = this.renderFiziologijaSection(shift);
     else if (cat === 'ada') html = this.renderAdaSection(shift);
     else if (cat === 'pastaiga') html = this.renderPastaigaSection(shift);
@@ -692,7 +702,7 @@ class CareFormController {
     body.innerHTML = html;
     modal.style.display = 'flex';
     this.bindFormEvents();
-    if (cat === 'sikdrumi') this.attachSikdrumiHandlers();
+    if (cat === 'h2o' || cat === 'urina') this.attachSikdrumiHandlers();
   }
 
   closeCategoryModal() {
@@ -1071,8 +1081,6 @@ class CareFormController {
           } else {
             this.toast('Ievadiet temperatūras vērtību');
           }
-        } else if (type === 'sikdrumi') {
-          this.handleSikdrumiSubmit();
         } else if (type === 'fiziologija') {
           this.handleFiziologijaSubmit();
         }
