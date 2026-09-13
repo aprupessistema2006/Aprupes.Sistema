@@ -228,11 +228,11 @@ function normalizeRow(raw) {
     console.warn('[normalizeRow] numeric date not converted (not Excel serial):', normalizedRow.date, 'for id:', normalizedRow.id);
   }
 
-  const idTs = String(normalizedRow.id || '').match(/^[a-z]+_(\d+)/);
+  const idTs = String(normalizedRow.id || '').match(/^[a-z]+_(\d{10,13})/);
   if (idTs) {
     const d = new Date(parseInt(idTs[1], 10));
-    if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
+    const y = d.getFullYear();
+    if (!isNaN(d.getTime()) && y >= 2000 && y <= 2100) {
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       normalizedRow.date = y + '-' + m + '-' + day;
