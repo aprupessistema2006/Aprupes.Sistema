@@ -110,24 +110,41 @@ class CareFormController {
     if (overlay) overlay.style.display = 'flex';
 
     try {
-      await this.sync.loadInitialData((msg) => {
+      const syncResult = await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
       });
-      await Promise.all([
-        this.loadClient(),
-        this.loadMarks(),
-        this.loadHistory(),
-        this.loadAllClientMarks()
-      ]);
-      this.renderForm();
-      this.renderHistory();
-      this.renderSignature();
-      this.updateTeamSummary();
-      this.renderQuickTotals();
-      this.renderTaskBanner();
-      this.toast('✓ Dati sinhronizēti ar serveri');
+      if (syncResult && syncResult.offline) {
+        await Promise.all([
+          this.loadClient(),
+          this.loadMarks(),
+          this.loadHistory(),
+          this.loadAllClientMarks()
+        ]);
+        this.renderForm();
+        this.renderHistory();
+        this.renderSignature();
+        this.updateTeamSummary();
+        this.renderQuickTotals();
+        this.renderTaskBanner();
+        this.toast('⚠️ Dati nav iespējams ielādēt no servera. Iegūstamie dati ir tukši. Pārbaudiet savienotspēju.', 4000);
+      } else {
+        await Promise.all([
+          this.loadClient(),
+          this.loadMarks(),
+          this.loadHistory(),
+          this.loadAllClientMarks()
+        ]);
+        this.renderForm();
+        this.renderHistory();
+        this.renderSignature();
+        this.updateTeamSummary();
+        this.renderQuickTotals();
+        this.renderTaskBanner();
+        this.toast('✓ Dati sinhronizēti ar serveri');
+      }
     } catch (e) {
       console.error(e);
+      this.toast('⚠️ Nepilicīgi dati: ' + (e.message || 'Nezināma kļūda'), 4000);
     } finally {
       if (overlay) overlay.style.display = 'none';
     }

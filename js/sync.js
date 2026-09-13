@@ -265,6 +265,7 @@ class CareSync {
     window.addEventListener('online', () => {
       updateStatus();
       this._scheduleQueueProcessing();
+      this.loadInitialData();
     });
     window.addEventListener('offline', updateStatus);
   }
@@ -284,18 +285,18 @@ class CareSync {
     this._updateSyncStatus('Sinhronizē...');
     onProgress = onProgress || function() {};
     try {
+      const allStores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue'];
+      onProgress('Dzēšu visus vietējos datus...');
+      for (const store of allStores) {
+        await this.db.clear(store);
+      }
+
       onProgress('Ielādēju datus no servera...');
       const url = SYNC_URL + '?action=load&t=' + Date.now();
       const data = await requestData(url, 10000);
 
       if (data.error) {
         throw new Error(data.error);
-      }
-
-      const allStores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue'];
-      onProgress('Dzēšu visus vietējos datus...');
-      for (const store of allStores) {
-        await this.db.clear(store);
       }
 
       const counts = {};
