@@ -313,6 +313,15 @@ class CareFormController {
         return p[2] + '-' + p[1] + '-' + p[0];
       }
     }
+    if (typeof v === 'number') {
+      const d = excelSerialToDate(v);
+      if (d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+      }
+    }
     return v;
   }
 
@@ -328,7 +337,10 @@ class CareFormController {
       } else if (typeof c === 'string') {
         s = c;
       } else if (typeof c === 'number') {
-        s = new Date(c).toISOString();
+        const excelDate = excelSerialToDate(c);
+        if (excelDate) {
+          s = excelDate.toISOString();
+        }
       }
       if (!s) continue;
       const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);

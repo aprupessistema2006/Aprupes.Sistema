@@ -317,7 +317,10 @@ class ControlPanel {
       } else if (typeof c === 'string') {
         s = c;
       } else if (typeof c === 'number') {
-        s = new Date(c).toISOString();
+        const excelDate = excelSerialToDate(c);
+        if (excelDate) {
+          s = excelDate.toISOString();
+        }
       }
       if (!s) continue;
       const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -890,6 +893,8 @@ class ControlPanel {
           d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
         } else if (m.date instanceof Date) {
           d = m.date;
+        } else if (typeof m.date === 'number') {
+          d = excelSerialToDate(m.date);
         } else {
           const ts = String(m.id || '').match(/^[a-z]+_(\d+)/);
           if (ts) d = new Date(parseInt(ts[1], 10));

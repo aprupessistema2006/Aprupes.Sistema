@@ -85,6 +85,14 @@ function jsonpAction(action, data, timeout = 15000) {
   return requestData(url, timeout);
 }
 
+function excelSerialToDate(serial) {
+  if (typeof serial !== 'number' || isNaN(serial) || serial <= 0 || serial > 100000) return null;
+  var d = new Date((serial - 25569) * 86400000);
+  if (isNaN(d.getTime())) return null;
+  if (d.getFullYear() < 1900 || d.getFullYear() > 2100) return null;
+  return d;
+}
+
 function normalizeKey(h) {
   return String(h)
     .toLowerCase()
@@ -215,6 +223,16 @@ function normalizeRow(raw) {
   });
 
   if (row.id) normalizedRow.id = row.id;
+
+  if (typeof normalizedRow.date === 'number') {
+    const excelDate = excelSerialToDate(normalizedRow.date);
+    if (excelDate) {
+      const y = excelDate.getFullYear();
+      const m = String(excelDate.getMonth() + 1).padStart(2, '0');
+      const day = String(excelDate.getDate()).padStart(2, '0');
+      normalizedRow.date = y + '-' + m + '-' + day;
+    }
+  }
 
   const idTs = String(normalizedRow.id || '').match(/^[a-z]+_(\d+)/);
   if (idTs) {
