@@ -280,6 +280,8 @@ function handleMark(data) {
   const logSheet = getSheet('atzimes_log');
   const m = data.data;
 
+  ensureColumns(atzimesSheet, ['action_id']);
+
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(30000);
@@ -410,6 +412,8 @@ function ensureColumns(sheet, requiredColumns) {
 function handleCreateTask(data) {
   const sheet = getSheet('uzdevomi');
   const t = data.data;
+
+  ensureColumns(sheet, ['action_id']);
 
   const lock = LockService.getScriptLock();
   try {
