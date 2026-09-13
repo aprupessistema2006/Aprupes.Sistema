@@ -837,15 +837,15 @@ class CareFormController {
         </div>
         <input type="number" min="0" step="50" class="number-input sikdrumi-input" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
         <div class="day-totals">Kopā šodien: <strong>${dayTotals.urina} ml</strong>${urinsMark ? ' • pēdējais: ' + urinsMark.value + ' ml (' + (urinsMark.lastByName || 'sistēma') + ')' : ''}</div>
-      </div>
-      <div class="section-row">
-        <div class="section-row-label">
-          <span>Uzņemts H2O (24h, ml)</span>
+        <button class="submit-btn" data-submit-sikdrumi="urina_daudzums">✓ Saglabāt</button>
+         <div class="section-row">
+          <div class="section-row-label">
+            <span>Uzņemts H2O (24h, ml)</span>
+          </div>
+          <input type="number" min="0" step="50" class="number-input sikdrumi-input" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
+          <div class="day-totals">Kopā šodien: <strong>${dayTotals.uznemts} ml</strong>${uznemtsMark ? ' • pēdējais: ' + uznemtsMark.value + ' ml (' + (uznemtsMark.lastByName || 'sistēma') + ')' : ''}</div>
+          <button class="submit-btn" data-submit-sikdrumi="uznemts_ml">✓ Saglabāt</button>
         </div>
-        <input type="number" min="0" step="50" class="number-input sikdrumi-input" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
-        <div class="day-totals">Kopā šodien: <strong>${dayTotals.uznemts} ml</strong>${uznemtsMark ? ' • pēdējais: ' + uznemtsMark.value + ' ml (' + (uznemtsMark.lastByName || 'sistēma') + ')' : ''}</div>
-        <button class="submit-btn" data-submit="sikdrumi">✓ Saglabāt šķidrumus</button>
-      </div>
       <div class="section-row" style="border-bottom: none;">
         <div class="field-info">
           <strong>Urīna daudzums:</strong> parasti 1000-2000 ml dienā pieaugušajam.<br>
@@ -1076,10 +1076,12 @@ class CareFormController {
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          const submitType = input.dataset.cat === 'temp' ? 'temp' :
-                            input.dataset.cat === 'sikdrumi' ? 'sikdrumi' : null;
-          if (submitType) {
-            const btn = document.querySelector('[data-submit="' + submitType + '"]');
+          if (input.dataset.cat === 'temp') {
+            const btn = document.querySelector('[data-submit="temp"]');
+            if (btn) btn.click();
+          } else if (input.dataset.cat === 'sikdrumi') {
+            const field = input.dataset.field;
+            const btn = document.querySelector('[data-submit-sikdrumi="' + field + '"]');
             if (btn) btn.click();
           }
         }
@@ -1087,42 +1089,39 @@ class CareFormController {
     });
   }
 
-  async handleSikdrumiSubmit() {
+  async handleSikdrumiSubmit(field) {
     if (this._processing.has('sikdrumi_submit')) return;
     this._processing.set('sikdrumi_submit', true);
 
     const urinsInput = document.querySelector('input[data-cat="sikdrumi"][data-field="urina_daudzums"]');
     const uznemtsInput = document.querySelector('input[data-cat="sikdrumi"][data-field="uznemts_ml"]');
-    if (!urinsInput && !uznemtsInput) { this._processing.delete('sikdrumi_submit'); return; }
-    const urinsVal = urinsInput ? urinsInput.value : '';
-    const uznemtsVal = uznemtsInput ? uznemtsInput.value : '';
-    if (urinsVal === '' && uznemtsVal === '') {
-      this.toast('Ievadiet vismaz vienu vērtību');
+
+    try {
+      if (field === 'urina_daudzums') {
+        const val = urinsInput ? urinsInput.value : '';
+        if (val === '') { this.toast('Ievadiet urīna daudzumu'); return; }
+        const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', val, this.currentShift);
+        if (!result) return;
+        if (urinsInput) urinsInput.value = '';
+      } else if (field === 'uznemts_ml') {
+        const val = uznemtsInput ? uznemtsInput.value : '';
+        if (val === '') { this.toast('Ievadiet uznemto šķidruma daudzumu'); return; }
+        const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', val, this.currentShift);
+        if (!result) return;
+        if (uznemtsInput) uznemtsInput.value = '';
+      } else {
+        return;
+      }
+
+      this.updateCategoryStatuses();
+      this.renderQuickTotals();
+      this.renderHistory();
+      this.loadAllClientMarks().then(() => this.renderHistory()).catch(() => {});
+      this.closeCategoryModal();
+      this.toast('✓ Šķidrums saglabāts');
+    } finally {
       this._processing.delete('sikdrumi_submit');
-      return;
     }
-    const shift = this.currentShift;
-    if (urinsVal !== '') {
-      const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', urinsVal, this.currentShift);
-      if (!result) { this._processing.delete('sikdrumi_submit'); return; }
-    }
-    if (uznemtsVal !== '') {
-      const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', uznemtsVal, this.currentShift);
-      if (!result) { this._processing.delete('sikdrumi_submit'); return; }
-    }
-    if (urinsInput) urinsInput.value = '';
-    if (uznemtsInput) uznemtsInput.value = '';
-    this.updateCategoryStatuses();
-    const modalBody = document.getElementById('modalBody');
-    if (modalBody) {
-      const shift = this.currentShift;
-      modalBody.innerHTML = this.renderSikdrumiSection(shift);
-    }
-    this.renderTaskBanner();
-    this.renderQuickTotals();
-    this.renderHistory();
-    this.toast('✓ Šķidrumi saglabāti');
-    this._processing.delete('sikdrumi_submit');
   }
 
   async saveMarkDirect(category, field, value, shift) {
@@ -1138,11 +1137,13 @@ class CareFormController {
   }
 
   attachSikdrumiHandlers() {
-    const submitBtn = document.querySelector('button[data-submit="sikdrumi"]');
-    if (submitBtn && !submitBtn.dataset.bound) {
-      submitBtn.dataset.bound = '1';
-      submitBtn.addEventListener('click', () => this.handleSikdrumiSubmit());
-    }
+    document.querySelectorAll('button[data-submit-sikdrumi]').forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', () => {
+        this.handleSikdrumiSubmit(btn.dataset.submitSikdrumi);
+      });
+    });
   }
 
   async handleFiziologijaSubmit() {
