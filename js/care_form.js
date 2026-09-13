@@ -307,33 +307,13 @@ class CareFormController {
       return y + '-' + m + '-' + d;
     }
     if (typeof v === 'string') {
-      const serialMatch = v.match(/^(\d{5,})-/);
-      if (serialMatch) {
-        const serial = parseInt(serialMatch[1], 10);
-        const d = excelSerialToDate(serial);
-        if (d) {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return y + '-' + m + '-' + day;
-        }
-      }
       if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.substring(0, 10);
       if (/^\d{2}\.\d{2}\.\d{4}$/.test(v)) {
         const p = v.split('.');
         return p[2] + '-' + p[1] + '-' + p[0];
       }
     }
-    if (typeof v === 'number') {
-      const d = excelSerialToDate(v);
-      if (d) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return y + '-' + m + '-' + day;
-      }
-    }
-    return v;
+    return '';
   }
 
   extractDateFromAnyField(row) {
@@ -346,21 +326,7 @@ class CareFormController {
         if (c.getFullYear() < 1900) continue;
         s = c.toISOString();
       } else if (typeof c === 'string') {
-        const serialMatch = c.match(/^(\d{5,})-/);
-        if (serialMatch) {
-          const serial = parseInt(serialMatch[1], 10);
-          const excelDate = excelSerialToDate(serial);
-          if (excelDate) {
-            s = excelDate.toISOString();
-          }
-        } else {
-          s = c;
-        }
-      } else if (typeof c === 'number') {
-        const excelDate = excelSerialToDate(c);
-        if (excelDate) {
-          s = excelDate.toISOString();
-        }
+        s = c;
       }
       if (!s) continue;
       const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);

@@ -292,17 +292,6 @@ class ControlPanel {
   normalizeDateForFilter(d) {
     if (!d) return '';
     if (typeof d === 'string') {
-      const serialMatch = d.match(/^(\d{5,})-/);
-      if (serialMatch) {
-        const serial = parseInt(serialMatch[1], 10);
-        const excelDate = excelSerialToDate(serial);
-        if (excelDate) {
-          const y = excelDate.getFullYear();
-          const m = String(excelDate.getMonth() + 1).padStart(2, '0');
-          const day = String(excelDate.getDate()).padStart(2, '0');
-          return y + '-' + m + '-' + day;
-        }
-      }
       if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.substring(0, 10);
       if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
         const p = d.split('.');
@@ -326,21 +315,7 @@ class ControlPanel {
         if (c.getFullYear() < 1900) continue;
         s = c.toISOString();
       } else if (typeof c === 'string') {
-        const serialMatch = c.match(/^(\d{5,})-/);
-        if (serialMatch) {
-          const serial = parseInt(serialMatch[1], 10);
-          const excelDate = excelSerialToDate(serial);
-          if (excelDate) {
-            s = excelDate.toISOString();
-          }
-        } else {
-          s = c;
-        }
-      } else if (typeof c === 'number') {
-        const excelDate = excelSerialToDate(c);
-        if (excelDate) {
-          s = excelDate.toISOString();
-        }
+        s = c;
       }
       if (!s) continue;
       const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -371,17 +346,6 @@ class ControlPanel {
     const getPrimaryDate = (row) => {
       const v = row.date || row.datums || '';
       if (typeof v === 'string') {
-        const serialMatch = v.match(/^(\d{5,})-/);
-        if (serialMatch) {
-          const serial = parseInt(serialMatch[1], 10);
-          const excelDate = excelSerialToDate(serial);
-          if (excelDate) {
-            const y = excelDate.getFullYear();
-            const m = String(excelDate.getMonth() + 1).padStart(2, '0');
-            const day = String(excelDate.getDate()).padStart(2, '0');
-            return y + '-' + m + '-' + day;
-          }
-        }
         if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.match(/^(\d{4}-\d{2}-\d{2})/)[0];
       }
       return '';
@@ -929,8 +893,6 @@ class ControlPanel {
           d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
         } else if (m.date instanceof Date) {
           d = m.date;
-        } else if (typeof m.date === 'number') {
-          d = excelSerialToDate(m.date);
         } else {
           const ts = String(m.id || '').match(/^[a-z]+_(\d+)/);
           if (ts) d = new Date(parseInt(ts[1], 10));

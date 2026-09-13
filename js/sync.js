@@ -225,13 +225,7 @@ function normalizeRow(raw) {
   if (row.id) normalizedRow.id = row.id;
 
   if (typeof normalizedRow.date === 'number') {
-    const excelDate = excelSerialToDate(normalizedRow.date);
-    if (excelDate) {
-      const y = excelDate.getFullYear();
-      const m = String(excelDate.getMonth() + 1).padStart(2, '0');
-      const day = String(excelDate.getDate()).padStart(2, '0');
-      normalizedRow.date = y + '-' + m + '-' + day;
-    }
+    console.warn('[normalizeRow] numeric date not converted (not Excel serial):', normalizedRow.date, 'for id:', normalizedRow.id);
   }
 
   const idTs = String(normalizedRow.id || '').match(/^[a-z]+_(\d+)/);
