@@ -307,6 +307,17 @@ class CareFormController {
       return y + '-' + m + '-' + d;
     }
     if (typeof v === 'string') {
+      const serialMatch = v.match(/^(\d{5,})-/);
+      if (serialMatch) {
+        const serial = parseInt(serialMatch[1], 10);
+        const d = excelSerialToDate(serial);
+        if (d) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return y + '-' + m + '-' + day;
+        }
+      }
       if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.substring(0, 10);
       if (/^\d{2}\.\d{2}\.\d{4}$/.test(v)) {
         const p = v.split('.');
@@ -335,7 +346,16 @@ class CareFormController {
         if (c.getFullYear() < 1900) continue;
         s = c.toISOString();
       } else if (typeof c === 'string') {
-        s = c;
+        const serialMatch = c.match(/^(\d{5,})-/);
+        if (serialMatch) {
+          const serial = parseInt(serialMatch[1], 10);
+          const excelDate = excelSerialToDate(serial);
+          if (excelDate) {
+            s = excelDate.toISOString();
+          }
+        } else {
+          s = c;
+        }
       } else if (typeof c === 'number') {
         const excelDate = excelSerialToDate(c);
         if (excelDate) {
@@ -346,12 +366,12 @@ class CareFormController {
       const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
       if (m1) {
         const y = parseInt(m1[1]);
-        if (y >= 2020 && y <= 2035) return m1[0];
+        if (y >= 1900 && y <= 2100) return m1[0];
       }
       const m2 = s.match(/(\d{4}-\d{2}-\d{2})/);
       if (m2) {
         const y = parseInt(m2[1].substring(0, 4));
-        if (y >= 2020 && y <= 2035) return m2[1];
+        if (y >= 1900 && y <= 2100) return m2[1];
       }
     }
     return '';
