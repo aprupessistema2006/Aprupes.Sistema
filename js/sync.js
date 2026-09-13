@@ -82,7 +82,7 @@ function requestData(url, timeout = 15000) {
 function jsonpAction(action, data, timeout = 15000) {
   const payload = encodeURIComponent(JSON.stringify({ action: action, data: data }));
   const url = SYNC_URL + '?data=' + payload + '&t=' + Date.now();
-  return jsonpRequest(url, timeout);
+  return requestData(url, timeout);
 }
 
 function normalizeKey(h) {
