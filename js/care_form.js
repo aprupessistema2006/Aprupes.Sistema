@@ -827,11 +827,31 @@ class CareFormController {
   }
 
   renderSikdrumiSection(shift) {
-    const urinsMark = this.getMark(shift, 'sikdrumi', 'urina_daudzums');
+    return this.renderH2oSection(shift) + this.renderUrinaSection(shift);
+  }
+
+  renderH2oSection(shift) {
     const uznemtsMark = this.getMark(shift, 'sikdrumi', 'uznemts_ml');
     const dayTotals = this.getDaySikdrumiTotals();
-    const urinLast = urinsMark ? urinsMark.value + ' ml' : '-';
     const uznLast = uznemtsMark ? uznemtsMark.value + ' ml' : '-';
+    const body = `
+      <div class="sikdrumi-btn-row">
+        <button class="sikdrumi-btn" data-submit-sikdrumi="uznemts_ml" data-shift="${shift}">
+          <span class="sikdrumi-btn-icon">💧</span>
+          <span class="sikdrumi-btn-label">H2O</span>
+          <span class="sikdrumi-btn-sub">Kopā: ${dayTotals.uznemts} ml</span>
+          <span class="sikdrumi-btn-last">Pēdējais: ${uznLast}</span>
+          <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
+        </button>
+      </div>
+    `;
+    return this.sectionCard('section-h2o', '💧', 'H2O', null, body);
+  }
+
+  renderUrinaSection(shift) {
+    const urinsMark = this.getMark(shift, 'sikdrumi', 'urina_daudzums');
+    const dayTotals = this.getDaySikdrumiTotals();
+    const urinLast = urinsMark ? urinsMark.value + ' ml' : '-';
     const body = `
       <div class="sikdrumi-btn-row">
         <button class="sikdrumi-btn" data-submit-sikdrumi="urina_daudzums" data-shift="${shift}">
@@ -842,23 +862,8 @@ class CareFormController {
           <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
         </button>
       </div>
-      <div class="sikdrumi-btn-row">
-        <button class="sikdrumi-btn" data-submit-sikdrumi="uznemts_ml" data-shift="${shift}">
-          <span class="sikdrumi-btn-icon">💧</span>
-          <span class="sikdrumi-btn-label">Uzņemts H2O (24h)</span>
-          <span class="sikdrumi-btn-sub">Kopā: ${dayTotals.uznemts} ml</span>
-          <span class="sikdrumi-btn-last">Pēdējais: ${uznLast}</span>
-          <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
-        </button>
-      </div>
-      <div class="section-row" style="border-bottom: none;">
-        <div class="field-info">
-          <strong>Urīna daudzums:</strong> parasti 1000-2000 ml dienā pieaugušajam.<br>
-          <strong>Uzņemtais šķidrums:</strong> ūdens, tēja, zupa u.c. dzērieni.
-        </div>
-      </div>
     `;
-    return this.sectionCard('section-sikdrumi', '💧', 'Šķidrumi', null, body);
+    return this.sectionCard('section-urina', '💧', 'Urīns', null, body);
   }
 
   getDaySikdrumiTotals() {
