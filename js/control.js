@@ -484,6 +484,7 @@ class ControlPanel {
         rangeEl.textContent = dates[0] + ' — ' + dates[dates.length - 1];
       } else {
         rangeEl.textContent = t('noRecordsShort');
+      }
     }
   }
 
