@@ -845,17 +845,14 @@ class CareFormController {
     const dayTotals = this.getDaySikdrumiTotals();
     const uznLast = uznemtsMark ? uznemtsMark.value + ' ml' : '-';
     const body = `
-      <div class="sikdrumi-card">
-        <div class="sikdrumi-card-head">💧H2O</div>
-        <div class="sikdrumi-btn-row">
-          <button class="sikdrumi-btn" data-submit-sikdrumi="uznemts_ml" data-shift="${shift}">
-            <span class="sikdrumi-btn-icon">💧</span>
-            <span class="sikdrumi-btn-label">H2O</span>
-            <span class="sikdrumi-btn-sub">Kopā: ${dayTotals.uznemts} ml</span>
-            <span class="sikdrumi-btn-last">Pēdējais: ${uznLast}</span>
-            <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
-          </button>
-        </div>
+      <div class="sikdrumi-btn-row">
+        <button class="sikdrumi-btn" data-submit-sikdrumi="uznemts_ml" data-shift="${shift}">
+          <span class="sikdrumi-btn-icon">💧</span>
+          <span class="sikdrumi-btn-label">H2O</span>
+          <span class="sikdrumi-btn-sub">Kopā: ${dayTotals.uznemts} ml</span>
+          <span class="sikdrumi-btn-last">Pēdējais: ${uznLast}</span>
+          <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
+        </button>
       </div>
     `;
     return this.sectionCard('section-h2o', '💧', 'H2O', null, body);
@@ -866,17 +863,14 @@ class CareFormController {
     const dayTotals = this.getDaySikdrumiTotals();
     const urinLast = urinsMark ? urinsMark.value + ' ml' : '-';
     const body = `
-      <div class="sikdrumi-card">
-        <div class="sikdrumi-card-head">💧Urīns</div>
-        <div class="sikdrumi-btn-row">
-          <button class="sikdrumi-btn" data-submit-sikdrumi="urina_daudzums" data-shift="${shift}">
-            <span class="sikdrumi-btn-icon">💧</span>
-            <span class="sikdrumi-btn-label">Urīna daudzums</span>
-            <span class="sikdrumi-btn-sub">Kopā: ${dayTotals.urina} ml</span>
-            <span class="sikdrumi-btn-last">Pēdējais: ${urinLast}</span>
-            <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
-          </button>
-        </div>
+      <div class="sikdrumi-btn-row">
+        <button class="sikdrumi-btn" data-submit-sikdrumi="urina_daudzums" data-shift="${shift}">
+          <span class="sikdrumi-btn-icon">💧</span>
+          <span class="sikdrumi-btn-label">Urīna daudzums</span>
+          <span class="sikdrumi-btn-sub">Kopā: ${dayTotals.urina} ml</span>
+          <span class="sikdrumi-btn-last">Pēdējais: ${urinLast}</span>
+          <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
+        </button>
       </div>
     `;
     return this.sectionCard('section-urina', '💧', 'Urīna daudzums', null, body);
