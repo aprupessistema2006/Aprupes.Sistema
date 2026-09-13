@@ -483,6 +483,17 @@ class AdminPanel {
       this.toast('PIN jābūt vismaz 4 cipariem');
       return;
     }
+    const existing = this.employees.find(e => {
+      const eName = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim().toLowerCase();
+      const eRole = (e.loma || e.Loma || '').toLowerCase();
+      const newName = ((data.vards || '') + ' ' + (data.uzvards || '')).trim().toLowerCase();
+      const newRole = (data.loma || '').toLowerCase();
+      return eName === newName && eRole === newRole;
+    });
+    if (existing) {
+      this.toast('Darbinieks ar šo vārdu un lomu jau eksistē');
+      return;
+    }
     const id = this.db.generateId();
     const employee = { id, ...data };
     await this.db.add('darbinieki', employee);
