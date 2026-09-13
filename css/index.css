@@ -633,6 +633,12 @@ body.online {
   margin: 0 auto 16px;
 }
 
+.loading-logo {
+  width: 80px;
+  height: auto;
+  margin-bottom: 12px;
+}
+
 .loading-text {
   font-size: 15px;
   font-weight: 600;
