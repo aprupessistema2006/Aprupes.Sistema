@@ -830,27 +830,31 @@ class CareFormController {
     const urinsMark = this.getMark(shift, 'sikdrumi', 'urina_daudzums');
     const uznemtsMark = this.getMark(shift, 'sikdrumi', 'uznemts_ml');
     const dayTotals = this.getDaySikdrumiTotals();
+    const urinLast = urinsMark ? urinsMark.value + ' ml' : '-';
+    const uznLast = uznemtsMark ? uznemtsMark.value + ' ml' : '-';
     const body = `
-      <div class="section-row">
-        <div class="section-row-label">
-          <span>Diennakts urīna daudzums (ml)</span>
-        </div>
-        <input type="number" min="0" step="50" class="number-input sikdrumi-input" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
-        <div class="day-totals">Kopā šodien: <strong>${dayTotals.urina} ml</strong>${urinsMark ? ' • pēdējais: ' + urinsMark.value + ' ml (' + (urinsMark.lastByName || 'sistēma') + ')' : ''}</div>
-        <button class="submit-btn" data-submit-sikdrumi="urina_daudzums">✓ Saglabāt</button>
-         <div class="section-row">
-          <div class="section-row-label">
-            <span>Uzņemts H2O (24h, ml)</span>
-          </div>
-          <input type="number" min="0" step="50" class="number-input sikdrumi-input" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
-          <div class="day-totals">Kopā šodien: <strong>${dayTotals.uznemts} ml</strong>${uznemtsMark ? ' • pēdējais: ' + uznemtsMark.value + ' ml (' + (uznemtsMark.lastByName || 'sistēma') + ')' : ''}</div>
-          <button class="submit-btn" data-submit-sikdrumi="uznemts_ml">✓ Saglabāt</button>
-        </div>
+      <div class="sikdrumi-btn-row">
+        <button class="sikdrumi-btn" data-submit-sikdrumi="urina_daudzums" data-shift="${shift}">
+          <span class="sikdrumi-btn-icon">💧</span>
+          <span class="sikdrumi-btn-label">Urīna daudzums</span>
+          <span class="sikdrumi-btn-sub">Kopā: ${dayTotals.urina} ml</span>
+          <span class="sikdrumi-btn-last">Pēdējais: ${urinLast}</span>
+          <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
+        </button>
+      </div>
+      <div class="sikdrumi-btn-row">
+        <button class="sikdrumi-btn" data-submit-sikdrumi="uznemts_ml" data-shift="${shift}">
+          <span class="sikdrumi-btn-icon">💧</span>
+          <span class="sikdrumi-btn-label">Uzņemts H2O (24h)</span>
+          <span class="sikdrumi-btn-sub">Kopā: ${dayTotals.uznemts} ml</span>
+          <span class="sikdrumi-btn-last">Pēdējais: ${uznLast}</span>
+          <input type="number" min="0" step="50" class="number-input sikdrumi-input-field" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
+        </button>
+      </div>
       <div class="section-row" style="border-bottom: none;">
         <div class="field-info">
           <strong>Urīna daudzums:</strong> parasti 1000-2000 ml dienā pieaugušajam.<br>
-          <strong>Uzņemtais šķidrums:</strong> ūdens, tēja, zupa u.c. dzērieni.<br>
-          <strong>Padoms:</strong> ievadi abus laukus un nospied "Saglabāt šķidrumus". Ievadītie lauki paliek tukši nākamajai reizei.
+          <strong>Uzņemtais šķidrums:</strong> ūdens, tēja, zupa u.c. dzērieni.
         </div>
       </div>
     `;

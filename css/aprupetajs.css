@@ -635,6 +635,78 @@ body {
   opacity: 0.6;
 }
 
+.sikdrumi-btn-row {
+  margin-bottom: 12px;
+}
+
+.sikdrumi-btn {
+  width: 100%;
+  padding: 16px 18px;
+  border: 2px solid var(--border);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  min-height: 72px;
+  box-shadow: 0 3px 10px rgba(39, 174, 96, 0.3);
+  box-sizing: border-box;
+  text-align: left;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sikdrumi-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(39, 174, 96, 0.4);
+}
+
+.sikdrumi-btn:active {
+  transform: scale(0.97);
+}
+
+.sikdrumi-btn-icon {
+  font-size: 24px;
+}
+
+.sikdrumi-btn-label {
+  font-size: 18px;
+}
+
+.sikdrumi-btn-sub {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.sikdrumi-btn-last {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.sikdrumi-input-field {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 120px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.9);
+  color: #333;
+  font-size: 14px;
+  text-align: right;
+}
+
+.sikdrumi-input-field:focus {
+  outline: 2px solid #fff;
+  border-color: #fff;
+}
+
 .fiziologija-select {
   flex-direction: column !important;
   gap: 2px !important;
