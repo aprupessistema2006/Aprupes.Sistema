@@ -670,7 +670,7 @@ class CareFormController {
       higiena: '🧼 Higiēna',
       aktivitate: '🚶 Aktivitāte',
       edinasana: '🍽️ Ēdīšana',
-      sikdrumi: '💧 Šķidrumi',
+      sikdrumi: '💧 H2O',
       fiziologija: '🚽 Vēdera izeja',
       ada: '🧴 Ādas kopšana',
       pastaiga: '🌳 Pastaiga',
