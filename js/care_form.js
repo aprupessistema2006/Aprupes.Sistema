@@ -1099,6 +1099,7 @@ class CareFormController {
     });
 
     document.querySelectorAll('.submit-btn').forEach(btn => {
+      if (btn.dataset.submitSikdrumi) return;
       if (btn.dataset.bound) return;
       btn.dataset.bound = '1';
       btn.addEventListener('click', (e) => {
