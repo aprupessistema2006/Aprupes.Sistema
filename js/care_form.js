@@ -851,7 +851,7 @@ class CareFormController {
           <span>H2O (ml)</span>
           <span class="current-value ${value ? 'has-value' : 'empty'}">${value ? '✓ ' + value + ' ml' : ''}</span>
         </div>
-        <input type="number" min="0" step="50" class="number-input" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" value="${value || ''}" placeholder="0">
+        <input type="number" min="0" step="50" class="number-input" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
         <button class="submit-btn" data-submit-sikdrumi="uznemts_ml" data-shift="${shift}">✓ Saglabāt</button>
       </div>
       <div class="section-row" style="border-bottom: none;">
@@ -875,7 +875,7 @@ class CareFormController {
           <span>Urīna daudzums (ml)</span>
           <span class="current-value ${value ? 'has-value' : 'empty'}">${value ? '✓ ' + value + ' ml' : ''}</span>
         </div>
-        <input type="number" min="0" step="50" class="number-input" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" value="${value || ''}" placeholder="0">
+        <input type="number" min="0" step="50" class="number-input" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
         <button class="submit-btn" data-submit-sikdrumi="urina_daudzums" data-shift="${shift}">✓ Saglabāt</button>
       </div>
       <div class="section-row" style="border-bottom: none;">
