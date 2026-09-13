@@ -71,21 +71,26 @@ const TaskManager = {
     return this.formatDeadline(d) === today;
   },
 
+  _creating: false,
+
   async create(taskData) {
-    const record = {
-      id: 't_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      teksts: taskData.teksts || '',
-      klientsId: taskData.klientsId || '',
-      pieskirtDarbiniekamId: taskData.pieskirtDarbiniekamId || '',
-      termins: taskData.termins || '',
-      prioritate: taskData.prioritate || 'videja',
-      statuss: 'jauns',
-      irPabeigts: false,
-      izveidots: new Date().toISOString(),
-      izveidotajsId: taskData.izveidotajsId || '',
-      pabeigtsLaiks: null,
-      pabeigtajsId: null
-    };
+    if (this._creating) return null;
+    this._creating = true;
+    try {
+      const record = {
+        id: 't_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        teksts: taskData.teksts || '',
+        klientsId: taskData.klientsId || '',
+        pieskirtDarbiniekamId: taskData.pieskirtDarbiniekamId || '',
+        termins: taskData.termins || '',
+        prioritate: taskData.prioritate || 'videja',
+        statuss: 'jauns',
+        irPabeigts: false,
+        izveidots: new Date().toISOString(),
+        izveidotajsId: taskData.izveidotajsId || '',
+        pabeigtsLaiks: null,
+        pabeigtajsId: null
+      };
     await window.careDB.put('uzdevomi', record);
     this.tasks.push(record);
     if (window.careSync) {
@@ -105,8 +110,11 @@ const TaskManager = {
         }
       });
     }
-    this._notifyListeners();
-    return record;
+      this._notifyListeners();
+      return record;
+    } finally {
+      this._creating = false;
+    }
   },
 
   async complete(taskId, employeeId) {

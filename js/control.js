@@ -647,8 +647,10 @@ class ControlPanel {
     }
 
     if (form) {
+      const submitBtn = form.querySelector('button[type="submit"]');
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (submitBtn) { submitBtn.disabled = true; }
         const employeeId = assignee.value;
         const klientsId = clientSel.value;
         const termins = deadline.value;
@@ -658,20 +660,25 @@ class ControlPanel {
         const teksts = tekstsEl ? tekstsEl.value.trim() : '';
         if (!employeeId || !teksts || !termins) {
           this.toast('Aizpildi darbinieku, termiņu un uzdevuma tekstu');
+          if (submitBtn) { submitBtn.disabled = false; }
           return;
         }
-        if (window.TaskManager) {
-          await window.TaskManager.create({
-            teksts: teksts,
-            klientsId: klientsId,
-            pieskirtDarbiniekamId: employeeId,
-            termins: termins,
-            prioritate: prioritate,
-            izveidotajsId: this.currentUser.id
-          });
-          this.toast('✓ Uzdevums nosūtīts');
-          if (tekstsEl) tekstsEl.value = '';
-          await this.renderTasksList();
+        try {
+          if (window.TaskManager) {
+            await window.TaskManager.create({
+              teksts: teksts,
+              klientsId: klientsId,
+              pieskirtDarbiniekamId: employeeId,
+              termins: termins,
+              prioritate: prioritate,
+              izveidotajsId: this.currentUser.id
+            });
+            this.toast('✓ Uzdevums nosūtīts');
+            if (tekstsEl) tekstsEl.value = '';
+            await this.renderTasksList();
+          }
+        } finally {
+          if (submitBtn) { submitBtn.disabled = false; }
         }
       });
     }

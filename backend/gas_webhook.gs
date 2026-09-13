@@ -218,7 +218,6 @@ function handleCreateClient(data) {
   const sheet = getSheet('klienti');
   const c = data.data;
 
-  // DUPLICATE PREVENTION: Check if client already exists
   const existing = findRow(sheet, [
     ['vards', c.vards || ''],
     ['uzvards', c.uzvards || '']
@@ -244,7 +243,6 @@ function handleCreateEmployee(data) {
   const sheet = getSheet('darbinieki');
   const e = data.data;
 
-  // DUPLICATE PREVENTION: Check if employee already exists
   const existing = findRow(sheet, [
     ['vards', e.vards || ''],
     ['uzvards', e.uzvards || ''],
@@ -281,40 +279,68 @@ function handleMark(data) {
   const atzimesSheet = getSheet('atzimes');
   const logSheet = getSheet('atzimes_log');
   const m = data.data;
-  const id = 'm_' + Date.now();
-  const today = m.date ? normalizeToDateString(m.date) : formatDate(new Date());
-  const now = new Date();
-  const nowDateStr = formatDate(now);
-  const nowTimeStr = formatTimeOnly(now);
-  const nowDateTimeStr = formatDateTimeLV(now);
 
-  appendRow(atzimesSheet, {
-    id: id,
-    klients_id: m.clientId,
-    darbinieks_id: m.employeeId,
-    datums: today,
-    laiks: nowTimeStr,
-    periods: m.shift || 'R',
-    kategorija: m.category,
-    lauka_nosaukums: m.field,
-    vertiba: m.value
-  });
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { error: 'Sistēma ir aizņemta, mēģini vēlreiz' };
+  }
 
-  appendRow(logSheet, {
-    id: 'l_' + Date.now() + Math.floor(Math.random() * 1000),
-    atzimes_id: id,
-    klients_id: m.clientId,
-    darbinieks_id: m.employeeId,
-    datums: nowDateStr,
-    laiks: nowTimeStr,
-    periods: m.shift || 'R',
-    kategorija: m.category,
-    lauka_nosaukums: m.field,
-    vertiba: m.value,
-    izveidots: nowDateTimeStr
-  });
+  try {
+    const existingMark = findRow(atzimesSheet, [
+      ['klients_id', m.clientId || ''],
+      ['darbinieks_id', m.employeeId || ''],
+      ['datums', m.date || ''],
+      ['periods', m.shift || 'R'],
+      ['kategorija', m.category || ''],
+      ['lauka_nosaukums', m.field || '']
+    ]);
 
-  return { success: true, id: id };
+    if (existingMark) {
+      const existingLog = findRow(logSheet, [
+        ['atzimes_id', existingMark.data.id]
+      ]);
+      return {
+        success: true,
+        id: existingMark.data.id,
+        already_processed: true,
+        logId: existingLog ? existingLog.data.id : null
+      };
+    }
+
+    const id = 'm_' + Date.now();
+    appendRow(atzimesSheet, {
+      id: id,
+      klients_id: m.clientId,
+      darbinieks_id: m.employeeId,
+      datums: m.date || formatDate(new Date()),
+      laiks: formatTimeOnly(new Date()),
+      periods: m.shift || 'R',
+      kategorija: m.category,
+      lauka_nosaukums: m.field,
+      vertiba: m.value
+    });
+
+    const now = new Date();
+    appendRow(logSheet, {
+      id: 'l_' + Date.now() + Math.floor(Math.random() * 1000),
+      atzimes_id: id,
+      klients_id: m.clientId,
+      darbinieks_id: m.employeeId,
+      datums: formatDate(now),
+      laiks: formatTimeOnly(now),
+      periods: m.shift || 'R',
+      kategorija: m.category,
+      lauka_nosaukums: m.field,
+      vertiba: m.value,
+      izveidots: formatDateTimeLV(now)
+    });
+
+    return { success: true, id: id, already_processed: false };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function ensureColumns(sheet, requiredColumns) {
@@ -332,22 +358,49 @@ function ensureColumns(sheet, requiredColumns) {
 function handleCreateTask(data) {
   const sheet = getSheet('uzdevomi');
   const t = data.data;
-  const id = 't_' + Date.now();
-  appendRow(sheet, {
-    id: id,
-    teksts: t.teksts || '',
-    klients_id: t.klientsId || t.clientId || '',
-    'piešķirt_darbiniekam_id': t.pieskirtDarbiniekamId || t.employeeId || '',
-    termins: t.termins || '',
-    prioritate: t.prioritate || 'videja',
-    statuss: t.statuss || 'jauns',
-    pabeigts: t.irPabeigts === true || t.irPabeigts === 'true',
-    izveidots: t.izveidots || formatDateTimeLV(new Date()),
-    izveidotajs_id: t.izveidotajsId || '',
-    pabeigts_laiks: t.pabeigtsLaiks || '',
-    pabeigtajs_id: t.pabeigtajsId || ''
-  });
-  return { success: true, id: id };
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { error: 'Sistēma ir aizņemta, mēģini vēlreiz' };
+  }
+
+  try {
+    const existingTask = findRow(sheet, [
+      ['teksts', t.teksts || ''],
+      ['piešķirt_darbiniekam_id', t.pieskirtDarbiniekamId || t.employeeId || ''],
+      ['termins', t.termins || '']
+    ]);
+
+    if (existingTask) {
+      return {
+        success: true,
+        id: existingTask.data.id,
+        already_processed: true,
+        taskId: existingTask.data.id
+      };
+    }
+
+    const id = 't_' + Date.now();
+    appendRow(sheet, {
+      id: id,
+      teksts: t.teksts || '',
+      klients_id: t.klientsId || t.clientId || '',
+      'piešķirt_darbiniekam_id': t.pieskirtDarbiniekamId || t.employeeId || '',
+      termins: t.termins || '',
+      prioritate: t.prioritate || 'videja',
+      statuss: t.statuss || 'jauns',
+      pabeigts: t.irPabeigts === true || t.irPabeigts === 'true',
+      izveidots: t.izveidots || formatDateTimeLV(new Date()),
+      izveidotajs_id: t.izveidotajsId || '',
+      pabeigts_laiks: t.pabeigtsLaiks || '',
+      pabeigtajs_id: t.pabeigtajsId || ''
+    });
+    return { success: true, id: id, already_processed: false };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function handleUpdateTask(data) {

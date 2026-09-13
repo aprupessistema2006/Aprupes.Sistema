@@ -1588,6 +1588,7 @@ body {
 
 .loading-logo {
   width: 120px;
+  max-width: 100%;
   height: auto;
   margin-bottom: 20px;
   display: block;

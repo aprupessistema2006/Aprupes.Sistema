@@ -9,6 +9,7 @@ class CareFormController {
     this.currentUser = null;
     this.history = [];
     this.adminMode = false;
+    this._processing = new Map();
     this.init();
   }
 
@@ -1089,33 +1090,27 @@ class CareFormController {
   }
 
   async handleSikdrumiSubmit() {
+    if (this._processing.has('sikdrumi_submit')) return;
+    this._processing.set('sikdrumi_submit', true);
+
     const urinsInput = document.querySelector('input[data-cat="sikdrumi"][data-field="urina_daudzums"]');
     const uznemtsInput = document.querySelector('input[data-cat="sikdrumi"][data-field="uznemts_ml"]');
-    if (!urinsInput && !uznemtsInput) return;
+    if (!urinsInput && !uznemtsInput) { this._processing.delete('sikdrumi_submit'); return; }
     const urinsVal = urinsInput ? urinsInput.value : '';
     const uznemtsVal = uznemtsInput ? uznemtsInput.value : '';
     if (urinsVal === '' && uznemtsVal === '') {
       this.toast('Ievadiet vismaz vienu vērtību');
+      this._processing.delete('sikdrumi_submit');
       return;
     }
     const shift = this.currentShift;
     if (urinsVal !== '') {
-      const key = shift + '|sikdrumi|urina_daudzums';
-      const existing = this.marks.get(key);
-      if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
-        const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
-        this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
-      }
-      await this.saveMarkDirect('sikdrumi', 'urina_daudzums', urinsVal, this.currentShift);
+      const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', urinsVal, this.currentShift);
+      if (!result) { this._processing.delete('sikdrumi_submit'); return; }
     }
     if (uznemtsVal !== '') {
-      const key = shift + '|sikdrumi|uznemts_ml';
-      const existing = this.marks.get(key);
-      if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
-        const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
-        this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
-      }
-      await this.saveMarkDirect('sikdrumi', 'uznemts_ml', uznemtsVal, this.currentShift);
+      const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', uznemtsVal, this.currentShift);
+      if (!result) { this._processing.delete('sikdrumi_submit'); return; }
     }
     if (urinsInput) urinsInput.value = '';
     if (uznemtsInput) uznemtsInput.value = '';
@@ -1129,19 +1124,18 @@ class CareFormController {
     this.renderQuickTotals();
     this.renderHistory();
     this.toast('✓ Šķidrumi saglabāti');
+    this._processing.delete('sikdrumi_submit');
   }
 
   async saveMarkDirect(category, field, value, shift) {
-    const key = shift + '|' + category + '|' + field;
-    const existing = this.marks.get(key);
-    await this.saveMark({
+    return await this.saveMark({
       clientId: this.clientId,
       shift: shift,
       category: category,
       field: field,
       value: value,
-      prevValue: existing ? existing.value : null,
-      type: existing ? 'Labots' : 'Jauns'
+      prevValue: this.marks.get(shift + '|' + category + '|' + field) ? this.marks.get(shift + '|' + category + '|' + field).value : null,
+      type: this.marks.get(shift + '|' + category + '|' + field) ? 'Labots' : 'Jauns'
     });
   }
 
@@ -1162,6 +1156,115 @@ class CareFormController {
     const value = selected.dataset.value;
     const shift = selected.dataset.shift;
     await this.handleOptionSelect(shift, 'fiziologija', 'vedera_izeja', value, selected);
+  }
+
+  async handleSign() {
+    if (this._processing.has('sign')) return;
+    this._processing.set('sign', true);
+    const signBtn = document.getElementById('signBtn');
+    if (signBtn) signBtn.disabled = true;
+
+    try {
+      const userRole = (this.currentUser.loma || '').toLowerCase();
+      const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
+      const isAdmin = userRole === 'administrators' || this.adminMode;
+      if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && !isAdmin) {
+        this.toast('Tikai aprūpētāji var parakstīties');
+        return;
+      }
+      if (shiftType !== 'diennakts' && !isAdmin) {
+        this.toast('Tikai diennakts darbinieki var parakstīties');
+        return;
+      }
+
+      const today = this.getToday();
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
+      const currentShift = this.currentShift;
+
+      const existingForShift = this.history.find(h => {
+        return h.category === 'paraksts' &&
+          h.field === 'aprupetaja_paraksts' &&
+          h.shift === currentShift &&
+          this.extractDateFromAnyField(h) === today;
+      });
+      const existingAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
+      const isResign = !!existingAny;
+      const isDuplicate = !!existingForShift;
+
+      if (isDuplicate && !isAdmin) {
+        this.toast((currentShift === 'R' ? 'Rīts' : 'Vakars') + ': jau ir parakstīts');
+        return;
+      }
+
+      const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
+      const adminNote = this.currentUser._adminOverride ? ' [ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ']' : '';
+      const displayValue = signatureValue + adminNote;
+      const mark = {
+        id: existingAny ? existingAny.markId : this.db.generateId(),
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        shift: currentShift,
+        category: 'paraksts',
+        field: 'aprupetaja_paraksts',
+        value: displayValue,
+        lastModified: nowISO,
+        lastBy: this.currentUser.id
+      };
+
+      const key = currentShift + '|paraksts|aprupetaja_paraksts';
+      this.marks.set(key, mark);
+      await this.db.put('atzimes', mark);
+
+      const logEntry = {
+        id: this.db.generateId(),
+        markId: mark.id,
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        time: timeStr,
+        shift: currentShift,
+        category: 'paraksts',
+        field: 'aprupetaja_paraksts',
+        value: displayValue,
+        prevValue: existingAny ? existingAny.value : null,
+        type: isResign ? 'Labots' : 'Jauns',
+        created: nowISO
+      };
+      await this.db.add('atzimes_log', logEntry);
+
+      if (this.allClientLog) {
+        this.allClientLog.unshift(logEntry);
+      }
+      this.history.unshift(logEntry);
+
+      this.sync.enqueueChange({
+        action: 'mark',
+        table: 'atzimes',
+        data: {
+          clientId: this.clientId,
+          employeeId: this.currentUser.id,
+          date: today,
+          shift: 'D',
+          category: 'paraksts',
+          field: 'aprupetaja_paraksts',
+          value: displayValue,
+          reason: isResign ? 'Pārparakstīts' : (this.currentUser._adminOverride ? 'Admin paraksts: ' + (this.currentUser._adminName || 'Administrators') : 'Diennakts paraksts')
+        }
+      });
+
+      this.renderSignature();
+      this.updateCategoryStatuses();
+      this.toast(isResign ? '✓ Pārparakstīts' : '✓ Parakstīts');
+    } finally {
+      this._processing.delete('sign');
+      setTimeout(() => {
+        const btn = document.getElementById('signBtn');
+        if (btn) btn.disabled = false;
+      }, 500);
+    }
   }
 
   async loadAllClientMarks() {
@@ -1263,108 +1366,132 @@ class CareFormController {
   }
 
   async handleDiaperIncrement(shift, category, field, btn) {
-    const key = shift + '|' + category + '|' + field;
-    const existing = this.marks.get(key);
-    const currentCount = existing ? parseInt(existing.value) || 0 : 0;
-    const newCount = currentCount + 1;
+    if (this._processing.has('diaper_increment')) return;
+    this._processing.set('diaper_increment', true);
 
-    if (newCount > 99) {
-      this.toast('Pārāk daudz maiņu (maksimums 99)');
-      return;
-    }
+    try {
+      const key = shift + '|' + category + '|' + field;
+      const existing = this.marks.get(key);
+      const currentCount = existing ? parseInt(existing.value) || 0 : 0;
+      const newCount = currentCount + 1;
 
-    if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
-      const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
-      this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
-    }
-
-    btn.classList.add('pulse');
-    setTimeout(() => btn.classList.remove('pulse'), 300);
-
-    const saveResult = await this.saveMark({
-      clientId: this.clientId,
-      shift: shift,
-      category: category,
-      field: field,
-      value: String(newCount),
-      prevValue: existing ? existing.value : null,
-      type: existing ? 'Labots' : 'Jauns'
-    });
-
-    const logEntry = {
-      id: this.db.generateId(),
-      markId: saveResult.mark.id,
-      clientId: this.clientId,
-      employeeId: this.currentUser.id,
-      date: this.getToday(),
-      time: new Date().toTimeString().split(' ')[0],
-      shift: shift,
-      category: category,
-      field: field,
-      value: '+1 (kopā: ' + newCount + ')',
-      type: 'Jauns',
-      created: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + 'T' + new Date().toTimeString().split(' ')[0] + '.000Z'
-    };
-    await this.db.add('atzimes_log', logEntry);
-
-    if (this.allClientLog) {
-      this.allClientLog.unshift(logEntry);
-    }
-    this.history.unshift(logEntry);
-
-    this.sync.enqueueChange({
-      action: 'mark',
-      table: 'atzimes',
-      data: {
-        clientId: this.clientId,
-        employeeId: this.currentUser.id,
-        date: this.getToday(),
-        shift: shift,
-        category: category,
-        field: field,
-        value: String(newCount)
+      if (newCount > 99) {
+        this.toast('Pārāk daudz maiņu (maksimums 99)');
+        return;
       }
-    });
 
-    this.toast('✓ Maiņa pievienota (' + newCount + ')');
-    this.updateCategoryStatuses();
-    this.openCategoryModal('diapers');
-    this.renderTaskBanner();
-    this.renderQuickTotals();
-    this.renderHistory();
-  }
+      if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
+        const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
+        this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
+      }
 
-  async handleOptionSelect(shift, category, field, value, btn) {
-    const key = shift + '|' + category + '|' + field;
-    const existing = this.marks.get(key);
+      btn.classList.add('pulse');
+      setTimeout(() => btn.classList.remove('pulse'), 300);
 
-    if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
-      const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
-      this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
-    }
-
-    if (existing && existing.value === value) {
-      const result = await this.saveMark({
+      const saveResult = await this.saveMark({
         clientId: this.clientId,
         shift: shift,
         category: category,
         field: field,
-        value: '',
-        prevValue: value,
-        type: 'Labots'
-      });
-      this.marks.delete(key);
-    } else {
-      const result = await this.saveMark({
-        clientId: this.clientId,
-        shift: shift,
-        category: category,
-        field: field,
-        value: value,
+        value: String(newCount),
         prevValue: existing ? existing.value : null,
         type: existing ? 'Labots' : 'Jauns'
       });
+
+      if (!saveResult) {
+        return;
+      }
+
+      const logEntry = {
+        id: this.db.generateId(),
+        markId: saveResult.mark.id,
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: this.getToday(),
+        time: new Date().toTimeString().split(' ')[0],
+        shift: shift,
+        category: category,
+        field: field,
+        value: '+1 (kopā: ' + newCount + ')',
+        type: 'Jauns',
+        created: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + 'T' + new Date().toTimeString().split(' ')[0] + '.000Z'
+      };
+      await this.db.add('atzimes_log', logEntry);
+
+      if (this.allClientLog) {
+        this.allClientLog.unshift(logEntry);
+      }
+      this.history.unshift(logEntry);
+
+      this.sync.enqueueChange({
+        action: 'mark',
+        table: 'atzimes',
+        data: {
+          clientId: this.clientId,
+          employeeId: this.currentUser.id,
+          date: this.getToday(),
+          shift: shift,
+          category: category,
+          field: field,
+          value: String(newCount)
+        }
+      });
+
+      this.toast('✓ Maiņa pievienota (' + newCount + ')');
+      this.updateCategoryStatuses();
+      this.openCategoryModal('diapers');
+      this.renderTaskBanner();
+      this.renderQuickTotals();
+      this.renderHistory();
+    } finally {
+      this._processing.delete('diaper_increment');
     }
+  }
+
+  async handleOptionSelect(shift, category, field, value, btn) {
+    const actionKey = 'opt_' + shift + '|' + category + '|' + field;
+    if (this._processing.has(actionKey)) {
+      return;
+    }
+    this._processing.set(actionKey, true);
+
+    const key = shift + '|' + category + '|' + field;
+    const existing = this.marks.get(key);
+
+    if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
+      const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
+      this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
+    }
+
+    let result = null;
+    try {
+      if (existing && existing.value === value) {
+        result = await this.saveMark({
+          clientId: this.clientId,
+          shift: shift,
+          category: category,
+          field: field,
+          value: '',
+          prevValue: value,
+          type: 'Labots'
+        });
+        this.marks.delete(key);
+      } else {
+        result = await this.saveMark({
+          clientId: this.clientId,
+          shift: shift,
+          category: category,
+          field: field,
+          value: value,
+          prevValue: existing ? existing.value : null,
+          type: existing ? 'Labots' : 'Jauns'
+        });
+      }
+    } finally {
+      this._processing.delete(actionKey);
+    }
+
+    if (!result) return;
 
     const catMap = { temp: 'temp', higiena: 'higiena', aktivitate: 'aktivitate', edinasana: 'edinasana', sikdrumi: 'sikdrumi', fiziologija: 'fiziologija', citsi_pasakomi: 'citi' };
     const openCat = catMap[category];
@@ -1378,7 +1505,7 @@ class CareFormController {
     this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
-    this.toast('Saglabāts');
+    this.toast('✓ Saglabāts');
   }
 
   async handleNumberChange(category, field, value, shiftOverride) {
@@ -1415,7 +1542,8 @@ class CareFormController {
       prevValue: existing ? existing.value : null,
       type: existing ? 'Labots' : 'Jauns'
     });
-    this.toast('Saglabāts');
+    if (!result) return;
+    this.toast('✓ Saglabāts');
     this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
@@ -1427,52 +1555,22 @@ class CareFormController {
   }
 
   async saveMark(data) {
-    const today = this.getToday();
-    const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0];
-    const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
+    const actionKey = data.shift + '|' + data.category + '|' + data.field;
+    if (this._processing.has(actionKey)) {
+      return null;
+    }
+    this._processing.set(actionKey, true);
 
-    const id = this.db.generateId();
+    try {
+      const today = this.getToday();
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
 
-    const mark = {
-      id: id,
-      clientId: data.clientId,
-      employeeId: this.currentUser.id,
-      date: today,
-      shift: data.shift,
-      category: data.category,
-      field: data.field,
-      value: data.value,
-      lastModified: nowISO,
-      lastBy: this.currentUser.id
-    };
+      const id = this.db.generateId();
 
-    const key = data.shift + '|' + data.category + '|' + data.field;
-    this.marks.set(key, mark);
-
-    await this.db.put('atzimes', mark);
-
-    const logEntry = {
-      id: this.db.generateId(),
-      markId: id,
-      clientId: data.clientId,
-      employeeId: this.currentUser.id,
-      date: today,
-      time: timeStr,
-      shift: data.shift,
-      category: data.category,
-      field: data.field,
-      value: data.value,
-      prevValue: data.prevValue,
-      type: data.type,
-      created: nowISO
-    };
-    await this.db.add('atzimes_log', logEntry);
-
-    this.sync.enqueueChange({
-      action: 'mark',
-      table: 'atzimes',
-      data: {
+      const mark = {
+        id: id,
         clientId: data.clientId,
         employeeId: this.currentUser.id,
         date: today,
@@ -1480,26 +1578,66 @@ class CareFormController {
         category: data.category,
         field: data.field,
         value: data.value,
-        reason: data.type === 'Labots' ? 'Labots' : null
-      }
-    });
+        lastModified: nowISO,
+        lastBy: this.currentUser.id
+      };
 
-    if (this.allClientMarks) {
-      const idx = this.allClientMarks.findIndex(m => m.shift === mark.shift && m.category === mark.category && m.field === mark.field);
-      if (idx >= 0) {
-        this.allClientMarks[idx] = mark;
-      } else {
-        this.allClientMarks.push(mark);
-      }
-    }
-    if (this.allClientLog) {
-      this.allClientLog.unshift(logEntry);
-    }
-    this.history.unshift(logEntry);
+      const key = data.shift + '|' + data.category + '|' + data.field;
+      this.marks.set(key, mark);
 
-    this.updateCategoryStatuses();
-    this.toast('Saglabāts');
-    return { mark, logEntry };
+      await this.db.put('atzimes', mark);
+
+      const logEntry = {
+        id: this.db.generateId(),
+        markId: id,
+        clientId: data.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        time: timeStr,
+        shift: data.shift,
+        category: data.category,
+        field: data.field,
+        value: data.value,
+        prevValue: data.prevValue,
+        type: data.type,
+        created: nowISO
+      };
+      await this.db.add('atzimes_log', logEntry);
+
+      this.sync.enqueueChange({
+        action: 'mark',
+        table: 'atzimes',
+        data: {
+          clientId: data.clientId,
+          employeeId: this.currentUser.id,
+          date: today,
+          shift: data.shift,
+          category: data.category,
+          field: data.field,
+          value: data.value,
+          reason: data.type === 'Labots' ? 'Labots' : null
+        }
+      });
+
+      if (this.allClientMarks) {
+        const idx = this.allClientMarks.findIndex(m => m.shift === mark.shift && m.category === mark.category && m.field === mark.field);
+        if (idx >= 0) {
+          this.allClientMarks[idx] = mark;
+        } else {
+          this.allClientMarks.push(mark);
+        }
+      }
+      if (this.allClientLog) {
+        this.allClientLog.unshift(logEntry);
+      }
+      this.history.unshift(logEntry);
+
+      this.updateCategoryStatuses();
+      this.toast('Saglabāts');
+      return { mark, logEntry };
+    } finally {
+      this._processing.delete(actionKey);
+    }
   }
 
   escapeHtml(s) {

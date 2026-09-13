@@ -71,6 +71,7 @@ body.online {
 
 .login-logo {
   width: 140px;
+  max-width: 100%;
   height: auto;
   margin-bottom: 24px;
   box-sizing: border-box;
@@ -79,12 +80,6 @@ body.online {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.login-logo {
-  width: 120px;
-  height: auto;
-  margin-bottom: 20px;
 }
 
 .login-card h1 {
@@ -586,7 +581,8 @@ body.online {
     max-height: 200px;
   }
   .login-logo {
-    width: 140px;
+    width: 100px;
+    max-width: 100%;
   }
   #loginBtn {
     font-size: 16px;
@@ -672,6 +668,7 @@ body.online {
 
 .loading-logo {
   width: 120px;
+  max-width: 100%;
   height: auto;
   margin-bottom: 20px;
   display: block;
