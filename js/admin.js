@@ -5,6 +5,8 @@ class AdminPanel {
     this.currentUser = null;
     this.clients = [];
     this.employees = [];
+    this._createClientDebounce = null;
+    this._createEmployeeDebounce = null;
     this.init();
   }
 
@@ -401,27 +403,53 @@ class AdminPanel {
   }
 
   async createClient(data) {
-    const id = this.db.generateId();
-    const client = { id, ...data };
-    if (data.dzimis) {
-      client.dzimsanas_datums = data.dzimis;
+    // Prevent duplicate submissions
+    if (this._createClientDebounce) {
+      clearTimeout(this._createClientDebounce);
     }
-    if (data.saskarsmes) {
-      client.saskarsmes_ipatnibas = data.saskarsmes;
-    }
-    await this.db.add('klienti', client);
 
-    this.sync.enqueueChange({
-      action: 'createClient',
-      table: 'klienti',
-      data: client
+    return new Promise((resolve, reject) => {
+      this._createClientDebounce = setTimeout(async () => {
+        try {
+          const id = this.db.generateId();
+          const client = { id, ...data };
+          if (data.dzimis) {
+            client.dzimsanas_datums = data.dzimis;
+          }
+          if (data.saskarsmes) {
+            client.saskarsmes_ipatnibas = data.saskarsmes;
+          }
+
+          // Check for duplicate in local data
+          const duplicate = this.clients.find(c =>
+            (c.vards || c.Vārds) === (data.vards || '') &&
+            (c.uzvards || c.Uzvārds) === (data.uzvards || '')
+          );
+          if (duplicate) {
+            this.toast('Klients ar šo vārdu un uzvārdu jau pastāv');
+            reject(new Error('Duplicate client'));
+            return;
+          }
+
+          await this.db.add('klienti', client);
+
+          this.sync.enqueueChange({
+            action: 'createClient',
+            table: 'klienti',
+            data: client
+          });
+
+          this.clients.push(client);
+          this.renderClientList();
+          this.renderDashboard();
+          this.closeModal();
+          this.toast('Klients pievienots');
+          resolve(id);
+        } catch (error) {
+          reject(error);
+        }
+      }, 300); // 300ms debounce
     });
-
-    this.clients.push(client);
-    this.renderClientList();
-    this.renderDashboard();
-    this.closeModal();
-    this.toast('Klients pievienots');
   }
 
   async updateClient(id, data) {
@@ -483,32 +511,49 @@ class AdminPanel {
       this.toast('PIN jābūt vismaz 4 cipariem');
       return;
     }
-    const existing = this.employees.find(e => {
-      const eName = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim().toLowerCase();
-      const eRole = (e.loma || e.Loma || '').toLowerCase();
-      const newName = ((data.vards || '') + ' ' + (data.uzvards || '')).trim().toLowerCase();
-      const newRole = (data.loma || '').toLowerCase();
-      return eName === newName && eRole === newRole;
-    });
-    if (existing) {
-      this.toast('Darbinieks ar šo vārdu un lomu jau eksistē');
-      return;
+
+    // Prevent duplicate submissions
+    if (this._createEmployeeDebounce) {
+      clearTimeout(this._createEmployeeDebounce);
     }
-    const id = this.db.generateId();
-    const employee = { id, ...data };
-    await this.db.add('darbinieki', employee);
 
-    this.sync.enqueueChange({
-      action: 'createEmployee',
-      table: 'darbinieki',
-      data: employee
+    return new Promise((resolve, reject) => {
+      this._createEmployeeDebounce = setTimeout(async () => {
+        try {
+          const existing = this.employees.find(e => {
+            const eName = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim().toLowerCase();
+            const eRole = (e.loma || e.Loma || '').toLowerCase();
+            const newName = ((data.vards || '') + ' ' + (data.uzvards || '')).trim().toLowerCase();
+            const newRole = (data.loma || '').toLowerCase();
+            return eName === newName && eRole === newRole;
+          });
+          if (existing) {
+            this.toast('Darbinieks ar šo vārdu un lomu jau eksistē');
+            reject(new Error('Duplicate employee'));
+            return;
+          }
+
+          const id = this.db.generateId();
+          const employee = { id, ...data };
+          await this.db.add('darbinieki', employee);
+
+          this.sync.enqueueChange({
+            action: 'createEmployee',
+            table: 'darbinieki',
+            data: employee
+          });
+
+          this.employees.push(employee);
+          this.renderEmployeeList();
+          this.renderDashboard();
+          this.closeModal();
+          this.toast('Darbinieks pievienots. PIN: ' + data.pin);
+          resolve(id);
+        } catch (error) {
+          reject(error);
+        }
+      }, 300); // 300ms debounce
     });
-
-    this.employees.push(employee);
-    this.renderEmployeeList();
-    this.renderDashboard();
-    this.closeModal();
-    this.toast('Darbinieks pievienots. PIN: ' + data.pin);
   }
 
   async updateEmployee(id, data) {

@@ -217,6 +217,16 @@ function handleLoadData() {
 function handleCreateClient(data) {
   const sheet = getSheet('klienti');
   const c = data.data;
+
+  // DUPLICATE PREVENTION: Check if client already exists
+  const existing = findRow(sheet, [
+    ['vards', c.vards || ''],
+    ['uzvards', c.uzvards || '']
+  ]);
+  if (existing) {
+    return { error: 'Klients ar šo vārdu un uzvārdu jau pastāv', existingId: existing.row };
+  }
+
   const id = 'c_' + Date.now();
   appendRow(sheet, {
     id: id,
@@ -233,6 +243,17 @@ function handleCreateClient(data) {
 function handleCreateEmployee(data) {
   const sheet = getSheet('darbinieki');
   const e = data.data;
+
+  // DUPLICATE PREVENTION: Check if employee already exists
+  const existing = findRow(sheet, [
+    ['vards', e.vards || ''],
+    ['uzvards', e.uzvards || ''],
+    ['loma', e.loma || 'aprūpētājs']
+  ]);
+  if (existing) {
+    return { error: 'Darbinieks ar šo vārdu, uzvārdu un lomu jau pastāv', existingId: existing.row };
+  }
+
   const id = 'e_' + Date.now();
   appendRow(sheet, {
     id: id,
