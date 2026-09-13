@@ -288,6 +288,20 @@ function handleMark(data) {
   }
 
   try {
+    // Dubultās ieraksta novēršana: ja ir actionId, pārbaudām vai tas jau eksistē
+    if (m.actionId) {
+      const existingById = findRow(atzimesSheet, [['action_id', m.actionId]]);
+      if (existingById) {
+        return {
+          success: true,
+          id: existingById.data.id,
+          already_processed: true
+        };
+      }
+    }
+
+    SpreadsheetApp.flush();
+
     const existingMark = findRow(atzimesSheet, [
       ['klients_id', m.clientId || ''],
       ['darbinieks_id', m.employeeId || ''],
@@ -301,15 +315,50 @@ function handleMark(data) {
       const existingLog = findRow(logSheet, [
         ['atzimes_id', existingMark.data.id]
       ]);
+      // Ja vērtība ir tā pati, neizveido duplikātu žurnāla ierakstu
+      if (existingMark.data.vertiba === m.value) {
+        return {
+          success: true,
+          id: existingMark.data.id,
+          already_processed: true,
+          logId: existingLog ? existingLog.data.id : null
+        };
+      }
+
+      // Ja vērtība atšķiras, atjaunojam esošo ierakstu un pievienojam žurnālā
+      setCellValue(atzimesSheet, existingMark.row, 'vertiba', m.value);
+      setCellValue(atzimesSheet, existingMark.row, 'pedeja_laiks', m.lastModified || formatTimeOnly(new Date()));
+      if (m.actionId) setCellValue(atzimesSheet, existingMark.row, 'action_id', m.actionId);
+      SpreadsheetApp.flush();
+
+      const now = new Date();
+      const logId = 'l_' + now.getTime() + Math.floor(Math.random() * 1000);
+      appendRow(logSheet, {
+        id: logId,
+        atzimes_id: existingMark.data.id,
+        klients_id: m.clientId,
+        darbinieks_id: m.employeeId,
+        datums: formatDate(now),
+        laiks: formatTimeOnly(now),
+        periods: m.shift || 'R',
+        kategorija: m.category,
+        lauka_nosaukums: m.field,
+        vertiba: m.value,
+        izveidots: formatDateTimeLV(now)
+      });
+      SpreadsheetApp.flush();
+
       return {
         success: true,
         id: existingMark.data.id,
         already_processed: true,
-        logId: existingLog ? existingLog.data.id : null
+        updated: true,
+        logId: logId
       };
     }
 
     const id = 'm_' + Date.now();
+    // Jauna atzīme: ierakstam ar action_id dubultās ierakstīšanas novēršanai
     appendRow(atzimesSheet, {
       id: id,
       klients_id: m.clientId,
@@ -319,12 +368,14 @@ function handleMark(data) {
       periods: m.shift || 'R',
       kategorija: m.category,
       lauka_nosaukums: m.field,
-      vertiba: m.value
+      vertiba: m.value,
+      action_id: m.actionId || ''
     });
+    SpreadsheetApp.flush();
 
     const now = new Date();
     appendRow(logSheet, {
-      id: 'l_' + Date.now() + Math.floor(Math.random() * 1000),
+      id: 'l_' + now.getTime() + Math.floor(Math.random() * 1000),
       atzimes_id: id,
       klients_id: m.clientId,
       darbinieks_id: m.employeeId,
@@ -336,6 +387,7 @@ function handleMark(data) {
       vertiba: m.value,
       izveidots: formatDateTimeLV(now)
     });
+    SpreadsheetApp.flush();
 
     return { success: true, id: id, already_processed: false };
   } finally {
@@ -367,6 +419,21 @@ function handleCreateTask(data) {
   }
 
   try {
+    // Dubultās izveides novēršana: actionId pārbaude pirms pamata lauku pārbaudes
+    if (t.actionId) {
+      const existingById = findRow(sheet, [['action_id', t.actionId]]);
+      if (existingById) {
+        return {
+          success: true,
+          id: existingById.data.id,
+          already_processed: true,
+          taskId: existingById.data.id
+        };
+      }
+    }
+
+    SpreadsheetApp.flush();
+
     const existingTask = findRow(sheet, [
       ['teksts', t.teksts || ''],
       ['piešķirt_darbiniekam_id', t.pieskirtDarbiniekamId || t.employeeId || ''],
@@ -383,6 +450,7 @@ function handleCreateTask(data) {
     }
 
     const id = 't_' + Date.now();
+    // Jauns uzdevums: ierakstam ar action_id dubultās izveides novēršanai
     appendRow(sheet, {
       id: id,
       teksts: t.teksts || '',
@@ -395,8 +463,11 @@ function handleCreateTask(data) {
       izveidots: t.izveidots || formatDateTimeLV(new Date()),
       izveidotajs_id: t.izveidotajsId || '',
       pabeigts_laiks: t.pabeigtsLaiks || '',
-      pabeigtajs_id: t.pabeigtajsId || ''
+      pabeigtajs_id: t.pabeigtajsId || '',
+      action_id: t.actionId || ''
     });
+    SpreadsheetApp.flush();
+
     return { success: true, id: id, already_processed: false };
   } finally {
     lock.releaseLock();

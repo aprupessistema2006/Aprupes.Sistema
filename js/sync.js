@@ -333,7 +333,19 @@ class CareSync {
   }
 
   async enqueueChange(change) {
+    // Dubultās izveides novēršana: actionId pārbaude pirms jauna ieraksta izvezes
     if (!SYNC_URL) return;
+    if (change.data && change.data.actionId) {
+      const existing = await this.db.getAll('sync_queue');
+      const duplicate = existing.find(item =>
+        item.change && item.change.data && item.change.data.actionId === change.data.actionId
+      );
+      if (duplicate) {
+        duplicate.change.data = change.data;
+        await this.db.put('sync_queue', duplicate);
+        return duplicate.id;
+      }
+    }
     const queueItem = {
       id: this.db.generateId(),
       change: change,
@@ -343,6 +355,7 @@ class CareSync {
     };
     await this.db.add('sync_queue', queueItem);
     this._scheduleQueueProcessing();
+    return queueItem.id;
   }
 
   _scheduleQueueProcessing() {

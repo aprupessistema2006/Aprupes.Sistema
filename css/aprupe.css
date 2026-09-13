@@ -59,9 +59,10 @@ body {
   gap: 10px;
 }
 
-.header-logo {
+  .header-logo {
   width: 40px;
   height: 40px;
+  object-fit: contain;
 }
 
 .header h1 {
@@ -755,7 +756,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: url('../logo/logo_admin.png') center/cover no-repeat scroll;
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   z-index: 99999;
   display: flex;
   align-items: center;
@@ -763,22 +764,11 @@ body {
   animation: fadeIn 0.3s ease;
 }
 
-.loading-modal {
-  background: white;
-  border-radius: 16px;
-  padding: 32px 28px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-  text-align: center;
-  max-width: 320px;
-  width: 90%;
-  animation: scaleIn 0.3s ease;
-  box-sizing: border-box;
-}
-
 .loading-logo {
-  width: 120px;
-  max-width: 100%;
+  width: 80px;
+  max-width: 80px;
   height: auto;
+  object-fit: contain;
   margin-bottom: 20px;
   display: block;
   margin-left: auto;

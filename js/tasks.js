@@ -20,9 +20,14 @@ const TaskManager = {
     return this.tasks;
   },
 
+  _isTaskCompleted(t) {
+    const v = t.irPabeigts;
+    return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
+  },
+
   getActiveForEmployee(employeeId, clientId) {
     return this.tasks.filter(t => {
-      if (t.irPabeigts === true || t.irPabeigts === 'TRUE' || t.irPabeigts === 'true') return false;
+      if (this._isTaskCompleted(t)) return false;
       const assignee = String(t.pieskirtDarbiniekamId || t.employeeId || '');
       if (assignee !== String(employeeId)) return false;
       if (clientId) {
@@ -106,7 +111,9 @@ const TaskManager = {
           prioritate: record.prioritate,
           statuss: record.statuss,
           irPabeigts: record.irPabeigts,
-          izveidotajsId: record.izveidotajsId
+        izveidotajsId: record.izveidotajsId,
+        // actionId sinhronizācijai — novērš duplikātus uzdevumu izveidē
+        actionId: 'create_' + record.id
         }
       });
     }
@@ -117,9 +124,15 @@ const TaskManager = {
     }
   },
 
+  _completing: false,
+
   async complete(taskId, employeeId) {
+    if (this._completing) return null;
     const task = this.tasks.find(t => String(t.id) === String(taskId));
     if (!task) return null;
+    if (this._isTaskCompleted(task)) return null;
+    this._completing = true;
+    try {
     task.irPabeigts = true;
     task.statuss = 'pabeigts';
     task.pabeigtsLaiks = new Date().toISOString();
@@ -134,12 +147,17 @@ const TaskManager = {
           irPabeigts: true,
           statuss: 'pabeigts',
           pabeigtsLaiks: task.pabeigtsLaiks,
-          pabeigtajsId: employeeId
+          pabeigtajsId: employeeId,
+          // actionId sinhronizācijai — novērš duplikātus uzdevumu pabeigšanā
+          actionId: 'complete_' + task.id + '_' + employeeId
         }
       });
     }
     this._notifyListeners();
     return task;
+    } finally {
+      this._completing = false;
+    }
   },
 
   async reopen(taskId) {

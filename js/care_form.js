@@ -1156,115 +1156,6 @@ class CareFormController {
     await this.handleOptionSelect(shift, 'fiziologija', 'vedera_izeja', value, selected);
   }
 
-  async handleSign() {
-    if (this._processing.has('sign')) return;
-    this._processing.set('sign', true);
-    const signBtn = document.getElementById('signBtn');
-    if (signBtn) signBtn.disabled = true;
-
-    try {
-      const userRole = (this.currentUser.loma || '').toLowerCase();
-      const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
-      const isAdmin = userRole === 'administrators' || this.adminMode;
-      if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && !isAdmin) {
-        this.toast('Tikai aprūpētāji var parakstīties');
-        return;
-      }
-      if (shiftType !== 'diennakts' && !isAdmin) {
-        this.toast('Tikai diennakts darbinieki var parakstīties');
-        return;
-      }
-
-      const today = this.getToday();
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
-      const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
-      const currentShift = this.currentShift;
-
-      const existingForShift = this.history.find(h => {
-        return h.category === 'paraksts' &&
-          h.field === 'aprupetaja_paraksts' &&
-          h.shift === currentShift &&
-          this.extractDateFromAnyField(h) === today;
-      });
-      const existingAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
-      const isResign = !!existingAny;
-      const isDuplicate = !!existingForShift;
-
-      if (isDuplicate && !isAdmin) {
-        this.toast((currentShift === 'R' ? 'Rīts' : 'Vakars') + ': jau ir parakstīts');
-        return;
-      }
-
-      const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
-      const adminNote = this.currentUser._adminOverride ? ' [ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ']' : '';
-      const displayValue = signatureValue + adminNote;
-      const mark = {
-        id: existingAny ? existingAny.markId : this.db.generateId(),
-        clientId: this.clientId,
-        employeeId: this.currentUser.id,
-        date: today,
-        shift: currentShift,
-        category: 'paraksts',
-        field: 'aprupetaja_paraksts',
-        value: displayValue,
-        lastModified: nowISO,
-        lastBy: this.currentUser.id
-      };
-
-      const key = currentShift + '|paraksts|aprupetaja_paraksts';
-      this.marks.set(key, mark);
-      await this.db.put('atzimes', mark);
-
-      const logEntry = {
-        id: this.db.generateId(),
-        markId: mark.id,
-        clientId: this.clientId,
-        employeeId: this.currentUser.id,
-        date: today,
-        time: timeStr,
-        shift: currentShift,
-        category: 'paraksts',
-        field: 'aprupetaja_paraksts',
-        value: displayValue,
-        prevValue: existingAny ? existingAny.value : null,
-        type: isResign ? 'Labots' : 'Jauns',
-        created: nowISO
-      };
-      await this.db.add('atzimes_log', logEntry);
-
-      if (this.allClientLog) {
-        this.allClientLog.unshift(logEntry);
-      }
-      this.history.unshift(logEntry);
-
-      this.sync.enqueueChange({
-        action: 'mark',
-        table: 'atzimes',
-        data: {
-          clientId: this.clientId,
-          employeeId: this.currentUser.id,
-          date: today,
-          shift: 'D',
-          category: 'paraksts',
-          field: 'aprupetaja_paraksts',
-          value: displayValue,
-          reason: isResign ? 'Pārparakstīts' : (this.currentUser._adminOverride ? 'Admin paraksts: ' + (this.currentUser._adminName || 'Administrators') : 'Diennakts paraksts')
-        }
-      });
-
-      this.renderSignature();
-      this.updateCategoryStatuses();
-      this.toast(isResign ? '✓ Pārparakstīts' : '✓ Parakstīts');
-    } finally {
-      this._processing.delete('sign');
-      setTimeout(() => {
-        const btn = document.getElementById('signBtn');
-        if (btn) btn.disabled = false;
-      }, 500);
-    }
-  }
-
   async loadAllClientMarks() {
     const today = this.getToday();
     const allMarks = await this.db.getAll('atzimes');
@@ -1421,20 +1312,6 @@ class CareFormController {
       }
       this.history.unshift(logEntry);
 
-      this.sync.enqueueChange({
-        action: 'mark',
-        table: 'atzimes',
-        data: {
-          clientId: this.clientId,
-          employeeId: this.currentUser.id,
-          date: this.getToday(),
-          shift: shift,
-          category: category,
-          field: field,
-          value: String(newCount)
-        }
-      });
-
       this.toast('✓ Maiņa pievienota (' + newCount + ')');
       this.updateCategoryStatuses();
       this.openCategoryModal('diapers');
@@ -1491,14 +1368,13 @@ class CareFormController {
 
     if (!result) return;
 
-    const catMap = { temp: 'temp', higiena: 'higiena', aktivitate: 'aktivitate', edinasana: 'edinasana', sikdrumi: 'sikdrumi', fiziologija: 'fiziologija', citsi_pasakomi: 'citi' };
-    const openCat = catMap[category];
-    if (openCat && category !== 'fiziologija') {
-      this.openCategoryModal(openCat);
-    } else if (category === 'fiziologija') {
+    const catMap = { temp: 'temp', higiena: 'higiena', aktivitate: 'aktivitate', edinasana: 'edinasana', sikdrumi: 'sikdrumi', fiziologija: 'fiziologija', citsi_pasakomi: 'citsi_pasakomi' };
+    if (category === 'fiziologija') {
       const modal = document.getElementById('categoryModal');
       if (modal) modal.style.display = 'none';
-      this.updateCategoryStatuses();
+    } else {
+      const modal = document.getElementById('categoryModal');
+      if (modal) modal.style.display = 'none';
     }
     this.renderTaskBanner();
     this.renderQuickTotals();
@@ -1545,11 +1421,8 @@ class CareFormController {
     this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
-    const catMap = { temp: 'temp', higiena: 'higiena', aktivitate: 'aktivitate', edinasana: 'edinasana', sikdrumi: 'sikdrumi', fiziologija: 'fiziologija', citsi_pasakomi: 'citi' };
-    const openCat = catMap[category];
-    if (openCat) {
-      this.openCategoryModal(openCat);
-    }
+    const modal = document.getElementById('categoryModal');
+    if (modal) modal.style.display = 'none';
   }
 
   async saveMark(data) {
@@ -1602,6 +1475,7 @@ class CareFormController {
       };
       await this.db.add('atzimes_log', logEntry);
 
+      // Pievienojam actionId sinhronizācijai — novērš duplikātus pēc retry
       this.sync.enqueueChange({
         action: 'mark',
         table: 'atzimes',
@@ -1613,7 +1487,8 @@ class CareFormController {
           category: data.category,
           field: data.field,
           value: data.value,
-          reason: data.type === 'Labots' ? 'Labots' : null
+          reason: data.type === 'Labots' ? 'Labots' : null,
+          actionId: 'mark_' + data.clientId + '_' + data.shift + '_' + data.category + '_' + data.field + '_' + today + '_' + (this.currentUser.id || '')
         }
       });
 
@@ -1747,99 +1622,113 @@ class CareFormController {
   }
 
   async handleSign() {
-    const userRole = (this.currentUser.loma || '').toLowerCase();
-    const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
-    const isAdmin = userRole === 'administrators' || this.adminMode;
-    if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && !isAdmin) {
-      this.toast('Tikai aprūpētāji var parakstīties');
-      return;
-    }
-    if (shiftType !== 'diennakts' && !isAdmin) {
-      this.toast('Tikai diennakts darbinieki var parakstīties');
-      return;
-    }
+    if (this._processing.has('sign')) return;
+    this._processing.set('sign', true);
+    const signBtn = document.getElementById('signBtn');
+    if (signBtn) signBtn.disabled = true;
 
-    const today = this.getToday();
-    const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0];
-    const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
-    const currentShift = this.currentShift;
+    try {
+      const userRole = (this.currentUser.loma || '').toLowerCase();
+      const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
+      const isAdmin = userRole === 'administrators' || this.adminMode;
+      if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && !isAdmin) {
+        this.toast('Tikai aprūpētāji var parakstīties');
+        return;
+      }
+      if (shiftType !== 'diennakts' && !isAdmin) {
+        this.toast('Tikai diennakts darbinieki var parakstīties');
+        return;
+      }
 
-    const existingForShift = this.history.find(h => {
-      return h.category === 'paraksts' &&
-        h.field === 'aprupetaja_paraksts' &&
-        h.shift === currentShift &&
-        this.extractDateFromAnyField(h) === today;
-    });
-    const existingAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
-    const isResign = !!existingAny;
-    const isDuplicate = !!existingForShift;
+      const today = this.getToday();
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
+      const currentShift = this.currentShift;
 
-    if (isDuplicate && !isAdmin) {
-      this.toast((currentShift === 'R' ? 'Rīts' : 'Vakars') + ': jau ir parakstīts');
-      return;
-    }
+      const existingForShift = this.history.find(h => {
+        return h.category === 'paraksts' &&
+          h.field === 'aprupetaja_paraksts' &&
+          h.shift === currentShift &&
+          this.extractDateFromAnyField(h) === today;
+      });
+      const existingAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
+      const isResign = !!existingAny;
+      const isDuplicate = !!existingForShift;
 
-    const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
-    const adminNote = this.currentUser._adminOverride ? ' [ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ']' : '';
-    const displayValue = signatureValue + adminNote;
-    const mark = {
-      id: existingAny ? existingAny.markId : this.db.generateId(),
-      clientId: this.clientId,
-      employeeId: this.currentUser.id,
-      date: today,
-      shift: currentShift,
-      category: 'paraksts',
-      field: 'aprupetaja_paraksts',
-      value: displayValue,
-      lastModified: nowISO,
-      lastBy: this.currentUser.id
-    };
+      if (isDuplicate && !isAdmin) {
+        this.toast((currentShift === 'R' ? 'Rīts' : 'Vakars') + ': jau ir parakstīts');
+        return;
+      }
 
-    const key = currentShift + '|paraksts|aprupetaja_paraksts';
-    this.marks.set(key, mark);
-    await this.db.put('atzimes', mark);
-
-    const logEntry = {
-      id: this.db.generateId(),
-      markId: mark.id,
-      clientId: this.clientId,
-      employeeId: this.currentUser.id,
-      date: today,
-      time: timeStr,
-      shift: currentShift,
-      category: 'paraksts',
-      field: 'aprupetaja_paraksts',
-      value: displayValue,
-      prevValue: existingAny ? existingAny.value : null,
-      type: isResign ? 'Labots' : 'Jauns',
-      created: nowISO
-    };
-    await this.db.add('atzimes_log', logEntry);
-
-    if (this.allClientLog) {
-      this.allClientLog.unshift(logEntry);
-    }
-    this.history.unshift(logEntry);
-
-    this.sync.enqueueChange({
-      action: 'mark',
-      table: 'atzimes',
-      data: {
+      const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
+      const adminNote = this.currentUser._adminOverride ? ' [ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ']' : '';
+      const displayValue = signatureValue + adminNote;
+      const mark = {
+        id: existingAny ? existingAny.markId : this.db.generateId(),
         clientId: this.clientId,
         employeeId: this.currentUser.id,
         date: today,
-        shift: 'D',
+        shift: currentShift,
         category: 'paraksts',
         field: 'aprupetaja_paraksts',
         value: displayValue,
-        reason: isResign ? 'Pārparakstīts' : (this.currentUser._adminOverride ? 'Admin paraksts: ' + (this.currentUser._adminName || 'Administrators') : 'Diennakts paraksts')
-      }
-    });
+        lastModified: nowISO,
+        lastBy: this.currentUser.id
+      };
 
-    this.renderSignature();
-    this.updateCategoryStatuses();
-    this.toast(isResign ? '✓ Pārparakstīts' : '✓ Parakstīts');
+      const key = currentShift + '|paraksts|aprupetaja_paraksts';
+      this.marks.set(key, mark);
+      await this.db.put('atzimes', mark);
+
+      const logEntry = {
+        id: this.db.generateId(),
+        markId: mark.id,
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        time: timeStr,
+        shift: currentShift,
+        category: 'paraksts',
+        field: 'aprupetaja_paraksts',
+        value: displayValue,
+        prevValue: existingAny ? existingAny.value : null,
+        type: isResign ? 'Labots' : 'Jauns',
+        created: nowISO
+      };
+      await this.db.add('atzimes_log', logEntry);
+
+      if (this.allClientLog) {
+        this.allClientLog.unshift(logEntry);
+      }
+      this.history.unshift(logEntry);
+
+      this.sync.enqueueChange({
+        action: 'mark',
+        table: 'atzimes',
+        data: {
+          clientId: this.clientId,
+          employeeId: this.currentUser.id,
+          date: today,
+          shift: currentShift,
+          category: 'paraksts',
+          field: 'aprupetaja_paraksts',
+          value: displayValue,
+          reason: isResign ? 'Pārparakstīts' : (this.currentUser._adminOverride ? 'Admin paraksts: ' + (this.currentUser._adminName || 'Administrators') : 'Diennakts paraksts'),
+          actionId: 'sign_' + (this.currentUser.id || '') + '_' + currentShift + '_' + today
+        }
+      });
+
+      this.renderSignature();
+      this.updateCategoryStatuses();
+      this.toast(isResign ? '✓ Pārparakstīts' : '✓ Parakstīts');
+    } finally {
+      this._processing.delete('sign');
+      setTimeout(() => {
+        const btn = document.getElementById('signBtn');
+        if (btn) btn.disabled = false;
+      }, 500);
+    }
   }
 
   toast(message) {

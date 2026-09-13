@@ -90,9 +90,10 @@ body.online {
   opacity: 0.9;
 }
 
-.splash-logo {
+  .splash-logo {
   width: 120px;
   height: auto;
+  object-fit: contain;
   margin-bottom: 24px;
   filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.3));
   animation: splashLogoIn 0.8s ease;
@@ -278,9 +279,10 @@ body.online {
   box-sizing: border-box;
 }
 
-.login-logo {
+  .login-logo {
   width: 100px;
   height: auto;
+  object-fit: contain;
 }
 
 .login-title {
@@ -633,9 +635,10 @@ body.online {
   margin: 0 auto 16px;
 }
 
-.loading-logo {
+  .loading-logo {
   width: 80px;
   height: auto;
+  object-fit: contain;
   margin-bottom: 12px;
 }
 
