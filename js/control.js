@@ -471,7 +471,7 @@ class ControlPanel {
     });
 
     const incomplete = Math.max(0, targetClients.length - completed.size);
-    const edits = log.filter(l => l.type === 'Labots').length;
+    const edits = log.filter(l => l && l.type === 'Labots').length;
 
     const setText = (id, val) => {
       const el = document.getElementById(id);
@@ -608,11 +608,14 @@ class ControlPanel {
     if (!body) return;
 
     if (log.length === 0) {
+      console.log('[control] renderHistory: allLog=', this.allLog ? this.allLog.length : 'N/A', 'filtered log=0');
       body.innerHTML = '<tr><td colspan="9" class="loading">Nav datu izvēlētajā datumā / filtrā</td></tr>';
       return;
     }
 
     const sorted = [...log].sort((a, b) => {
+      if (!a) return 1;
+      if (!b) return -1;
       const da = this.extractDateFromAnyField(a) || '';
       const db = this.extractDateFromAnyField(b) || '';
       if (da !== db) return db.localeCompare(da);
@@ -621,7 +624,7 @@ class ControlPanel {
       return tb.localeCompare(ta);
     });
 
-    body.innerHTML = sorted.slice(0, 500).map(l => {
+    body.innerHTML = sorted.slice(0, 500).filter(l => l).map(l => {
       const date = this.extractDateFromAnyField(l) || '-';
       const time = this.formatTimeForDisplay(l.time);
       const cid = String(l.clientId || '');
