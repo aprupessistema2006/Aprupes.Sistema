@@ -353,7 +353,13 @@ class CareSync {
       }
 
       const sorted = items.sort((a, b) => a.timestamp - b.timestamp);
+      const now = Date.now();
+      const MAX_AGE = 24 * 60 * 60 * 1000;
       for (const item of sorted) {
+        if (now - (item.timestamp || 0) > MAX_AGE && item.retries > 0) {
+          await this.db.delete('sync_queue', item.id);
+          continue;
+        }
         try {
           const result = await jsonpAction(item.change.action || item.change.type || 'mark', item.change.data || item.change);
           if (!result.error) {
