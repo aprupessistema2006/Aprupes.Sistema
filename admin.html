@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2c3e50">
   <title data-i18n="loginTitle">Administratora panelis</title>
-  <link rel="stylesheet" href="css/admin.css?v=20260913-001">
+  <link rel="stylesheet" href="css/admin.css?v=20260914-001">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
@@ -72,9 +72,21 @@
     <section id="employees" class="tab-content">
       <div class="section-header">
         <h2 data-i18n="employees">Darbinieki</h2>
-        <button id="addEmployeeBtn" class="btn-primary" data-i18n="addEmployee">+ Pievienot darbinieku</button>
+        <div class="header-actions">
+          <button id="addEmployeeBtn" class="btn-primary" data-i18n="addEmployee">+ Pievienot darbinieku</button>
+        </div>
       </div>
-      <input type="text" id="employeeSearch" data-i18n="searchPlaceholder" placeholder="Meklēt darbinieku..." class="search-input">
+      <div class="filter-bar">
+        <div class="filter-row">
+          <input type="text" id="employeeSearch" data-i18n="searchPlaceholder" placeholder="Meklēt darbinieku..." class="search-input" style="flex: 1; min-width: 140px;">
+          <select id="employeeRoleFilter" class="search-input" style="max-width: 180px;">
+            <option value="">Visas lomas</option>
+            <option value="administrators">Administrāri</option>
+            <option value="aprūpētājs">Aprūpētāji</option>
+            <option value="kontroliere">Kontrolieri</option>
+          </select>
+        </div>
+      </div>
       <div id="employeeList" class="item-list">
         <div class="loading" data-i18n="loading">Ielādēju...</div>
       </div>
@@ -143,7 +155,7 @@
   <script src="js/db.js?v=20260913-001"></script>
   <script src="js/sync.js?v=20260913-005"></script>
   <script src="js/logout.js?v=20260913-001"></script>
-  <script src="js/admin.js?v=20260913-001"></script>
+  <script src="js/admin.js?v=20260914-001"></script>
 </body>
 </html>
 

@@ -96,6 +96,9 @@ class AdminPanel {
     document.getElementById('employeeSearch').addEventListener('input', (e) => {
       this.renderEmployeeList(e.target.value);
     });
+    document.getElementById('employeeRoleFilter').addEventListener('change', (e) => {
+      this.renderEmployeeList(document.getElementById('employeeSearch').value, e.target.value);
+    });
 
     document.getElementById('addClientBtn').addEventListener('click', () => this.showClientForm());
     document.getElementById('addEmployeeBtn').addEventListener('click', () => this.showEmployeeForm());
@@ -202,7 +205,7 @@ class AdminPanel {
     }).join('');
   }
 
-  renderEmployeeList(filter) {
+  renderEmployeeList(filter, roleFilter) {
     const list = document.getElementById('employeeList');
     let items = this.employees;
     if (filter) {
@@ -210,6 +213,14 @@ class AdminPanel {
       items = items.filter(e => {
         const name = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).toLowerCase();
         return name.includes(term);
+      });
+    }
+    if (roleFilter) {
+      const roleTerm = roleFilter.toLowerCase();
+      items = items.filter(e => {
+        const loma = String(e.loma || e.Loma || '').toLowerCase();
+        return loma.includes(roleTerm) ||
+               loma.includes(roleTerm.substring(0, roleTerm.length - 1));
       });
     }
 
