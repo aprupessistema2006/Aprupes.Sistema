@@ -260,7 +260,82 @@ body.online {
     margin: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Augšējā fiksētā daļa — virsraksts, meklēšana, filtri */
+  .login-card .login-header {
+    flex-shrink: 0;
+  }
+  .login-card .login-title {
+    flex-shrink: 0;
+  }
+  .login-card .login-subtitle {
+    flex-shrink: 0;
+  }
+  .login-card .employee-search-row {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 0;
+    margin: 0 -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .login-card .role-filter {
+    flex-shrink: 0;
+    position: sticky;
+    top: 60px;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 0;
+    margin: 0 -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  /* Darbinieku saraksts — scrollējams konteineris */
+  .login-card .employee-card-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px;
+  }
+  .login-card .employee-list {
+    display: contents;
+  }
+  /* Pieslēgšanas forma vienmēr redzama apakšē */
+  .login-card #loginSection form {
+    flex-shrink: 0;
+  }
+  .employee-card-grid {
+    grid-template-columns: 1fr;
+  }
+  .employee-card {
+    padding: 14px;
+  }
+  .emp-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+  .selected-employee {
+    padding: 12px 14px;
+  }
+  .selected-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+  .login-title {
+    font-size: 22px;
+  }
+  .login-logo {
+    width: 80px;
   }
 }
 
@@ -830,8 +905,58 @@ body.online {
     margin: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 16px;
+  }
+  /* Augšējā fiksētā daļa — virsraksts, meklēšana, filtri */
+  .login-card .login-header {
+    flex-shrink: 0;
+  }
+  .login-card .login-title {
+    flex-shrink: 0;
+  }
+  .login-card .login-subtitle {
+    flex-shrink: 0;
+  }
+  .login-card .employee-search-row {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 0;
+    margin: 0 -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .login-card .role-filter {
+    flex-shrink: 0;
+    position: sticky;
+    top: 60px;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 0;
+    margin: 0 -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  /* Darbinieku saraksts — scrollējams konteineris */
+  .login-card .employee-card-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px;
+  }
+  .login-card .employee-list {
+    display: contents;
+  }
+  /* Pieslēgšanas forma vienmēr redzama apakšē */
+  .login-card #loginSection form {
+    flex-shrink: 0;
   }
   .employee-card-grid {
     grid-template-columns: 1fr;
@@ -867,6 +992,36 @@ body.online {
     height: -webkit-fill-available;
     padding: 16px;
     flex-grow: 1;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .login-card .employee-search-row {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 0;
+    margin: 0 -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .login-card .role-filter {
+    position: sticky;
+    top: 56px;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 0;
+    margin: 0 -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .login-card .employee-card-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .login-card h1 {
     font-size: 22px;
