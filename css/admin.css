@@ -298,6 +298,7 @@ body {
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   max-height: calc(100vh - 260px);
   overflow-y: auto;
@@ -606,7 +607,54 @@ body {
   color: var(--text-light);
 }
 
-.filter-bar {
+.role-filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.role-filter-btn {
+  flex: 0 0 calc(25% - 6px);
+  min-width: 90px;
+  padding: 10px 6px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: var(--transition);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.role-filter-btn:hover {
+  background: var(--gray-light);
+}
+
+.role-filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.role-filter-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.role-filter-bar::-webkit-scrollbar-thumb {
+  background: var(--gray-light);
+  border-radius: 2px;
+}
   background: white;
   padding: 16px;
   border-radius: var(--border-radius);
@@ -1310,6 +1358,16 @@ body {
   }
   .item-list {
     max-height: calc(100vh - 240px);
+  }
+  .role-filter-bar {
+    gap: 4px;
+  }
+  .role-filter-btn {
+    flex: 0 0 calc(50% - 4px);
+    min-width: 90px;
+    padding: 8px 4px;
+    font-size: 12px;
+    min-height: 44px;
   }
   .modal-content {
     padding: 16px;

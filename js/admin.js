@@ -7,6 +7,7 @@ class AdminPanel {
     this.employees = [];
     this._createClientDebounce = null;
     this._createEmployeeDebounce = null;
+    this.roleFilter = '';
     this.init();
   }
 
@@ -96,8 +97,13 @@ class AdminPanel {
     document.getElementById('employeeSearch').addEventListener('input', (e) => {
       this.renderEmployeeList(e.target.value);
     });
-    document.getElementById('employeeRoleFilter').addEventListener('change', (e) => {
-      this.renderEmployeeList(document.getElementById('employeeSearch').value, e.target.value);
+    document.querySelectorAll('#employeeRoleFilterBar .role-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#employeeRoleFilterBar .role-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.roleFilter = btn.dataset.role;
+        this.renderEmployeeList(document.getElementById('employeeSearch').value);
+      });
     });
 
     document.getElementById('addClientBtn').addEventListener('click', () => this.showClientForm());
@@ -205,22 +211,21 @@ class AdminPanel {
     }).join('');
   }
 
-  renderEmployeeList(filter, roleFilter) {
+  renderEmployeeList(filter) {
     const list = document.getElementById('employeeList');
     let items = this.employees;
+    if (this.roleFilter) {
+      const roleTerm = this.roleFilter.toLowerCase();
+      items = items.filter(e => {
+        const loma = String(e.loma || e.Loma || '').toLowerCase();
+        return loma === roleTerm || loma.includes(roleTerm);
+      });
+    }
     if (filter) {
       const term = filter.toLowerCase();
       items = items.filter(e => {
         const name = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).toLowerCase();
         return name.includes(term);
-      });
-    }
-    if (roleFilter) {
-      const roleTerm = roleFilter.toLowerCase();
-      items = items.filter(e => {
-        const loma = String(e.loma || e.Loma || '').toLowerCase();
-        return loma.includes(roleTerm) ||
-               loma.includes(roleTerm.substring(0, roleTerm.length - 1));
       });
     }
 
