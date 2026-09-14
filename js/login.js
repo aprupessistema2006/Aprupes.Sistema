@@ -330,15 +330,25 @@ class LoginController {
       });
     }
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+      const term = this._normalizeForSearch(searchTerm);
       result = result.filter(e => {
-        const v = (e.vards || e.Vārds || '').toLowerCase();
-        const u = (e.uzvards || e.Uzvārds || '').toLowerCase();
-        const l = (e.loma || e.Loma || '').toLowerCase();
+        const v = this._normalizeForSearch(e.vards || e.Vārds || '');
+        const u = this._normalizeForSearch(e.uzvards || e.Uzvārds || '');
+        const l = this._normalizeForSearch(e.loma || e.Loma || '');
         return v.includes(term) || u.includes(term) || l.includes(term);
       });
     }
     this.filteredEmployees = [...result];
+  }
+
+  // Nozīmē diakritiskos zīmes, lai meklēšana darbotos arī bez diakritikas
+  // (piem., "Janis" atrada "Jānis", "Berzin" atrada "Bērziņš")
+  _normalizeForSearch(s) {
+    if (!s) return '';
+    return String(s)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
   }
 
   filterByRole(role) {

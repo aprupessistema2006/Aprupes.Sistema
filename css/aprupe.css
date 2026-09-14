@@ -550,6 +550,56 @@ body {
   font-weight: 600;
 }
 
+/* Paziņojumu logs (toast) — augšpusē, neaizsedz darba zonu */
+.toast {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translate(-50%, -120%);
+  background: var(--primary);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 1050;
+  pointer-events: none;
+  max-width: 90vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.toast.success {
+  background: var(--accent);
+}
+
+.toast.error {
+  background: var(--danger);
+}
+
+.toast.warning {
+  background: var(--warning);
+  color: #2c3e50;
+}
+
+/* Pārlādēšanas paziņojums */
+#statusMessage {
+  text-align: center;
+  font-size: 13px;
+  color: #7f8c8d;
+  margin-top: 16px;
+  min-height: 18px;
+}
+
 .logout-buttons {
   display: flex;
   gap: 10px;

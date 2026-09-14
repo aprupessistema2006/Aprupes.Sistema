@@ -277,6 +277,60 @@ class CareSync {
     } catch (e) {}
   }
 
+  _collectLocalCompletions() {
+    // Saglabā vietējos uzdevumu pabeigšanas statusus, pirms DB tīrīšanas.
+    // Tādējādi pabeigšana netiek zaudēta, ja sinhronizācija neizdodas
+    // vai Google Sheets atgriež vecus datus.
+    return this.db.getAll('uzdevomi').then((all) => {
+      if (!all || !all.length) return {};
+      const map = {};
+      all.forEach(t => {
+        const id = String(t.id || t.ID);
+        if (!id) return;
+        const done = t.irPabeigts === true || t.irPabeigts === 'TRUE' || t.irPabeigts === 'true' || t.irPabeigts === 1 || t.irPabeigts === '1';
+        if (done) {
+          map[id] = {
+            irPabeigts: true,
+            statuss: t.statuss || 'pabeigts',
+            pabeigtsLaiks: t.pabeigtsLaiks || null,
+            pabeigtajsId: t.pabeigtajsId || null
+          };
+        }
+      });
+      return map;
+    }).catch((e) => {
+      console.warn('[sync] _collectLocalCompletions kļūda', e);
+      return {};
+    });
+  }
+
+  _applyLocalCompletions(completions) {
+    if (!completions || !Object.keys(completions).length) return Promise.resolve();
+    return this.db.getAll('uzdevomi').then((all) => {
+      if (!all) return;
+      let changed = false;
+      all.forEach(t => {
+        const id = String(t.id || t.ID);
+        const c = completions[id];
+        if (!c) return;
+        const remoteDone = t.irPabeigts === true || t.irPabeigts === 'TRUE' || t.irPabeigts === 'true' || t.irPabeigts === 1 || t.irPabeigts === '1';
+        if (!remoteDone) {
+          t.irPabeigts = true;
+          t.statuss = c.statuss || 'pabeigts';
+          if (c.pabeigtsLaiks) t.pabeigtsLaiks = c.pabeigtsLaiks;
+          if (c.pabeigtajsId) t.pabeigtajsId = c.pabeigtajsId;
+          this.db.put('uzdevomi', t);
+          changed = true;
+        }
+      });
+      if (changed) {
+        console.log('[sync] atjaunoti lokālie pabeigšanas statusi pēc ielādes');
+      }
+    }).catch((e) => {
+      console.warn('[sync] _applyLocalCompletions kļūda', e);
+    });
+  }
+
   async loadInitialData(onProgress) {
     if (this._loading) {
       return { offline: true, error: 'Sinhronizācija jau notiek', count: {} };
@@ -286,6 +340,8 @@ class CareSync {
     onProgress = onProgress || function() {};
     try {
       const allStores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue'];
+      // Pirms tīrīšanas saglabājam vietējos pabeigšanas statusus
+      const localCompletions = await this._collectLocalCompletions();
       onProgress('Dzēšu visus vietējos datus...');
       for (const store of allStores) {
         await this.db.clear(store);
@@ -321,10 +377,14 @@ class CareSync {
       }
 
       await this.db.setMeta('lastSync', Date.now());
+      // Atjauno lokāli pabeigtos uzdevumus, ja serveris tos atgrieza kā nepabeigtus
+      await this._applyLocalCompletions(localCompletions);
       this._updateSyncStatus('Saglabāts');
       onProgress('✓ Dati veiksmīgi ielādēti');
       return { offline: false, count: counts };
     } catch (err) {
+      // Atjauno lokāli pabeigtos uzdevumus, jo tika iztīrīti pirms neveiksmīgas mēģinājuma
+      await this._applyLocalCompletions(localCompletions);
       this._updateSyncStatus('Bezsaistē');
       onProgress('⚠️ Neizdevās ielādēt datus: ' + err.message);
       return { offline: true, error: err.message, count: {} };
