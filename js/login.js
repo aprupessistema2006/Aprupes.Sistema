@@ -12,6 +12,7 @@ class LoginController {
   }
 
   async init() {
+    localStorage.clear();
     this.db = new CareDB();
     await this.db.init();
     window.careDB = this.db;
