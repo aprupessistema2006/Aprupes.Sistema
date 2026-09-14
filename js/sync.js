@@ -293,7 +293,7 @@ class CareSync {
 
       onProgress('Ielādēju datus no servera...');
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const data = await requestData(url, 10000);
+      const data = await requestData(url, 20000);
 
       if (data.error) {
         throw new Error(data.error);

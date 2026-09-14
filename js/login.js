@@ -74,13 +74,27 @@ class LoginController {
 
     showLoading('Ielādēju datus no Google...');
     try {
-      await this.sync.loadInitialData((msg) => {
+      const syncResult = await this.sync.loadInitialData((msg) => {
         showLoading(msg);
       });
-      if (statusMsg) statusMsg.textContent = '✓ Savienojums ar Google aktīvs';
-      document.body.classList.add('online');
+      if (syncResult && syncResult.offline) {
+        if (statusMsg) {
+          statusMsg.textContent = '⚠️ ' + (syncResult.error || 'Nav savienojuma ar Google Sheets');
+          statusMsg.style.color = '#e74c3c';
+        }
+        document.body.classList.remove('online');
+      } else {
+        if (statusMsg) {
+          statusMsg.textContent = '✓ Savienojums ar Google aktīvs';
+          statusMsg.style.color = '#27ae60';
+        }
+        document.body.classList.add('online');
+      }
     } catch (e) {
-      if (statusMsg) statusMsg.textContent = '⚠️ Neizdevās ielādēt no Google. Iegūstu lokāli...';
+      if (statusMsg) {
+        statusMsg.textContent = '⚠️ Neizdevās ielādēt no Google Sheets';
+        statusMsg.style.color = '#e74c3c';
+      }
     }
 
     hideLoading();
