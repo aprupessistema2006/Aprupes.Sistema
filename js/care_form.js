@@ -19,6 +19,23 @@ class CareFormController {
     return 'V';
   }
 
+  getSignatureShift() {
+    const now = new Date();
+    const hour = now.getHours();
+    const shiftType = String(this.currentUser?.shiftType || '').toLowerCase();
+    const isDiennakts = shiftType === 'diennakts';
+    
+    if (!isDiennakts) return this.currentShift;
+    
+    // Night shift (diennakts) workers: 19:00-07:00
+    // 19:00-23:59 -> V (start of night shift)
+    // 00:00-06:59 -> R (end of night shift)
+    // 07:00-18:59 -> not night shift time, but could be R if signing late
+    if (hour >= 19) return 'V';
+    if (hour < 7) return 'R';
+    return 'R'; // Default to R for 07:00-18:59
+  }
+
   setupShiftAutoUpdate() {
     const applyShift = () => {
       const detected = this.detectCurrentShift();
@@ -101,6 +118,7 @@ class CareFormController {
       this.updateTeamSummary();
       this.renderQuickTotals();
       this.renderTaskBanner();
+      this.renderTasksTable();
     });
 
     this.setupLanguageSwitcher();
@@ -126,7 +144,8 @@ class CareFormController {
         this.updateTeamSummary();
         this.renderQuickTotals();
         this.renderTaskBanner();
-        this.toast('⚠️ Dati nav iespējams ielādēt no servera. Iegūstamie dati ir tukši. Pārbaudiet savienotspēju.', 4000);
+        this.renderTasksTable();
+        this.toast(t('dataLoadFailed'), 4000);
       } else {
         await Promise.all([
           this.loadClient(),
@@ -140,11 +159,12 @@ class CareFormController {
         this.updateTeamSummary();
         this.renderQuickTotals();
         this.renderTaskBanner();
-        this.toast('✓ Dati sinhronizēti ar serveri');
+        this.renderTasksTable();
+        this.toast(t('dataSynced'));
       }
     } catch (e) {
       console.error(e);
-      this.toast('⚠️ Nepilicīgi dati: ' + (e.message || 'Nezināma kļūda'), 4000);
+      this.toast(t('partialData') + (e.message || 'Nezināma kļūda'), 4000);
     } finally {
       if (overlay) overlay.style.display = 'none';
     }
@@ -181,12 +201,132 @@ class CareFormController {
         btn.disabled = true;
         btn.textContent = '⏳ Saglabā...';
         await window.TaskManager.complete(taskId, this.currentUser.id);
-        this.toast('✓ Uzdevums atzīmēts kā izdarīts');
+        this.toast(t('taskMarkedDone'));
         await this.renderTaskBanner();
+        await this.renderTasksTable();
         await this.loadHistory();
         this.renderHistory();
       });
     });
+  }
+
+  async renderTasksTable() {
+    const tbody = document.getElementById('tasksTableBody');
+    if (!tbody || !window.TaskManager || !this.currentUser) return;
+    await window.TaskManager.loadAll();
+    const activeTasks = window.TaskManager.getActiveForEmployee(this.currentUser.id, this.clientId);
+
+    // Also show completed tasks for this client
+    const allTasks = window.TaskManager.tasks || [];
+    const completedTasks = allTasks.filter(t => {
+      const done = t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE';
+      const taskClient = String(t.klientsId || t.clientId || '');
+      return done && taskClient === String(this.clientId);
+    }).sort((a, b) => {
+      const da = new Date(b.pabeigtsLaiks || 0).getTime();
+      const db = new Date(a.pabeigtsLaiks || 0).getTime();
+      return da - db;
+    });
+
+    const allDisplayTasks = [...activeTasks, ...completedTasks];
+
+    if (allDisplayTasks.length === 0) {
+      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="6" class="loading" data-i18n="noRecords">Nav uzdevumu</td></tr>';
+      if (typeof applyLanguage === 'function') applyLanguage();
+      return;
+    }
+
+    // Get client names
+    const clients = await this.db.getAll('klienti');
+    const clientMap = {};
+    clients.forEach(c => {
+      const id = c.id || c.ID;
+      const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim();
+      clientMap[String(id)] = name;
+    });
+
+    const formatDateTime = (isoString) => {
+      if (!isoString) return '';
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0') + ' ' +
+        String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0');
+    };
+
+    const formatDate = (isoString) => {
+      if (!isoString) return '';
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    };
+
+    const isOverdue = (deadline) => {
+      if (!deadline) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const d = new Date(deadline);
+      d.setHours(0, 0, 0, 0);
+      return d < today;
+    };
+
+    const isToday = (deadline) => {
+      if (!deadline) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const d = new Date(deadline);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() === today.getTime();
+    };
+
+    tbody.innerHTML = allDisplayTasks.map(t => {
+      const done = t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE';
+      const created = formatDateTime(t.izveidots);
+      const deadline = t.termins;
+      const clientId = t.klientsId || t.clientId;
+      const clientName = clientId ? (clientMap[String(clientId)] || 'ID: ' + clientId) : t('taskNoClient');
+      const priority = (t.prioritate || 'videja').toLowerCase();
+      const priorityLabels = { augsta: 'Augsta', videja: 'Vidēja', zema: 'Zema', high: 'Augsta', medium: 'Vidēja', low: 'Zema' };
+      const priorityLabel = priorityLabels[priority] || priority;
+      const overdue = isOverdue(deadline) && !done;
+      const today = isToday(deadline) && !done;
+      const rowClass = done ? 'task-completed' : (overdue ? 'task-overdue' : (today ? 'task-today' : ''));
+      const btnText = done ? t('taskMarkDoneDone') : t('taskMarkDone');
+      const btnDisabled = done ? 'disabled' : '';
+      const btnClass = done ? 'completed' : '';
+      return `
+        <tr class="${rowClass}">
+          <td>${this.escapeHtml(created)}</td>
+          <td><span class="task-priority ${priority}">${this.escapeHtml(priorityLabel)}</span></td>
+          <td class="task-deadline">${this.escapeHtml(formatDate(deadline))}${overdue ? ' ⏰' : (today ? ' 📅' : '')}</td>
+          <td class="task-client ${clientId ? '' : 'empty'}">${this.escapeHtml(clientName)}</td>
+          <td class="task-description" title="${this.escapeHtml(t.teksts || '')}">${this.escapeHtml(t.teksts || '')}</td>
+          <td><button class="task-complete-btn ${btnClass}" data-task-id="${t.id}" ${btnDisabled}>${btnText}</button></td>
+        </tr>
+      `;
+    }).join('');
+
+    // Attach event listeners
+    tbody.querySelectorAll('.task-complete-btn:not(.completed)').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const taskId = btn.dataset.taskId;
+        btn.disabled = true;
+        btn.textContent = '⏳ Saglabā...';
+        await window.TaskManager.complete(taskId, this.currentUser.id);
+        this.toast(t('taskMarkedDone'));
+        await this.renderTaskBanner();
+        await this.renderTasksTable();
+        await this.loadHistory();
+        this.renderHistory();
+      });
+    });
+
+    if (typeof applyLanguage === 'function') applyLanguage();
   }
 
   updateTeamSummary() {
@@ -288,7 +428,7 @@ class CareFormController {
     }
     if (!this.client) {
       console.warn('[care_form] client not found for id:', this.clientId);
-      this.toast('Klients nav atrasts');
+      this.toast(t('clientNotFound'));
       setTimeout(() => window.location.href = 'aprupe.html', 1500);
       return;
     }
@@ -547,7 +687,7 @@ class CareFormController {
           tempEl.className = 'cat-status completed';
         }
       } else {
-        tempEl.textContent = 'Nav mērīts';
+        tempEl.textContent = t('tempNotMeasured');
         tempEl.className = 'cat-status';
       }
     }
@@ -557,13 +697,13 @@ class CareFormController {
     const higienaEl = document.getElementById('status-higiena');
     if (higienaEl) {
       if (higienaDone === higienaFields.length) {
-        higienaEl.textContent = '✓ Viss pabeigts';
+        higienaEl.textContent = t('hygieneAllDone');
         higienaEl.className = 'cat-status completed';
       } else if (higienaDone > 0) {
         higienaEl.textContent = higienaDone + ' / ' + higienaFields.length;
         higienaEl.className = 'cat-status';
       } else {
-        higienaEl.textContent = 'Nav sākts';
+        higienaEl.textContent = t('hygieneNotStarted');
         higienaEl.className = 'cat-status';
       }
     }
@@ -573,13 +713,13 @@ class CareFormController {
     const aktEl = document.getElementById('status-aktivitate');
     if (aktEl) {
       if (aktDone === aktFields.length) {
-        aktEl.textContent = '✓ Viss pabeigts';
+        aktEl.textContent = t('activityAllDone');
         aktEl.className = 'cat-status completed';
       } else if (aktDone > 0) {
         aktEl.textContent = aktDone + ' / ' + aktFields.length;
         aktEl.className = 'cat-status';
       } else {
-        aktEl.textContent = 'Nav sākts';
+        aktEl.textContent = t('activityNotStarted');
         aktEl.className = 'cat-status';
       }
     }
@@ -589,13 +729,13 @@ class CareFormController {
     const edinEl = document.getElementById('status-edinasana');
     if (edinEl) {
       if (edinDone === edinFields.length) {
-        edinEl.textContent = '✓ Visas ēdienreizes';
+        edinEl.textContent = t('mealsAllDone');
         edinEl.className = 'cat-status completed';
       } else if (edinDone > 0) {
         edinEl.textContent = edinDone + ' / ' + edinFields.length;
         edinEl.className = 'cat-status';
       } else {
-        edinEl.textContent = 'Nav sākts';
+        edinEl.textContent = t('mealsNotStarted');
         edinEl.className = 'cat-status';
       }
     }
@@ -607,7 +747,7 @@ class CareFormController {
         h2oEl.innerHTML = '✓ ' + uznemts.value + ' ml' + lastByFor(uznemts);
         h2oEl.className = 'cat-status completed';
       } else {
-        h2oEl.textContent = 'Nav ieraksta';
+        h2oEl.textContent = t('fluidNoRecord');
         h2oEl.className = 'cat-status';
       }
     }
@@ -619,7 +759,7 @@ class CareFormController {
         urinaEl.innerHTML = '✓ ' + urins.value + ' ml' + lastByFor(urins);
         urinaEl.className = 'cat-status completed';
       } else {
-        urinaEl.textContent = 'Nav ieraksta';
+        urinaEl.textContent = t('urineNoRecord');
         urinaEl.className = 'cat-status';
       }
     }
@@ -631,7 +771,7 @@ class CareFormController {
         fizEl.innerHTML = '✓ ' + fizMark.value + lastByFor(fizMark);
         fizEl.className = 'cat-status completed';
       } else {
-        fizEl.textContent = 'Nav ieraksta';
+        fizEl.textContent = t('stoolNoRecord');
         fizEl.className = 'cat-status';
       }
     }
@@ -643,7 +783,7 @@ class CareFormController {
         diapersEl.innerHTML = '✓ ' + autins.value + ' maiņas' + lastByFor(autins);
         diapersEl.className = 'cat-status completed';
       } else {
-        diapersEl.textContent = 'Nav maiņu';
+        diapersEl.textContent = t('diaperNoChange');
         diapersEl.className = 'cat-status';
       }
     }
@@ -652,10 +792,10 @@ class CareFormController {
     const adaEl = document.getElementById('status-ada');
     if (adaEl) {
       if (markAda && markAda.value === 'X') {
-        adaEl.textContent = '✓ Veikta';
+        adaEl.textContent = t('skinCareDone');
         adaEl.className = 'cat-status completed';
       } else {
-        adaEl.textContent = 'Nav veikta';
+        adaEl.textContent = t('skinCareNotDone');
         adaEl.className = 'cat-status';
       }
     }
@@ -664,10 +804,10 @@ class CareFormController {
     const pastaigaEl = document.getElementById('status-pastaiga');
     if (pastaigaEl) {
       if (markPastaiga && markPastaiga.value === 'X') {
-        pastaigaEl.textContent = '✓ Bijusi';
+        pastaigaEl.textContent = t('walkDone');
         pastaigaEl.className = 'cat-status completed';
       } else {
-        pastaigaEl.textContent = 'Nav bijis';
+        pastaigaEl.textContent = t('walkNotDone');
         pastaigaEl.className = 'cat-status';
       }
     }
@@ -679,7 +819,7 @@ class CareFormController {
         cieminiEl.innerHTML = '✓ ' + markCiemini.value + lastByFor(markCiemini);
         cieminiEl.className = 'cat-status completed';
       } else {
-        cieminiEl.textContent = 'Nav ieraksta';
+        cieminiEl.textContent = t('visitorsNoRecord');
         cieminiEl.className = 'cat-status';
       }
     }
@@ -1109,7 +1249,7 @@ class CareFormController {
           if (input && input.value) {
             this.handleNumberChange('temp', 'temperatura', input.value, this.currentShift);
           } else {
-            this.toast('Ievadiet temperatūras vērtību');
+            this.toast(t('enterTemperature'));
           }
         } else if (type === 'fiziologija') {
           this.handleFiziologijaSubmit();
@@ -1146,14 +1286,22 @@ class CareFormController {
     try {
       if (field === 'urina_daudzums') {
         const val = urinsInput ? urinsInput.value : '';
-        if (val === '') { this.toast('Ievadiet urīna daudzumu'); return; }
-        const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', val, this.currentShift);
+        if (val === '') { this.toast(t('enterUrineAmount')); return; }
+        const enteredVal = parseFloat(val);
+        const existing = this.marks.get(this.currentShift + '|sikdrumi|urina_daudzums');
+        const currentTotal = existing ? parseFloat(existing.value) || 0 : 0;
+        const newTotal = currentTotal + enteredVal;
+        const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', String(newTotal), this.currentShift);
         if (!result) return;
         if (urinsInput) urinsInput.value = '';
       } else if (field === 'uznemts_ml') {
         const val = uznemtsInput ? uznemtsInput.value : '';
-        if (val === '') { this.toast('Ievadiet uznemto šķidruma daudzumu'); return; }
-        const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', val, this.currentShift);
+        if (val === '') { this.toast(t('enterFluidAmount')); return; }
+        const enteredVal = parseFloat(val);
+        const existing = this.marks.get(this.currentShift + '|sikdrumi|uznemts_ml');
+        const currentTotal = existing ? parseFloat(existing.value) || 0 : 0;
+        const newTotal = currentTotal + enteredVal;
+        const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', String(newTotal), this.currentShift);
         if (!result) return;
         if (uznemtsInput) uznemtsInput.value = '';
       } else {
@@ -1165,7 +1313,7 @@ class CareFormController {
       this.renderHistory();
       this.loadAllClientMarks().then(() => this.renderHistory()).catch(() => {});
       this.closeCategoryModal();
-      this.toast('✓ Šķidrums saglabāts');
+      this.toast(t('fluidSaved'));
     } finally {
       this._processing.delete('sikdrumi_submit');
     }
@@ -1196,7 +1344,7 @@ class CareFormController {
   async handleFiziologijaSubmit() {
     const selected = document.querySelector('.fiziologija-select.selected');
     if (!selected) {
-      this.toast('Izvēlieties vērtību');
+      this.toast(t('selectValue'));
       return;
     }
     const value = selected.dataset.value;
@@ -1313,14 +1461,14 @@ class CareFormController {
       const newCount = currentCount + 1;
 
       if (newCount > 99) {
-        this.toast('Pārāk daudz maiņu (maksimums 99)');
+        this.toast(t('tooManyDiaperChanges'));
         return;
       }
 
-      if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
-        const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
-        this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
-      }
+if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
+      const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
+      this.toast(t('recordModifiedBy') + otherName);
+    }
 
       btn.classList.add('pulse');
       setTimeout(() => btn.classList.remove('pulse'), 300);
@@ -1360,9 +1508,9 @@ class CareFormController {
       }
       this.history.unshift(logEntry);
 
-      this.toast('✓ Maiņa pievienota (' + newCount + ')');
+      this.toast(t('diaperChangeAdded') + newCount + ')');
       this.updateCategoryStatuses();
-      this.openCategoryModal('diapers');
+      this.closeCategoryModal();
       this.renderTaskBanner();
       this.renderQuickTotals();
       this.renderHistory();
@@ -1427,7 +1575,7 @@ class CareFormController {
     this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
-    this.toast('✓ Saglabāts');
+    this.toast(t('saved'));
   }
 
   async handleNumberChange(category, field, value, shiftOverride) {
@@ -1436,14 +1584,14 @@ class CareFormController {
     if (category === 'temp') {
       const v = parseFloat(value);
       if (isNaN(v) || v < 30 || v > 45) {
-        this.toast('Temperatūra jābūt no 30 līdz 45°C');
+        this.toast(t('temperatureRange'));
         return;
       }
     }
     if (category === 'sikdrumi') {
       const v = parseFloat(value);
       if (isNaN(v) || v < 0 || v > 10000) {
-        this.toast('Vērtība nedrīkst būt negatīva vai pārāk liela');
+        this.toast(t('valueNotNegative'));
         return;
       }
     }
@@ -1452,7 +1600,7 @@ class CareFormController {
     const existing = this.marks.get(key);
     if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
-      this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
+      this.toast(t('recordModifiedBy') + otherName);
     }
     
     const result = await this.saveMark({
@@ -1465,7 +1613,7 @@ class CareFormController {
       type: existing ? 'Labots' : 'Jauns'
     });
     if (!result) return;
-    this.toast('✓ Saglabāts');
+    this.toast(t('saved'));
     this.renderTaskBanner();
     this.renderQuickTotals();
     this.renderHistory();
@@ -1484,7 +1632,8 @@ class CareFormController {
       const today = this.getToday();
       const now = new Date();
       const timeStr = now.toTimeString().split(' ')[0];
-      const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
+      // Use UTC ISO string for unambiguous timestamp
+      const nowUTC = now.toISOString();
 
       const id = this.db.generateId();
 
@@ -1497,7 +1646,7 @@ class CareFormController {
         category: data.category,
         field: data.field,
         value: data.value,
-        lastModified: nowISO,
+        lastModified: nowUTC,
         lastBy: this.currentUser.id
       };
 
@@ -1519,7 +1668,7 @@ class CareFormController {
         value: data.value,
         prevValue: data.prevValue,
         type: data.type,
-        created: nowISO
+        created: nowUTC
       };
       await this.db.add('atzimes_log', logEntry);
 
@@ -1536,6 +1685,8 @@ class CareFormController {
           field: data.field,
           value: data.value,
           reason: data.type === 'Labots' ? 'Labots' : null,
+          // Sūtām UTC timestamp backendam
+          lastModified: nowUTC,
           actionId: 'mark_' + data.clientId + '_' + data.shift + '_' + data.category + '_' + data.field + '_' + today + '_' + (this.currentUser.id || '')
         }
       });
@@ -1627,19 +1778,19 @@ class CareFormController {
     const isDiennakts = userRole === 'aprupetajs' && shiftType === 'diennakts';
     const isAdmin = userRole === 'administrators' || this.adminMode;
     const canSign = isDiennakts || isAdmin;
-    const currentShift = this.currentShift;
+    const signatureShift = this.currentShift;
     const today = this.getToday();
 
     const signatureForShift = this.history.find(h => {
       return h.category === 'paraksts' &&
         h.field === 'aprupetaja_paraksts' &&
-        h.shift === currentShift &&
+        h.shift === signatureShift &&
         this.extractDateFromAnyField(h) === today;
     });
     const signatureAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
 
     const signature = signatureForShift || signatureAny;
-    const shiftLabel = currentShift === 'V' ? 'Vakars' : 'Rīts';
+    const shiftLabel = signatureShift === 'V' ? 'Vakars' : 'Rīts';
 
     if (signature) {
       const actor = this.empMap[signature.employeeId] || 'Nezināms';
@@ -1648,21 +1799,21 @@ class CareFormController {
       const adminNote = this.currentUser._adminOverride ? ' (ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ')' : '';
 
       if (signatureForShift && isAdmin) {
-        signBtn.textContent = '🔄 Admin: Pārparakstīt';
+        signBtn.textContent = t('signAdminRewriteBtn');
       } else if (signatureForShift) {
-        signBtn.textContent = '✓ Parakstīts ' + shiftLabel;
+        signBtn.textContent = t('signSignedBtn') + shiftLabel;
       } else if (isAdmin) {
-        signBtn.textContent = '🔄 Admin: Cita maiņa';
+        signBtn.textContent = t('signAdminOtherBtn');
       } else {
-        signBtn.textContent = '✓ Cita maiņa';
+        signBtn.textContent = t('signOtherBtn');
       }
 
       signBtn.classList.add('signed');
       signBtn.disabled = !isAdmin && signatureForShift;
-      signedBy.textContent = (signatureForShift ? shiftLabel + ' paraksts: ' : 'Cita maiņa: ') + who + adminNote + ' (' + time + ')';
+      signedBy.textContent = (signatureForShift ? shiftLabel + ' ' + t('signature') + ': ' : t('signOtherShift') + ': ') + who + adminNote + ' (' + time + ')';
       signedBy.style.display = 'block';
     } else {
-      signBtn.textContent = isAdmin ? '✍️ Admin paraksts' : '✍️ Parakstīties ' + shiftLabel;
+      signBtn.textContent = isAdmin ? t('signAdminRewriteBtn') : t('signSignedBtn') + shiftLabel;
       signBtn.classList.remove('signed');
       signBtn.disabled = !canSign;
       signedBy.style.display = 'none';
@@ -1680,24 +1831,26 @@ class CareFormController {
       const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
       const isAdmin = userRole === 'administrators' || this.adminMode;
       if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && !isAdmin) {
-        this.toast('Tikai aprūpētāji var parakstīties');
+        this.toast(t('onlyCaregiversCanSign'));
         return;
       }
       if (shiftType !== 'diennakts' && !isAdmin) {
-        this.toast('Tikai diennakts darbinieki var parakstīties');
+        this.toast(t('onlyNightShiftCanSign'));
         return;
       }
 
       const today = this.getToday();
       const now = new Date();
       const timeStr = now.toTimeString().split(' ')[0];
-      const nowISO = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + 'T' + timeStr;
-      const currentShift = this.currentShift;
+      // Use UTC ISO string for unambiguous timestamp
+      const nowUTC = now.toISOString();
+      const signatureShift = this.getSignatureShift();
+      const shiftLabel = signatureShift === 'R' ? 'Rīts' : 'Vakars';
 
       const existingForShift = this.history.find(h => {
         return h.category === 'paraksts' &&
           h.field === 'aprupetaja_paraksts' &&
-          h.shift === currentShift &&
+          h.shift === signatureShift &&
           this.extractDateFromAnyField(h) === today;
       });
       const existingAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
@@ -1705,27 +1858,27 @@ class CareFormController {
       const isDuplicate = !!existingForShift;
 
       if (isDuplicate && !isAdmin) {
-        this.toast((currentShift === 'R' ? 'Rīts' : 'Vakars') + ': jau ir parakstīts');
+        this.toast(shiftLabel + ': ' + t('alreadySigned'));
         return;
       }
 
       const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
-      const adminNote = this.currentUser._adminOverride ? ' [ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ']' : '';
+      const adminNote = this.currentUser._adminOverride ? t('adminOverridePrefix') + (this.currentUser._adminName || t('admins')) + ']' : '';
       const displayValue = signatureValue + adminNote;
       const mark = {
         id: existingAny ? existingAny.markId : this.db.generateId(),
         clientId: this.clientId,
         employeeId: this.currentUser.id,
         date: today,
-        shift: currentShift,
+        shift: signatureShift,
         category: 'paraksts',
         field: 'aprupetaja_paraksts',
         value: displayValue,
-        lastModified: nowISO,
+        lastModified: nowUTC,
         lastBy: this.currentUser.id
       };
 
-      const key = currentShift + '|paraksts|aprupetaja_paraksts';
+      const key = signatureShift + '|paraksts|aprupetaja_paraksts';
       this.marks.set(key, mark);
       await this.db.put('atzimes', mark);
 
@@ -1736,13 +1889,13 @@ class CareFormController {
         employeeId: this.currentUser.id,
         date: today,
         time: timeStr,
-        shift: currentShift,
+        shift: signatureShift,
         category: 'paraksts',
         field: 'aprupetaja_paraksts',
         value: displayValue,
         prevValue: existingAny ? existingAny.value : null,
-        type: isResign ? 'Labots' : 'Jauns',
-        created: nowISO
+        type: isResign ? t('rewritten') : 'Jauns',
+        created: nowUTC
       };
       await this.db.add('atzimes_log', logEntry);
 
@@ -1758,18 +1911,20 @@ class CareFormController {
           clientId: this.clientId,
           employeeId: this.currentUser.id,
           date: today,
-          shift: currentShift,
+          shift: signatureShift,
           category: 'paraksts',
           field: 'aprupetaja_paraksts',
           value: displayValue,
-          reason: isResign ? 'Pārparakstīts' : (this.currentUser._adminOverride ? 'Admin paraksts: ' + (this.currentUser._adminName || 'Administrators') : 'Diennakts paraksts'),
-          actionId: 'sign_' + (this.currentUser.id || '') + '_' + currentShift + '_' + today
+          reason: isResign ? t('rewritten') : (this.currentUser._adminOverride ? t('adminSignatureReason') + (this.currentUser._adminName || t('admins')) : t('nightShiftSignatureReason')),
+          // Sūtām UTC timestamp backendam
+          lastModified: nowUTC,
+          actionId: 'sign_' + (this.currentUser.id || '') + '_' + signatureShift + '_' + today
         }
       });
 
       this.renderSignature();
       this.updateCategoryStatuses();
-      this.toast(isResign ? '✓ Pārparakstīts' : '✓ Parakstīts');
+      this.toast(isResign ? t('resigned') : t('signed'));
     } finally {
       this._processing.delete('sign');
       setTimeout(() => {

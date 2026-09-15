@@ -134,9 +134,9 @@ class ControlPanel {
           });
           await this.loadData();
           this.renderAll();
-          this.toast('Dati atjaunināti');
+          this.toast(t('dataUpdated'));
         } catch (e) {
-          this.toast('Kļūda: ' + e.message);
+          this.toast(t('errorOccurred') + e.message);
         } finally {
           if (btn) btn.disabled = false;
           if (overlay) overlay.style.display = 'none';
@@ -154,7 +154,7 @@ class ControlPanel {
         try {
           await this.renderMonthView();
         } catch (e) {
-          this.toast('Kļūda: ' + e.message);
+          this.toast(t('errorOccurred') + e.message);
         } finally {
           renderMonthBtn.disabled = false;
         }
@@ -662,7 +662,7 @@ class ControlPanel {
         const prioritate = prioritateEl ? prioritateEl.value : '';
         const teksts = tekstsEl ? tekstsEl.value.trim() : '';
         if (!employeeId || !teksts || !termins) {
-          this.toast('Aizpildi darbinieku, termiņu un uzdevuma tekstu');
+          this.toast(t('fillEmployeeDeadlineTask'));
           if (submitBtn) { submitBtn.disabled = false; }
           return;
         }
@@ -676,7 +676,7 @@ class ControlPanel {
               prioritate: prioritate,
               izveidotajsId: this.currentUser.id
             });
-            this.toast('✓ Uzdevums nosūtīts');
+            this.toast(t('taskSent'));
             if (tekstsEl) tekstsEl.value = '';
             await this.renderTasksList();
           }
@@ -761,7 +761,7 @@ class ControlPanel {
         const id = btn.dataset.taskId;
         btn.disabled = true;
         await window.TaskManager.complete(id, this.currentUser.id);
-        this.toast('✓ Atzīmēts kā pabeigts');
+        this.toast(t('markedAsDone'));
         await this.renderTasksList();
       });
     });
@@ -770,7 +770,7 @@ class ControlPanel {
         const id = btn.dataset.taskId;
         btn.disabled = true;
         await window.TaskManager.reopen(id);
-        this.toast('Uzdevums atvērts atpakaļ');
+        this.toast(t('taskReopened'));
         await this.renderTasksList();
       });
     });
@@ -784,7 +784,7 @@ class ControlPanel {
 
   async exportExcel() {
     if (typeof XLSX === 'undefined' && typeof ExcelJS === 'undefined') {
-      this.toast('Excel bibliotēka nav ielādēta');
+      this.toast(t('excelLibNotLoaded'));
       return;
     }
     const monthEl = document.getElementById('exportMonth');
@@ -792,11 +792,11 @@ class ControlPanel {
     const monthVal = monthEl ? monthEl.value : '';
     const clientId = clientEl ? clientEl.value : '';
     if (!monthVal) {
-      this.toast('Izvēlieties mēnesi');
+      this.toast(t('selectMonth'));
       return;
     }
     if (!clientId) {
-      this.toast('Izvēlieties klientu');
+      this.toast(t('selectClient'));
       return;
     }
     const [y, m] = monthVal.split('-');
@@ -804,7 +804,7 @@ class ControlPanel {
     const month = parseInt(m);
     const client = this.allClients.find(c => String(c.id || c.ID) === String(clientId));
     if (!client) {
-      this.toast('Klients nav atrasts');
+      this.toast(t('clientNotFound'));
       return;
     }
 
@@ -831,10 +831,10 @@ class ControlPanel {
         return tb.localeCompare(ta);
       });
       const filename = await exporter.generateMonth(client, year, month, clientMarks);
-      this.toast('✓ Lejupielādejts: ' + filename);
+      this.toast(t('downloadComplete') + filename);
       if (overlay) overlay.style.display = 'none';
     } catch (err) {
-      this.toast('Eksporta kļūda: ' + err.message);
+      this.toast(t('exportError') + err.message);
       console.error(err);
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) overlay.style.display = 'none';
@@ -848,7 +848,7 @@ class ControlPanel {
     const clientId = clientEl ? clientEl.value : '';
     const container = document.getElementById('monthViewContainer');
     if (!monthVal || !clientId) {
-      this.toast('Izvēlieties mēnesi un klientu');
+      this.toast(t('selectMonthAndClient'));
       return;
     }
     const [y, m] = monthVal.split('-');
@@ -856,7 +856,7 @@ class ControlPanel {
     const month = parseInt(m);
     const client = this.allClients.find(c => String(c.id || c.ID) === String(clientId));
     if (!client) {
-      this.toast('Klients nav atrasts');
+      this.toast(t('clientNotFound'));
       return;
     }
 
@@ -973,6 +973,30 @@ class ControlPanel {
           html += `<td class="${rClass}${rFever}${rSig}">${this.escapeHtml(valR || '')}</td>`;
           html += `<td class="${vClass}${vFever}${vSig}">${this.escapeHtml(valV || '')}</td>`;
         }
+        html += '</tr>';
+      });
+
+      // Summary rows for numeric fields
+      const summaryFields = [
+        { category: 'sikdrumi', field: 'urina_daudzums', label: 'Kopā urīns (ml)' },
+        { category: 'sikdrumi', field: 'uznemts_ml', label: 'Kopā H2O (ml)' },
+        { category: 'citsi_pasakomi', field: 'autins_biksitu_skaits', label: 'Kopā autiņbikšu maiņas' }
+      ];
+
+      summaryFields.forEach(sf => {
+        let sumR = 0, sumV = 0;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dayData = dataByDay[day] || {};
+          const valR = dayData['R|' + sf.category + '|' + sf.field];
+          const valV = dayData['V|' + sf.category + '|' + sf.field];
+          if (valR && !isNaN(parseFloat(valR))) sumR += parseFloat(valR);
+          if (valV && !isNaN(parseFloat(valV))) sumV += parseFloat(valV);
+        }
+        html += `<tr class="summary-row"><td><strong>${this.escapeHtml(sf.label)}</strong></td>`;
+        for (let day = 1; day <= daysInMonth; day++) {
+          html += '<td class="empty"></td><td class="empty"></td>';
+        }
+        html += `<td class="summary-total" colspan="2"><strong>R: ${sumR} | V: ${sumV} | Σ: ${sumR + sumV}</strong></td>`;
         html += '</tr>';
       });
 

@@ -197,6 +197,32 @@ class ExcelExporter {
         }
       }
     }
+
+    // Summary rows for numeric fields
+    const summaryFields = [
+      { category: 'sikdrumi', field: 'urina_daudzums', label: 'Kopā urīns (ml)' },
+      { category: 'sikdrumi', field: 'uznemts_ml', label: 'Kopā H2O (ml)' },
+      { category: 'citsi_pasakomi', field: 'autins_biksitu_skaits', label: 'Kopā autiņbikšu maiņas' }
+    ];
+
+    let summaryRow = dataRowEnd + 2;
+    summaryFields.forEach(sf => {
+      let sumR = 0, sumV = 0;
+      for (let day = startDay; day <= endDay; day++) {
+        const dayData = dataByDay[day] || {};
+        const valR = dayData['R|' + sf.category + '|' + sf.field];
+        const valV = dayData['V|' + sf.category + '|' + sf.field];
+        if (valR && !isNaN(parseFloat(valR))) sumR += parseFloat(valR);
+        if (valV && !isNaN(parseFloat(valV))) sumV += parseFloat(valV);
+      }
+      const cellLabel = ws.getCell(`A${summaryRow}`);
+      cellLabel.value = sf.label;
+      cellLabel.font = { bold: true };
+      const cellTotal = ws.getCell(`B${summaryRow}`);
+      cellTotal.value = `R: ${sumR} | V: ${sumV} | Σ: ${sumR + sumV}`;
+      cellTotal.font = { bold: true };
+      summaryRow++;
+    });
   }
 }
 

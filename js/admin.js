@@ -293,7 +293,7 @@ class AdminPanel {
     const employeeId = employeeSelect ? employeeSelect.value : '';
 
     if (!clientId || !employeeId) {
-      this.toast('Izvēlies gan klientu, gan aprūpētāju');
+      this.toast(t('selectBothClientAndCaregiver'));
       return;
     }
 
@@ -442,7 +442,7 @@ class AdminPanel {
             (c.uzvards || c.Uzvārds) === (data.uzvards || '')
           );
           if (duplicate) {
-            this.toast('Klients ar šo vārdu un uzvārdu jau pastāv');
+            this.toast(t('clientAlreadyExists'));
             reject(new Error('Duplicate client'));
             return;
           }
@@ -459,7 +459,7 @@ class AdminPanel {
           this.renderClientList();
           this.renderDashboard();
           this.closeModal();
-          this.toast('Klients pievienots');
+          this.toast(t('clientAdded'));
           resolve(id);
         } catch (error) {
           reject(error);
@@ -496,7 +496,7 @@ class AdminPanel {
     await this.loadData();
     this.renderClientList();
     this.closeModal();
-    this.toast('Klients atjaunināts');
+    this.toast(t('clientUpdated'));
   }
 
   async toggleClient(id, newState) {
@@ -524,7 +524,7 @@ class AdminPanel {
 
   async createEmployee(data) {
     if (!data.pin || data.pin.length < 4) {
-      this.toast('PIN jābūt vismaz 4 cipariem');
+      this.toast(t('pinMin4Digits'));
       return;
     }
 
@@ -544,7 +544,7 @@ class AdminPanel {
             return eName === newName && eRole === newRole;
           });
           if (existing) {
-            this.toast('Darbinieks ar šo vārdu un lomu jau eksistē');
+            this.toast(t('employeeAlreadyExists'));
             reject(new Error('Duplicate employee'));
             return;
           }
@@ -563,7 +563,7 @@ class AdminPanel {
           this.renderEmployeeList();
           this.renderDashboard();
           this.closeModal();
-          this.toast('Darbinieks pievienots. PIN: ' + data.pin);
+          this.toast(t('employeeAdded') + data.pin);
           resolve(id);
         } catch (error) {
           reject(error);
@@ -588,7 +588,7 @@ class AdminPanel {
     await this.loadData();
     this.renderEmployeeList();
     this.closeModal();
-    this.toast('Darbinieks atjaunināts');
+    this.toast(t('employeeUpdated'));
   }
 
   async toggleEmployee(id, newState) {
@@ -614,10 +614,10 @@ class AdminPanel {
     this.showEmployeeForm(employee);
   }
 
-  async syncNow() {
-    this.toast('Sinhronizē...');
+async syncNow() {
+    this.toast(t('syncing'));
     await this.sync.sync();
-    await this.loadData();
+    this.toast(t('syncCompleted'));
     this.renderDashboard();
     this.toast('Sinhronizācija pabeigta');
   }
@@ -626,21 +626,21 @@ class AdminPanel {
     const result = document.getElementById('connectionResult');
     result.style.display = 'block';
     result.className = 'connection-result';
-    result.textContent = 'Pārbaudām...';
+    result.textContent = t('checkingConnection');
 
     try {
       const url = CONFIG.GAS_URL + '?action=load&t=' + Date.now();
       const data = await requestData(url, 10000);
       if (data) {
         result.className = 'connection-result success';
-        result.textContent = '✓ Savienojums ar Google Sheets ir aktīvs';
+        result.textContent = t('connectionActive');
       } else {
         result.className = 'connection-result error';
-        result.textContent = '✗ Tukša atbilde no servera';
+        result.textContent = t('emptyResponse');
       }
     } catch (err) {
       result.className = 'connection-result error';
-      result.textContent = '✗ Nav savienojuma: ' + err.message;
+      result.textContent = t('noConnection') + err.message;
     }
   }
 
@@ -657,21 +657,21 @@ class AdminPanel {
     });
 
     if (dupes.length === 0) {
-      this.toast('Dublikātu nav');
+      this.toast(t('noDuplicatesFound'));
     } else {
       const list = dupes.map(c => (c.vards || c.Vārds) + ' ' + (c.uzvards || c.Uzvārds)).join('\n');
-      alert('Atrasti dublikāti:\n' + list);
+      alert(t('duplicatesFound') + '\n' + list);
     }
   }
 
   async clearLocal() {
-    if (!confirm('Tiešām notīrīt visus lokālos datus?')) return;
+    if (!confirm(t('confirmClearLocal'))) return;
     await this.db.clear('klienti');
     await this.db.clear('atzimes');
     await this.db.clear('atzimes_log');
     await this.db.clear('darbinieki');
     await this.db.clear('sync_queue');
-    this.toast('Lokālie dati notīrīti');
+    this.toast(t('localDataCleared'));
     await this.loadData();
     this.renderClientList();
     this.renderEmployeeList();
@@ -690,7 +690,7 @@ class AdminPanel {
     link.href = URL.createObjectURL(blob);
     link.download = 'care_backup_' + new Date().toISOString().split('T')[0] + '.json';
     link.click();
-    this.toast('Rezerves kopija izveidota');
+    this.toast(t('backupCreated'));
   }
 
   openModal() {

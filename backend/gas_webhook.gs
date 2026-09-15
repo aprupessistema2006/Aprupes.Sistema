@@ -313,6 +313,30 @@ function handleMark(data) {
       ['lauka_nosaukums', m.field || '']
     ]);
 
+    // Parse timestamp from frontend (UTC ISO string) and convert to Europe/Riga
+    let lastModifiedRiga;
+    if (m.lastModified) {
+      const frontendTime = new Date(m.lastModified);
+      if (!isNaN(frontendTime.getTime())) {
+        lastModifiedRiga = Utilities.formatDate(frontendTime, TZ, 'HH:mm:ss');
+      }
+    }
+    if (!lastModifiedRiga) {
+      lastModifiedRiga = formatTimeOnly(new Date());
+    }
+
+    // Parse timestamp for log entry
+    let logDateTimeRiga;
+    if (m.lastModified) {
+      const frontendTime = new Date(m.lastModified);
+      if (!isNaN(frontendTime.getTime())) {
+        logDateTimeRiga = Utilities.formatDate(frontendTime, TZ, "yyyy-MM-dd'T'HH:mm:ss");
+      }
+    }
+    if (!logDateTimeRiga) {
+      logDateTimeRiga = formatDateTimeLV(new Date());
+    }
+
     if (existingMark) {
       const existingLog = findRow(logSheet, [
         ['atzimes_id', existingMark.data.id]
@@ -329,24 +353,23 @@ function handleMark(data) {
 
       // Ja vērtība atšķiras, atjaunojam esošo ierakstu un pievienojam žurnālā
       setCellValue(atzimesSheet, existingMark.row, 'vertiba', m.value);
-      setCellValue(atzimesSheet, existingMark.row, 'pedeja_laiks', m.lastModified || formatTimeOnly(new Date()));
+      setCellValue(atzimesSheet, existingMark.row, 'pedeja_laiks', lastModifiedRiga);
       if (m.actionId) setCellValue(atzimesSheet, existingMark.row, 'action_id', m.actionId);
       SpreadsheetApp.flush();
 
-      const now = new Date();
-      const logId = 'l_' + now.getTime() + Math.floor(Math.random() * 1000);
+      const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
       appendRow(logSheet, {
         id: logId,
         atzimes_id: existingMark.data.id,
         klients_id: m.clientId,
         darbinieks_id: m.employeeId,
-        datums: formatDate(now),
-        laiks: formatTimeOnly(now),
+        datums: formatDate(new Date()),  // log date is current date
+        laiks: lastModifiedRiga,  // use the timestamp from frontend
         periods: m.shift || 'R',
         kategorija: m.category,
         lauka_nosaukums: m.field,
         vertiba: m.value,
-        izveidots: formatDateTimeLV(now)
+        izveidots: logDateTimeRiga
       });
       SpreadsheetApp.flush();
 
@@ -366,7 +389,7 @@ function handleMark(data) {
       klients_id: m.clientId,
       darbinieks_id: m.employeeId,
       datums: m.date || formatDate(new Date()),
-      laiks: formatTimeOnly(new Date()),
+      laiks: lastModifiedRiga,  // use the timestamp from frontend
       periods: m.shift || 'R',
       kategorija: m.category,
       lauka_nosaukums: m.field,
@@ -375,19 +398,19 @@ function handleMark(data) {
     });
     SpreadsheetApp.flush();
 
-    const now = new Date();
+    const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
     appendRow(logSheet, {
-      id: 'l_' + now.getTime() + Math.floor(Math.random() * 1000),
+      id: logId,
       atzimes_id: id,
       klients_id: m.clientId,
       darbinieks_id: m.employeeId,
-      datums: formatDate(now),
-      laiks: formatTimeOnly(now),
+      datums: formatDate(new Date()),  // log date is current date
+      laiks: lastModifiedRiga,  // use the timestamp from frontend
       periods: m.shift || 'R',
       kategorija: m.category,
       lauka_nosaukums: m.field,
       vertiba: m.value,
-      izveidots: formatDateTimeLV(now)
+      izveidots: logDateTimeRiga
     });
     SpreadsheetApp.flush();
 
@@ -455,6 +478,17 @@ function handleCreateTask(data) {
 
     const id = 't_' + Date.now();
     // Jauns uzdevums: ierakstam ar action_id dubultās izveides novēršanai
+    // Convert UTC timestamp from frontend to Europe/Riga
+    let izveidotsRiga = '';
+    if (t.izveidots) {
+      const frontendTime = new Date(t.izveidots);
+      if (!isNaN(frontendTime.getTime())) {
+        izveidotsRiga = Utilities.formatDate(frontendTime, TZ, "yyyy-MM-dd'T'HH:mm:ss");
+      }
+    }
+    if (!izveidotsRiga) {
+      izveidotsRiga = formatDateTimeLV(new Date());
+    }
     appendRow(sheet, {
       id: id,
       teksts: t.teksts || '',
@@ -464,7 +498,7 @@ function handleCreateTask(data) {
       prioritate: t.prioritate || 'videja',
       statuss: t.statuss || 'jauns',
       pabeigts: t.irPabeigts === true || t.irPabeigts === 'true',
-      izveidots: t.izveidots || formatDateTimeLV(new Date()),
+      izveidots: izveidotsRiga,
       izveidotajs_id: t.izveidotajsId || '',
       pabeigts_laiks: t.pabeigtsLaiks || '',
       pabeigtajs_id: t.pabeigtajsId || '',
@@ -485,7 +519,17 @@ function handleUpdateTask(data) {
   if (!row) return { error: 'Uzdevums nav atrasts' };
   if (t.statuss !== undefined) setCellValue(sheet, row.row, 'statuss', t.statuss);
   if (t.irPabeigts !== undefined) setCellValue(sheet, row.row, 'pabeigts', t.irPabeigts === true || t.irPabeigts === 'true');
-  if (t.pabeigtsLaiks !== undefined) setCellValue(sheet, row.row, 'pabeigts_laiks', t.pabeigtsLaiks || '');
+  if (t.pabeigtsLaiks !== undefined) {
+    // Convert UTC ISO string from frontend to Europe/Riga timezone
+    let pabeigtsLaiksRiga = '';
+    if (t.pabeigtsLaiks) {
+      const frontendTime = new Date(t.pabeigtsLaiks);
+      if (!isNaN(frontendTime.getTime())) {
+        pabeigtsLaiksRiga = Utilities.formatDate(frontendTime, TZ, "yyyy-MM-dd'T'HH:mm:ss");
+      }
+    }
+    setCellValue(sheet, row.row, 'pabeigts_laiks', pabeigtsLaiksRiga || '');
+  }
   if (t.pabeigtajsId !== undefined) setCellValue(sheet, row.row, 'pabeigtajs_id', t.pabeigtajsId || '');
   return { success: true };
 }

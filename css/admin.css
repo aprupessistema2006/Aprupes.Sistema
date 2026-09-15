@@ -787,6 +787,21 @@ body {
   color: #f57f17;
   font-weight: 600;
 }
+.month-table .summary-row {
+  background: #f8f9fa;
+  border-top: 2px solid var(--border);
+}
+.month-table .summary-row td:first-child {
+  background: #f0f2f5;
+  font-weight: 600;
+}
+.month-table .summary-total {
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 700;
+  text-align: center;
+  padding: 8px;
+}
 
 .filter-row {
   display: flex;
@@ -1390,6 +1405,13 @@ body {
   }
   .month-table td:first-child {
     min-width: 90px;
+  }
+  .month-table .summary-row td {
+    padding: 6px 4px;
+  }
+  .month-table .summary-total {
+    font-size: 9px;
+    padding: 4px 2px;
   }
   .client-card {
     padding: 12px;

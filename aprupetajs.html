@@ -140,6 +140,29 @@
       </button>
     </div>
 
+    <section class="tasks-section" id="tasksSection">
+      <h3 class="tasks-section-title" data-i18n="taskTableTitle">📋 Uzdevumi</h3>
+      <div class="tasks-table-wrapper">
+        <table class="tasks-table" id="tasksTable">
+          <thead>
+            <tr>
+              <th data-i18n="taskColCreated">Izveidots</th>
+              <th data-i18n="taskColPriority">Prioritāte</th>
+              <th data-i18n="taskColDeadline">Termiņš</th>
+              <th data-i18n="taskColClient">Klients</th>
+              <th data-i18n="taskColDescription">Apraksts</th>
+              <th data-i18n="taskColAction">Darbība</th>
+            </tr>
+          </thead>
+          <tbody id="tasksTableBody">
+            <tr class="tasks-empty-row">
+              <td colspan="6" class="loading" data-i18n="noRecords">Nav uzdevumu</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <div class="signature-card">
       <div class="signature-card-left">
         <div class="signature-card-title" data-i18n="signature">Aprūpētāja paraksts</div>

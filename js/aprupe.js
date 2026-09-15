@@ -94,7 +94,7 @@ class AprupeController {
         btn.disabled = true;
         btn.textContent = '⏳ Saglabā...';
         await window.TaskManager.complete(taskId, this.currentUser.id);
-        this.toast && this.toast('✓ Uzdevums atzīmēts kā izdarīts');
+        this.toast && this.toast(t('taskMarkedDone'));
         await this.renderTaskBanner();
         this.renderCards();
       });
@@ -109,9 +109,9 @@ class AprupeController {
       this.filterClients(term);
       this.renderCards();
       if (term) {
-        searchCount.textContent = this.filteredClients.length + ' klienti atrasti';
+        searchCount.textContent = this.filteredClients.length + t('clientsFound');
       } else {
-        searchCount.textContent = this.clients.length + ' klienti';
+        searchCount.textContent = this.clients.length + t('clientsTotal');
       }
     });
 
@@ -318,7 +318,7 @@ class AprupeController {
 
     const searchCount = document.getElementById('searchCount');
     if (!searchCount.textContent) {
-      searchCount.textContent = this.clients.length + ' klienti';
+      searchCount.textContent = this.clients.length + t('clientsTotal');
     }
   }
 
