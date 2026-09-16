@@ -55,7 +55,7 @@ class AprupeController {
             ]);
             this.filteredClients = [...this.clients];
             this.renderCards();
-            await this.renderTaskBanner();
+            await this.renderTasksTable();
             this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
@@ -120,7 +120,7 @@ class AprupeController {
       ]);
       this.filteredClients = [...this.clients];
       this.renderCards();
-      await this.renderTaskBanner();
+      await this.renderTasksTable();
 
       await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
@@ -131,7 +131,7 @@ class AprupeController {
       ]);
       this.filteredClients = [...this.clients];
       this.renderCards();
-      await this.renderTaskBanner();
+      await this.renderTasksTable();
     } catch (e) {
       console.error(e);
       if (retryBtn) {
@@ -142,13 +142,112 @@ class AprupeController {
     }
   }
 
-  async renderTaskBanner() {
-    const container = document.getElementById('taskBannerContainer');
-    if (!container || !window.TaskManager || !this.currentUser) return;
+  async renderTasksTable() {
+    const tbody = document.getElementById('tasksTableBody');
+    if (!tbody || !window.TaskManager || !this.currentUser) return;
+
     await window.TaskManager.loadAll();
-    const html = await window.TaskManager.renderBanner(this.currentUser, null);
-    container.innerHTML = html;
-    container.querySelectorAll('.task-complete-btn').forEach(btn => {
+    const allTasks = window.TaskManager.tasks || [];
+    const userTasks = allTasks.filter(t => {
+      const assignee = String(t.pieskirtDarbiniekamId || t.employeeId || '');
+      const currentUserId = String(this.currentUser.id || this.currentUser.ID || '');
+      return assignee === currentUserId || !assignee;
+    }).sort((a, b) => {
+      const pa = window.TaskManager.priorityWeight(a.prioritate);
+      const pb = window.TaskManager.priorityWeight(b.prioritate);
+      if (pa !== pb) return pb - pa;
+      const ad = a.irPabeigts ? 1 : 0;
+      const bd = b.irPabeigts ? 1 : 0;
+      if (ad !== bd) return ad - bd;
+      return (a.termins || '').localeCompare(b.termins || '');
+    });
+
+    if (userTasks.length === 0) {
+      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="6" class="loading" data-i18n="noRecords">Nav uzdevumu</td></tr>';
+      if (typeof applyLanguage === 'function') applyLanguage();
+      return;
+    }
+
+    const clients = await this.db.getAll('klienti');
+    const clientMap = {};
+    clients.forEach(c => {
+      const id = c.id || c.ID;
+      const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim();
+      clientMap[String(id)] = name;
+    });
+
+    const employees = await this.db.getAll('darbinieki');
+    const employeeMap = {};
+    employees.forEach(e => {
+      const id = e.id || e.ID;
+      const name = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim();
+      employeeMap[String(id)] = name;
+    });
+
+    const formatDateRiga = (isoString) => {
+      if (!isoString) return '';
+      return TimezoneUtils.formatDateRiga(isoString);
+    };
+
+    const formatDateTimeRiga = (isoString) => {
+      if (!isoString) return '';
+      return TimezoneUtils.formatDateTimeRiga(isoString);
+    };
+
+    const isOverdue = (deadline) => {
+      if (!deadline) return false;
+      const today = TimezoneUtils.getTodayRiga();
+      const formatted = TimezoneUtils.formatDateRiga(deadline);
+      return formatted && formatted < today;
+    };
+
+    const isToday = (deadline) => {
+      if (!deadline) return false;
+      const today = TimezoneUtils.getTodayRiga();
+      const formatted = TimezoneUtils.formatDateRiga(deadline);
+      return formatted === today;
+    };
+
+    const getStatusLabel = (task) => {
+      const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
+      if (done) return t('taskCompletedLabel');
+      const status = (task.statuss || 'jauns').toLowerCase();
+      if (status === 'jauns' || status === 'new') return t('statusNew');
+      if (status === 'procesā' || status === 'in_progress') return t('statusInProgress');
+      return status;
+    };
+
+    const priorityLabels = { augsta: '🔴 ' + t('priorityHigh'), videja: '🟡 ' + t('priorityMedium'), zema: '🟢 ' + t('priorityLow'), high: '🔴 ' + t('priorityHigh'), medium: '🟡 ' + t('priorityMedium'), low: '🟢 ' + t('priorityLow') };
+
+    tbody.innerHTML = userTasks.map(task => {
+      const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
+      const created = formatDateTimeRiga(task.izveidots);
+      const deadline = task.termins;
+      const deadlineDisplay = formatDateRiga(deadline);
+      const priority = (task.prioritate || 'videja').toLowerCase();
+      const priorityLabel = priorityLabels[priority] || priority;
+      const priorityClass = priority === 'augsta' || priority === 'high' ? 'high' : (priority === 'zema' || priority === 'low' ? 'low' : 'medium');
+      const overdue = isOverdue(deadline) && !done;
+      const today = isToday(deadline) && !done;
+      const rowClass = done ? 'task-completed' : (overdue ? 'task-overdue' : (today ? 'task-today' : ''));
+      const statusLabel = getStatusLabel(task);
+      const btnText = done ? t('taskMarkDoneDone') : t('taskMarkDone');
+      const btnDisabled = done ? 'disabled' : '';
+      const btnClass = done ? 'completed' : '';
+      const taskText = task.teksts || '';
+      return `
+        <tr class="${rowClass}">
+          <td class="task-description" title="${this.escapeHtml(taskText)}">${this.escapeHtml(taskText)}</td>
+          <td class="task-deadline">${this.escapeHtml(deadlineDisplay)}${overdue ? ' ⏰' : (today ? ' 📅' : '')}</td>
+          <td><span class="task-priority ${priorityClass}">${this.escapeHtml(priorityLabel)}</span></td>
+          <td class="task-status">${this.escapeHtml(statusLabel)}</td>
+          <td class="task-created">${this.escapeHtml(created)}</td>
+          <td><button class="task-complete-btn ${btnClass}" data-task-id="${task.id}" ${btnDisabled}>${btnText}</button></td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('.task-complete-btn:not(.completed)').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
         const taskId = btn.dataset.taskId;
@@ -156,10 +255,11 @@ class AprupeController {
         btn.textContent = '⏳ Saglabā...';
         await window.TaskManager.complete(taskId, this.currentUser.id);
         this.toast && this.toast(t('taskMarkedDone'));
-        await this.renderTaskBanner();
-        this.renderCards();
+        await this.renderTasksTable();
       });
     });
+
+    if (typeof applyLanguage === 'function') applyLanguage();
   }
   setupSearch() {
     const searchBox = document.getElementById('searchBox');

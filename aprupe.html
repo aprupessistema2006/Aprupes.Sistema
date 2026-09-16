@@ -32,10 +32,31 @@
     </div>
    </header>
 
-  <main class="main">
-    <div id="taskBannerContainer"></div>
+   <main class="main">
+     <section class="tasks-section">
+       <h3 class="tasks-section-title" data-i18n="taskTableTitle">📋 Uzdevumi</h3>
+       <div class="tasks-table-wrapper">
+         <table class="tasks-table" id="tasksTable">
+           <thead>
+             <tr>
+               <th data-i18n="taskColTaskText">Uzdevums</th>
+               <th data-i18n="taskColDeadline">Termiņš</th>
+               <th data-i18n="taskColPriority">Prioritāte</th>
+               <th data-i18n="taskColStatus">Statuss</th>
+               <th data-i18n="taskColCreated">Izveidots</th>
+               <th data-i18n="taskColAction">Darbība</th>
+             </tr>
+           </thead>
+           <tbody id="tasksTableBody">
+             <tr class="tasks-empty-row">
+               <td colspan="6" class="loading" data-i18n="noRecords">Nav uzdevumu</td>
+             </tr>
+           </tbody>
+         </table>
+       </div>
+     </section>
 
-    <div class="search-container">
+     <div class="search-container">
       <input type="text" id="searchBox" data-i18n="searchPlaceholder" placeholder="Meklēt klientu pēc vārda vai uzvārda..." autocomplete="off" maxlength="100">
       <span id="searchCount" class="search-count"></span>
     </div>
