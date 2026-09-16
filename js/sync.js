@@ -106,7 +106,7 @@ async function requestData(url, timeout = 30000) {
 // Request deduplication — prevent parallel identical requests
 const pendingActions = new Map();
 
-async function jsonpAction(action, data, timeout = 10000) {
+async function jsonpAction(action, data, timeout = 30000) {
   const actionKey = action + ':' + JSON.stringify(data);
 
   if (pendingActions.has(actionKey)) {
