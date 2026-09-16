@@ -47,9 +47,7 @@ class AprupeController {
     window.addEventListener('syncComplete', async () => {
       this.filteredClients = [...this.clients];
       this.renderCards();
-      if (this.selectedClientId) {
-        await this.renderTasksTable(this.selectedClientId);
-      }
+      await this.renderTasksTable(this.selectedClientId || null);
     });
 
     // Manual sync button handler
@@ -73,11 +71,9 @@ class AprupeController {
               this.loadClients(),
               this.loadTodayMarks()
             ]);
-             this.filteredClients = [...this.clients];
-            this.renderCards();
-            if (this.selectedClientId) {
-              await this.renderTasksTable(this.selectedClientId);
-            }
+              this.filteredClients = [...this.clients];
+             this.renderCards();
+             await this.renderTasksTable(this.selectedClientId || null);
             this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
@@ -108,6 +104,13 @@ class AprupeController {
 
     this.setupSearch();
     this.setupLanguageSwitcher();
+
+    const clearFilterBtn = document.getElementById('clearFilterBtn');
+    if (clearFilterBtn) {
+      clearFilterBtn.addEventListener('click', () => {
+        this.clearClientFilter();
+      });
+    }
 
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
@@ -165,24 +168,20 @@ class AprupeController {
 
   async renderTasksTable(clientId) {
     const tbody = document.getElementById('tasksTableBody');
-    const tasksSection = document.getElementById('tasksSection');
     if (!tbody || !window.TaskManager || !this.currentUser) return;
-
-    if (!clientId) {
-      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="6" class="loading" data-i18n="noClientSelected">Atlasiet klientu, lai redzētu uzdevumus.</td></tr>';
-      if (typeof applyLanguage === 'function') applyLanguage();
-      return;
-    }
 
     await window.TaskManager.loadAll();
     const allTasks = window.TaskManager.tasks || [];
     const currentUserId = String(this.currentUser.id || this.currentUser.ID || '');
+
     const userTasks = allTasks.filter(t => {
       const assignee = String(t.pieskirtDarbiniekamId || t.employeeId || '');
-      if (assignee !== currentUserId && assignee !== '') return false;
-      const taskClientId = String(t.klientsId || t.clientId || '');
-      if (!taskClientId) return false;
-      return taskClientId === String(clientId);
+      if (assignee !== '' && assignee !== currentUserId) return false;
+      if (clientId) {
+        const taskClientId = String(t.klientsId || t.clientId || '');
+        if (taskClientId !== String(clientId)) return false;
+      }
+      return true;
     }).sort((a, b) => {
       const pa = window.TaskManager.priorityWeight(a.prioritate);
       const pb = window.TaskManager.priorityWeight(b.prioritate);
@@ -194,7 +193,7 @@ class AprupeController {
     });
 
     if (userTasks.length === 0) {
-      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="6" class="loading" data-i18n="noClientTasks">Šim klientam pašlaik nav uzdevumu.</td></tr>';
+      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="7" class="loading" data-i18n="noClientTasks">Šim klientam pašlaik nav aktīvu uzdevumu.</td></tr>';
       if (typeof applyLanguage === 'function') applyLanguage();
       return;
     }
@@ -252,7 +251,6 @@ class AprupeController {
 
     tbody.innerHTML = userTasks.map(task => {
       const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
-      const created = formatDateTimeRiga(task.izveidots);
       const deadline = task.termins;
       const deadlineDisplay = formatDateRiga(deadline);
       const priority = (task.prioritate || 'videja').toLowerCase();
@@ -266,13 +264,16 @@ class AprupeController {
       const btnDisabled = done ? 'disabled' : '';
       const btnClass = done ? 'completed' : '';
       const taskText = task.teksts || '';
+      const taskClientId = String(t.klientsId || t.clientId || '');
+      const clientName = taskClientId ? (clientMap[taskClientId] || 'ID: ' + taskClientId) : '—';
       return `
         <tr class="${rowClass}">
           <td class="task-description" title="${this.escapeHtml(taskText)}">${this.escapeHtml(taskText)}</td>
+          <td class="task-client">${this.escapeHtml(clientName)}</td>
           <td class="task-deadline">${this.escapeHtml(deadlineDisplay)}${overdue ? ' ⏰' : (today ? ' 📅' : '')}</td>
           <td><span class="task-priority ${priorityClass}">${this.escapeHtml(priorityLabel)}</span></td>
           <td class="task-status">${this.escapeHtml(statusLabel)}</td>
-          <td class="task-created">${this.escapeHtml(created)}</td>
+          <td class="task-created">${this.escapeHtml(formatDateTimeRiga(task.created || task.izveidots))}</td>
           <td><button class="task-complete-btn ${btnClass}" data-task-id="${task.id}" ${btnDisabled}>${btnText}</button></td>
         </tr>
       `;
@@ -511,6 +512,24 @@ class AprupeController {
     this.selectedClientId = String(clientId);
     this.renderCards();
     this.renderTasksTable(this.selectedClientId);
+    this.updateFilterBadge(clientName);
+  }
+
+  clearClientFilter() {
+    this.selectedClientId = null;
+    this.renderCards();
+    this.renderTasksTable(null);
+    const badge = document.getElementById('clientFilterBadge');
+    if (badge) badge.style.display = 'none';
+  }
+
+  updateFilterBadge(clientName) {
+    const badge = document.getElementById('clientFilterBadge');
+    const nameEl = document.getElementById('filterClientName');
+    if (badge && nameEl) {
+      nameEl.textContent = clientName;
+      badge.style.display = 'block';
+    }
   }
 
   getTeamCount(clientId) {

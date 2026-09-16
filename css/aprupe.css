@@ -603,10 +603,18 @@ body {
     font-size: 12px !important;
     padding: 6px 12px !important;
   }
-  .retry-btn {
+   .retry-btn {
     min-height: 44px !important;
     font-size: 13px !important;
     padding: 10px 20px !important;
+  }
+   .tasks-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+   .client-filter-badge {
+    align-self: flex-start;
   }
 }
   .sync-btn {
@@ -832,12 +840,53 @@ body {
   width: 100%;
 }
 
+.tasks-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
 .tasks-section-title {
   font-size: 18px;
   font-weight: 700;
   color: var(--primary);
-  margin-bottom: 12px;
   padding: 0 4px;
+}
+
+.client-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--info-bg);
+  border: 1px solid var(--info);
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--info);
+  font-weight: 600;
+}
+
+.clear-filter-btn {
+  background: none;
+  border: none;
+  color: var(--info);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.clear-filter-btn:hover {
+  background: var(--info);
+  color: white;
 }
 
 .tasks-table-wrapper {
@@ -913,11 +962,20 @@ body {
 }
 
 .tasks-table .task-description {
-  max-width: 220px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
+}
+
+.tasks-table .task-client {
+  font-size: 13px;
+  color: var(--text-light);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tasks-table .task-status {

@@ -48,12 +48,19 @@
       </div>
 
       <section class="tasks-section" id="tasksSection">
-        <h3 class="tasks-section-title" data-i18n="taskTableTitle">📋 Uzdevomi</h3>
+        <div class="tasks-section-header">
+          <h3 class="tasks-section-title" data-i18n="myTasksTitle">📋 Mani uzdevomi</h3>
+          <div id="clientFilterBadge" class="client-filter-badge" style="display:none;">
+            <span id="filterClientName"></span>
+            <button id="clearFilterBtn" class="clear-filter-btn" title="Notīrīt filtru">×</button>
+          </div>
+        </div>
         <div class="tasks-table-wrapper">
           <table class="tasks-table" id="tasksTable">
             <thead>
               <tr>
                 <th data-i18n="taskColTaskText">Uzdevums</th>
+                <th data-i18n="taskColClient">Klients</th>
                 <th data-i18n="taskColDeadline">Termiņš</th>
                 <th data-i18n="taskColPriority">Prioritāte</th>
                 <th data-i18n="taskColStatus">Statuss</th>
@@ -63,7 +70,7 @@
             </thead>
             <tbody id="tasksTableBody">
               <tr class="tasks-empty-row">
-                <td colspan="6" class="loading" data-i18n="noClientSelected">Atlasiet klientu, lai redzētu uzdevumus.</td>
+                <td colspan="7" class="loading" data-i18n="noClientSelected">Ielādēju...</td>
               </tr>
             </tbody>
           </table>
