@@ -26,6 +26,17 @@ class AprupeController {
     this.sync = new CareSync(this.db, CONFIG);
     window.careSync = this.sync;
 
+    const roleLabels = { 'aprūpētājs': t('roleAprupetajs'), 'kontroliere': t('roleKontroliere'), 'administrators': t('roleAdmin') };
+    const role = roleLabels[(this.currentUser.loma || '').toLowerCase()] || this.currentUser.loma || '';
+    const fname = this.currentUser.vards || '';
+    const labelEl = document.getElementById('currentUserLabel');
+    if (labelEl) {
+      const parts = [];
+      if (role) parts.push(role);
+      if (fname) parts.push(fname);
+      labelEl.textContent = parts.length > 0 ? (role + ': ' + (fname || '')) : 'Aprūpētājs';
+    }
+
     const syncStatusEl = document.getElementById('syncStatus');
     window.addEventListener('syncStatusChange', (e) => {
       if (!syncStatusEl) return;
@@ -141,6 +152,7 @@ class AprupeController {
       ]);
       this.filteredClients = [...this.clients];
       this.renderCards();
+      this.renderTasksTable();
     } catch (e) {
       console.error(e);
       if (retryBtn) {
@@ -157,11 +169,10 @@ class AprupeController {
     if (!tbody || !window.TaskManager || !this.currentUser) return;
 
     if (!clientId) {
-      tasksSection.style.display = 'none';
+      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="6" class="loading" data-i18n="noClientSelected">Atlasiet klientu, lai redzētu uzdevumus.</td></tr>';
+      if (typeof applyLanguage === 'function') applyLanguage();
       return;
     }
-
-    tasksSection.style.display = 'block';
 
     await window.TaskManager.loadAll();
     const allTasks = window.TaskManager.tasks || [];
@@ -459,11 +470,14 @@ class AprupeController {
         ? '<div class="client-team">👥 ' + teamCount + (teamCount === 1 ? ' kolēģis' : ' kolēģi') + ' strādāja</div>'
         : '<div class="client-team" style="color:#999;">Nav komandas darba vēl</div>';
 
+      const ageText = age ? (age + ' gadi') : 'Vecums nav norādīts';
+      const clientInfo = dieta ? (ageText + ', ' + dieta) : ageText;
+
       return `
         <div class="client-card ${this.selectedClientId === String(id) ? 'selected' : ''}" data-client-id="${id}" data-client-name="${this.escapeHtml(displayName)}">
           <div>
             <div class="client-card-name">${this.escapeHtml(vards)} ${this.escapeHtml(uzvards)}</div>
-            <div class="client-card-dob">${age} gadi${dieta ? ', ' + dieta : ''}</div>
+            <div class="client-card-dob">${this.escapeHtml(clientInfo)}</div>
             ${teamHtml}
           </div>
           <div class="client-card-status">
@@ -476,8 +490,14 @@ class AprupeController {
     }).join('');
 
     const searchCount = document.getElementById('searchCount');
-    if (!searchCount.textContent) {
-      searchCount.textContent = this.clients.length + t('clientsTotal');
+    if (searchCount) {
+      const searchBox = document.getElementById('searchBox');
+      const term = searchBox ? searchBox.value.trim().toLowerCase() : '';
+      if (term) {
+        searchCount.textContent = this.filteredClients.length + t('clientsFound');
+      } else {
+        searchCount.textContent = this.clients.length + t('clientsTotal');
+      }
     }
 
     grid.querySelectorAll('.client-card').forEach(card => {

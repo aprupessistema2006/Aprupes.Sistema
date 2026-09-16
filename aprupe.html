@@ -12,29 +12,32 @@
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
-   <header class="header">
-    <div class="header-left">
-      <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ" data-i18n-title="backBtn"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
-    </div>
-    <div class="header-center">
-      <img src="logo/logo_admin.png" alt="Logo" class="header-logo">
-      <h1 data-i18n="loginTitle">Aprūpes sistēma</h1>
-    </div>
-    <div class="header-right">
-      <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
-      <button id="manualSyncBtn" class="btn-icon btn-text-icon sync-btn" title="Sinhronizēt" data-i18n-title="syncBtn" style="display:none;"><span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span></button>
-      <div class="lang-switcher">
-        <button data-lang="lv" class="lang-btn active">LV</button>
-        <button data-lang="ru" class="lang-btn">RU</button>
-        <button data-lang="en" class="lang-btn">EN</button>
-      </div>
-      <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet" data-i18n-title="logout"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
-    </div>
-   </header>
+    <header class="header">
+     <div class="header-left">
+       <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ" data-i18n-title="backBtn"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
+     </div>
+     <div class="header-center">
+       <img src="logo/logo_admin.png" alt="Logo" class="header-logo">
+       <div class="header-title">
+         <h1 data-i18n="appName">Aprūpes sistēma</h1>
+         <span id="currentUserLabel" class="current-user-label"></span>
+       </div>
+     </div>
+     <div class="header-right">
+       <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
+       <button id="manualSyncBtn" class="btn-icon btn-text-icon sync-btn" title="Sinhronizēt" data-i18n-title="syncBtn" style="display:none;"><span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span></button>
+       <div class="lang-switcher">
+         <button data-lang="lv" class="lang-btn active">LV</button>
+         <button data-lang="ru" class="lang-btn">RU</button>
+         <button data-lang="en" class="lang-btn">EN</button>
+       </div>
+       <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet" data-i18n-title="logout"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
+     </div>
+    </header>
 
     <main class="main">
       <div class="search-container">
-        <input type="text" id="searchBox" data-i18n="searchPlaceholder" placeholder="Meklēt klientu pēc vārda vai uzvārda..." autocomplete="off" maxlength="100">
+         <input type="text" id="searchBox" data-i18n="clientSearchPlaceholder" placeholder="Meklēt klientu pēc vārda vai uzvārda..." autocomplete="off" maxlength="100">
         <span id="searchCount" class="search-count"></span>
       </div>
 
@@ -44,7 +47,7 @@
         </div>
       </div>
 
-      <section class="tasks-section" id="tasksSection" style="display:none;">
+      <section class="tasks-section" id="tasksSection">
         <h3 class="tasks-section-title" data-i18n="taskTableTitle">📋 Uzdevomi</h3>
         <div class="tasks-table-wrapper">
           <table class="tasks-table" id="tasksTable">
@@ -60,7 +63,7 @@
             </thead>
             <tbody id="tasksTableBody">
               <tr class="tasks-empty-row">
-                <td colspan="6" class="loading" data-i18n="noRecords">Nav uzdevumu</td>
+                <td colspan="6" class="loading" data-i18n="noClientSelected">Atlasiet klientu, lai redzētu uzdevumus.</td>
               </tr>
             </tbody>
           </table>
