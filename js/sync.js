@@ -75,14 +75,18 @@ function jsonpRequest(url, timeout = 10000) {
   });
 }
 
-// Primary request function — uses JSONP since GAS supports it natively
-// Falls back to fetch only if JSONP is unavailable (non-browser environments)
+// Primary request function — tries fetch with CORS first (GAS sends Access-Control-Allow-Origin: *),
+// falls back to JSONP for older browsers or non-CORS configurations
 async function requestData(url, timeout = 10000) {
-  if (typeof document === 'undefined') {
+  if (typeof fetch !== 'undefined') {
     try {
-      return await fetch(url).then(r => r.json());
+      const response = await fetchWithTimeout(url, timeout, { mode: 'cors' });
+      if (response.ok) {
+        return await response.json();
+      }
+      throw new Error('HTTP ' + response.status);
     } catch (e) {
-      throw new Error('Savienojuma kļūda: ' + e.message);
+      console.warn('[sync] fetch CORS failed, falling back to JSONP:', e.message);
     }
   }
   let lastError;
