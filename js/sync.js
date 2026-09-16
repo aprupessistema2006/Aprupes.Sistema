@@ -73,15 +73,24 @@ function jsonpRequest(url, timeout = 10000) {
 // Primary request function — uses JSONP since GAS supports it natively
 // Falls back to fetch only if JSONP is unavailable (non-browser environments)
 async function requestData(url, timeout = 10000) {
-  if (typeof document !== 'undefined') {
-    return await jsonpRequest(url, timeout);
+  if (typeof document === 'undefined') {
+    try {
+      return await fetch(url).then(r => r.json());
+    } catch (e) {
+      throw new Error('Savienojuma kļūda: ' + e.message);
+    }
   }
-  // Node.js fallback
-  try {
-    return await fetch(url).then(r => r.json());
-  } catch (e) {
-    throw new Error('Savienojuma kļūda: ' + e.message);
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await jsonpRequest(url, timeout);
+    } catch (e) {
+      lastError = e;
+      console.warn('[sync] requestData attempt ' + (attempt + 1) + ' failed:', e.message);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 500));
+    }
   }
+  throw lastError;
 }
 
 // Request deduplication — prevent parallel identical requests
@@ -584,17 +593,6 @@ class CareSync {
     try {
       const darbinieki = await this.db.getAll('darbinieki');
       return darbinieki.length > 0;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  async hasRemoteEmployees() {
-    try {
-      const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const data = await requestData(url, 8000);
-      if (data.error) return false;
-      return (data.darbinieki || []).length > 0;
     } catch (e) {
       return false;
     }

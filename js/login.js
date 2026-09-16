@@ -12,7 +12,6 @@ class LoginController {
   }
 
   async init() {
-    localStorage.clear();
     this.db = new CareDB();
     await this.db.init();
     window.careDB = this.db;
@@ -51,9 +50,9 @@ class LoginController {
     let hasRemote = false;
     let hasLocal = false;
 
-    showLoading('Mēģinām pieslēgties Google...');
     try {
-      hasRemote = await this.sync.hasRemoteEmployees();
+      const conn = await this.sync.checkConnection();
+      hasRemote = conn.connected;
     } catch (e) {
       console.error('[login] remote check failed', e);
     }
@@ -83,9 +82,12 @@ class LoginController {
           statusMsg.style.color = '#e74c3c';
         }
         document.body.classList.remove('online');
+        if (!(hasLocal || (syncResult && syncResult.count && syncResult.count.darbinieki > 0))) {
+          hasLocal = true;
+        }
       } else {
         if (statusMsg) {
-          statusMsg.textContent = '✓ Savienojums ar Google aktīvs';
+          statusMsg.textContent = '✓ Savienojums ar Google aktīvs • ' + syncResult.count.darbinieki + ' darbinieki';
           statusMsg.style.color = '#27ae60';
         }
         document.body.classList.add('online');
@@ -95,6 +97,7 @@ class LoginController {
         statusMsg.textContent = '⚠️ Neizdevās ielādēt no Google Sheets';
         statusMsg.style.color = '#e74c3c';
       }
+      console.error('[login] initial load failed', e);
     }
 
     hideLoading();
