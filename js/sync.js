@@ -77,7 +77,8 @@ function jsonpRequest(url, timeout = 10000) {
 
 // Primary request function — tries fetch with CORS first (GAS sends Access-Control-Allow-Origin: *),
 // falls back to JSONP for older browsers or non-CORS configurations
-async function requestData(url, timeout = 10000) {
+// GAS can be slow (cold start 5-10s), so timeouts are generous
+async function requestData(url, timeout = 30000) {
   if (typeof fetch !== 'undefined') {
     try {
       const response = await fetchWithTimeout(url, timeout, { mode: 'cors' });
@@ -90,13 +91,13 @@ async function requestData(url, timeout = 10000) {
     }
   }
   let lastError;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       return await jsonpRequest(url, timeout);
     } catch (e) {
       lastError = e;
       console.warn('[sync] requestData attempt ' + (attempt + 1) + ' failed:', e.message);
-      if (attempt < 2) await new Promise(r => setTimeout(r, 500));
+      if (attempt < 1) await new Promise(r => setTimeout(r, 500));
     }
   }
   throw lastError;
@@ -345,7 +346,7 @@ class CareSync {
     }
     try {
       const url = SYNC_URL + '?action=ping&t=' + Date.now();
-      const data = await requestData(url, 8000);
+      const data = await requestData(url, 15000);
       if (data && (data.success === true || data.pong === true)) {
         this._connectionStatus = 'connected';
         this._updateSyncStatus('Saglabāts');
@@ -430,7 +431,7 @@ class CareSync {
 
       onProgress('Ielādēju datus no servera...');
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const data = await requestData(url, 10000);
+      const data = await requestData(url, 30000);
 
       if (data.error) {
         throw new Error(data.error);
