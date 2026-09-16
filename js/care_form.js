@@ -10,6 +10,7 @@ class CareFormController {
     this.history = [];
     this.adminMode = false;
     this._processing = new Map();
+    this.selectedClientId = null;
     this.init();
   }
 
@@ -128,7 +129,7 @@ class CareFormController {
       this.renderSignature();
       this.updateTeamSummary();
       this.renderQuickTotals();
-      this.renderTaskBanner();
+      this.renderClientSelector();
       this.renderTasksTable();
     });
 
@@ -176,7 +177,7 @@ class CareFormController {
         this.renderSignature();
         this.updateTeamSummary();
         this.renderQuickTotals();
-        this.renderTaskBanner();
+        this.renderClientSelector();
         this.renderTasksTable();
         this.toast(t('dataLoadFailed'), 4000);
       } else {
@@ -191,7 +192,7 @@ class CareFormController {
         this.renderSignature();
         this.updateTeamSummary();
         this.renderQuickTotals();
-        this.renderTaskBanner();
+        this.renderClientSelector();
         this.renderTasksTable();
         this.toast(t('dataSynced'));
       }
@@ -224,55 +225,121 @@ class CareFormController {
     }
   }
 
-  async renderTaskBanner() {
-    const container = document.getElementById('taskBannerContainer');
-    if (!container || !window.TaskManager || !this.currentUser) return;
-    await window.TaskManager.loadAll();
-    const html = await window.TaskManager.renderBanner(this.currentUser, this.clientId);
-    container.innerHTML = html;
-    container.querySelectorAll('.task-complete-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const taskId = btn.dataset.taskId;
-        btn.disabled = true;
-        btn.textContent = '⏳ Saglabā...';
-        await window.TaskManager.complete(taskId, this.currentUser.id);
-        this.toast(t('taskMarkedDone'));
-        await this.renderTaskBanner();
-        await this.renderTasksTable();
-        await this.loadHistory();
-        this.renderHistory();
-      });
+  async renderClientSelector() {
+    const container = document.getElementById('clientSelectorContainer');
+    if (!container || !this.currentUser) return;
+
+    const allClients = await this.db.getAll('klienti');
+    const clientList = allClients.map(c => {
+      const id = c.id || c.ID;
+      const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim();
+      return { id: String(id), name: name || ('ID: ' + id) };
     });
+
+    if (!this.selectedClientId) {
+      this.selectedClientId = this.clientId;
+    }
+
+    const renderOptions = (clients) => {
+      if (clients.length === 0) {
+        return '<div class="client-no-results" data-i18n="noRecords">Nav atrasti klienti</div>';
+      }
+      return clients.map(c => {
+        const isSelected = String(c.id) === String(this.selectedClientId);
+        const isCurrentClient = String(c.id) === String(this.clientId);
+        const classes = ['client-option'];
+        if (isSelected) classes.push('selected');
+        if (isCurrentClient) classes.push('active-client');
+        return `
+          <div class="${classes.join(' ')}" data-client-id="${this.escapeHtml(c.id)}">
+            <span class="client-name">${this.escapeHtml(c.name)}</span>
+            ${isCurrentClient ? '<span class="client-current-badge" data-i18n="currentClient">👁️</span>' : ''}
+          </div>
+        `;
+      }).join('');
+    };
+
+    const maxVisible = 3;
+    const visibleClients = clientList.slice(0, maxVisible);
+
+    container.innerHTML = `
+      <div class="client-selector">
+        <div class="client-selector-title">📋 Uzdevumi klientiem</div>
+        <div class="client-search-wrapper">
+          <input type="text" class="client-search-input" data-i18n="searchPlaceholder" placeholder="Meklēt klientu..." autocomplete="off" maxlength="100">
+          <div class="client-list" id="clientList">
+            ${renderOptions(visibleClients)}
+          </div>
+        </div>
+        <div class="client-visible-count" id="clientVisibleCount"></div>
+      </div>
+    `;
+
+    const searchInput = container.querySelector('.client-search-input');
+    const clientListEl = container.querySelector('#clientList');
+    const countEl = container.querySelector('#clientVisibleCount');
+
+    const updateVisible = (filter = '') => {
+      let filtered = clientList;
+      if (filter) {
+        filtered = clientList.filter(c =>
+          c.name.toLowerCase().includes(filter.toLowerCase())
+        );
+      }
+      let visible = filtered.slice(0, maxVisible);
+      countEl.textContent = filtered.length > maxVisible
+        ? `Rāda ${Math.min(maxVisible, filtered.length)} no ${filtered.length}`
+        : `${filtered.length} atrasti`;
+      clientListEl.innerHTML = renderOptions(visible);
+      clientListEl.querySelectorAll('.client-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          this.selectClient(opt.dataset.clientId);
+        });
+      });
+    };
+
+    searchInput.addEventListener('input', (e) => {
+      updateVisible(e.target.value);
+    });
+
+    updateVisible();
+  }
+
+  async selectClient(clientId) {
+    this.selectedClientId = clientId;
+    const opts = document.querySelectorAll('.client-option');
+    opts.forEach(opt => {
+      opt.classList.toggle('selected', opt.dataset.clientId === clientId);
+    });
+    await this.renderTasksTable();
+    this.toast(t('dataUpdated'));
   }
 
   async renderTasksTable() {
     const tbody = document.getElementById('tasksTableBody');
     if (!tbody || !window.TaskManager || !this.currentUser) return;
-    await window.TaskManager.loadAll();
-    const activeTasks = window.TaskManager.getActiveForEmployee(this.currentUser.id, this.clientId);
 
-    // Also show completed tasks for this client
-    const allTasks = window.TaskManager.tasks || [];
-    const completedTasks = allTasks.filter(t => {
-      const done = t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE';
+    if (!this.selectedClientId) {
+      this.selectedClientId = this.clientId;
+    }
+
+    await window.TaskManager.loadAll();
+    const targetClientId = this.selectedClientId;
+    const visibleTasks = window.TaskManager.tasks.filter(t => {
       const taskClient = String(t.klientsId || t.clientId || '');
-      return done && taskClient === String(this.clientId);
-    }).sort((a, b) => {
-      const da = new Date(b.pabeigtsLaiks || 0).getTime();
-      const db = new Date(a.pabeigtsLaiks || 0).getTime();
-      return da - db;
+      const target = String(targetClientId || '');
+      if (target) {
+        return taskClient === target;
+      }
+      return !taskClient;
     });
 
-    const allDisplayTasks = [...activeTasks, ...completedTasks];
-
-    if (allDisplayTasks.length === 0) {
+    if (visibleTasks.length === 0) {
       tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="6" class="loading" data-i18n="noRecords">Nav uzdevumu</td></tr>';
       if (typeof applyLanguage === 'function') applyLanguage();
       return;
     }
 
-    // Get client names
     const clients = await this.db.getAll('klienti');
     const clientMap = {};
     clients.forEach(c => {
@@ -281,7 +348,6 @@ class CareFormController {
       clientMap[String(id)] = name;
     });
 
-    // Get employee names
     const employees = await this.db.getAll('darbinieki');
     const employeeMap = {};
     employees.forEach(e => {
@@ -290,73 +356,69 @@ class CareFormController {
       employeeMap[String(id)] = name;
     });
 
-    const formatDateTime = (isoString) => {
+    const formatDateRiga = (isoString) => {
       if (!isoString) return '';
-      const d = new Date(isoString);
-      if (isNaN(d.getTime())) return '';
-      return d.getFullYear() + '-' +
-        String(d.getMonth() + 1).padStart(2, '0') + '-' +
-        String(d.getDate()).padStart(2, '0') + ' ' +
-        String(d.getHours()).padStart(2, '0') + ':' +
-        String(d.getMinutes()).padStart(2, '0');
+      return TimezoneUtils.formatDateRiga(isoString);
     };
 
-    const formatDate = (isoString) => {
+    const formatDateTimeRiga = (isoString) => {
       if (!isoString) return '';
-      const d = new Date(isoString);
-      if (isNaN(d.getTime())) return '';
-      return d.getFullYear() + '-' +
-        String(d.getMonth() + 1).padStart(2, '0') + '-' +
-        String(d.getDate()).padStart(2, '0');
+      return TimezoneUtils.formatDateTimeRiga(isoString);
     };
 
     const isOverdue = (deadline) => {
       if (!deadline) return false;
       const today = TimezoneUtils.getTodayRiga();
-      const d = new Date(deadline);
-      d.setHours(0, 0, 0, 0);
-      return d < new Date(today + 'T00:00:00');
+      const formatted = TimezoneUtils.formatDateRiga(deadline);
+      return formatted && formatted < today;
     };
 
     const isToday = (deadline) => {
       if (!deadline) return false;
       const today = TimezoneUtils.getTodayRiga();
-      const d = new Date(deadline);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime() === new Date(today + 'T00:00:00').getTime();
+      const formatted = TimezoneUtils.formatDateRiga(deadline);
+      return formatted === today;
     };
 
-    tbody.innerHTML = allDisplayTasks.map(t => {
-      const done = t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE';
-      const created = formatDateTime(t.izveidots);
-      const deadline = t.termins;
-      const clientId = t.klientsId || t.clientId;
-      const clientName = clientId ? (clientMap[String(clientId)] || 'ID: ' + clientId) : t('taskNoClient');
-      const assigneeId = t.pieskirtDarbiniekamId || t.employeeId;
-      const assigneeName = assigneeId ? (employeeMap[String(assigneeId)] || 'ID: ' + assigneeId) : t('taskNoClient');
-      const priority = (t.prioritate || 'videja').toLowerCase();
-      const priorityLabels = { augsta: 'Augsta', videja: 'Vidēja', zema: 'Zema', high: 'Augsta', medium: 'Vidēja', low: 'Zema' };
+    const getStatusLabel = (task) => {
+      const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
+      if (done) return t('taskCompletedLabel');
+      const status = (task.statuss || 'jauns').toLowerCase();
+      if (status === 'jauns' || status === 'new') return t('statusNew');
+      if (status === 'procesā' || status === 'in_progress') return t('statusInProgress');
+      return status;
+    };
+
+    const priorityLabels = { augsta: '🔴 ' + t('priorityHigh'), videja: '🟡 ' + t('priorityMedium'), zema: '🟢 ' + t('priorityLow'), high: '🔴 ' + t('priorityHigh'), medium: '🟡 ' + t('priorityMedium'), low: '🟢 ' + t('priorityLow') };
+
+    tbody.innerHTML = visibleTasks.map(task => {
+      const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
+      const created = formatDateTimeRiga(task.izveidots);
+      const deadline = task.termins;
+      const deadlineDisplay = formatDateRiga(deadline);
+      const priority = (task.prioritate || 'videja').toLowerCase();
       const priorityLabel = priorityLabels[priority] || priority;
+      const priorityClass = priority === 'augsta' || priority === 'high' ? 'high' : (priority === 'zema' || priority === 'low' ? 'low' : 'medium');
       const overdue = isOverdue(deadline) && !done;
       const today = isToday(deadline) && !done;
       const rowClass = done ? 'task-completed' : (overdue ? 'task-overdue' : (today ? 'task-today' : ''));
+      const statusLabel = getStatusLabel(task);
       const btnText = done ? t('taskMarkDoneDone') : t('taskMarkDone');
       const btnDisabled = done ? 'disabled' : '';
       const btnClass = done ? 'completed' : '';
+      const taskText = task.teksts || '';
       return `
         <tr class="${rowClass}">
-          <td>${this.escapeHtml(created)}</td>
-          <td><span class="task-priority ${priority}">${this.escapeHtml(priorityLabel)}</span></td>
-          <td class="task-deadline">${this.escapeHtml(formatDate(deadline))}${overdue ? ' ⏰' : (today ? ' 📅' : '')}</td>
-          <td class="task-client ${clientId ? '' : 'empty'}">${this.escapeHtml(clientName)}</td>
-          <td class="task-assignee ${assigneeId ? '' : 'empty'}">${this.escapeHtml(assigneeName)}</td>
-          <td class="task-description" title="${this.escapeHtml(t.teksts || '')}">${this.escapeHtml(t.teksts || '')}</td>
-          <td><button class="task-complete-btn ${btnClass}" data-task-id="${t.id}" ${btnDisabled}>${btnText}</button></td>
+          <td class="task-description" title="${this.escapeHtml(taskText)}">${this.escapeHtml(taskText)}</td>
+          <td class="task-deadline">${this.escapeHtml(deadlineDisplay)}${overdue ? ' ⏰' : (today ? ' 📅' : '')}</td>
+          <td><span class="task-priority ${priorityClass}">${this.escapeHtml(priorityLabel)}</span></td>
+          <td class="task-status">${this.escapeHtml(statusLabel)}</td>
+          <td class="task-created">${this.escapeHtml(created)}</td>
+          <td><button class="task-complete-btn ${btnClass}" data-task-id="${task.id}" ${btnDisabled}>${btnText}</button></td>
         </tr>
       `;
     }).join('');
 
-    // Attach event listeners
     tbody.querySelectorAll('.task-complete-btn:not(.completed)').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -365,7 +427,6 @@ class CareFormController {
         btn.textContent = '⏳ Saglabā...';
         await window.TaskManager.complete(taskId, this.currentUser.id);
         this.toast(t('taskMarkedDone'));
-        await this.renderTaskBanner();
         await this.renderTasksTable();
         await this.loadHistory();
         this.renderHistory();
@@ -451,7 +512,7 @@ class CareFormController {
             this.renderSignature();
             this.updateTeamSummary();
             this.renderQuickTotals();
-            this.renderTaskBanner();
+            this.renderClientSelector();
             this.renderTasksTable();
             this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
@@ -1556,7 +1617,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       this.toast(t('diaperChangeAdded') + newCount + ')');
       this.updateCategoryStatuses();
       this.closeCategoryModal();
-      this.renderTaskBanner();
+      this.renderClientSelector();
       this.renderQuickTotals();
       this.renderHistory();
     } finally {
@@ -1623,7 +1684,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const modal = document.getElementById('categoryModal');
       if (modal) modal.style.display = 'none';
     }
-    this.renderTaskBanner();
+    this.renderClientSelector();
     this.renderQuickTotals();
     this.renderHistory();
     this.toast(t('saved'));
@@ -1665,7 +1726,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     });
     if (!result) return;
     this.toast(t('saved'));
-    this.renderTaskBanner();
+    this.renderClientSelector();
     this.renderQuickTotals();
     this.renderHistory();
     const modal = document.getElementById('categoryModal');

@@ -26,7 +26,7 @@
     </header>
 
   <main class="main">
-    <div id="taskBannerContainer"></div>
+    <div id="clientSelectorContainer"></div>
 
     <section class="client-info-card" id="clientInfoCard">
       <div class="client-info-name" id="clientName2">...</div>
@@ -145,20 +145,19 @@
       <h3 class="tasks-section-title" data-i18n="taskTableTitle">📋 Uzdevumi</h3>
       <div class="tasks-table-wrapper">
         <table class="tasks-table" id="tasksTable">
-          <thead>
-            <tr>
-              <th data-i18n="taskColCreated">Izveidots</th>
-              <th data-i18n="taskColPriority">Prioritāte</th>
-              <th data-i18n="taskColDeadline">Termiņš</th>
-              <th data-i18n="taskColClient">Klients</th>
-              <th data-i18n="taskColAssignee">Iepašnieks</th>
-              <th data-i18n="taskColDescription">Apraksts</th>
-              <th data-i18n="taskColAction">Darbība</th>
-            </tr>
-          </thead>
+      <thead>
+        <tr>
+          <th data-i18n="taskColTaskText">Uzdevums</th>
+          <th data-i18n="taskColDeadline">Termiņš</th>
+          <th data-i18n="taskColPriority">Prioritāte</th>
+          <th data-i18n="taskColStatus">Statuss</th>
+          <th data-i18n="taskColCreated">Izveidots</th>
+          <th data-i18n="taskColAction">Darbība</th>
+        </tr>
+      </thead>
           <tbody id="tasksTableBody">
             <tr class="tasks-empty-row">
-              <td colspan="7" class="loading" data-i18n="noRecords">Nav uzdevumu</td>
+              <td colspan="6" class="loading" data-i18n="noRecords">Nav uzdevumu</td>
             </tr>
           </tbody>
         </table>

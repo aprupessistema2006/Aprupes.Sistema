@@ -1897,6 +1897,17 @@ body {
   color: var(--text);
 }
 
+.tasks-table .task-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.tasks-table .task-completed .task-status {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .tasks-table .task-complete-btn {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
   color: white;
@@ -1998,6 +2009,133 @@ body {
     min-width: 65px;
     min-height: 32px;
   }
+}
+
+/* Client selector styles */
+.client-selector {
+  background: white;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 14px;
+  box-sizing: border-box;
+}
+
+.client-selector-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.client-search-wrapper {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.client-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: var(--transition);
+  box-sizing: border-box;
+}
+
+.client-search-input:focus {
+  border-color: var(--info);
+  background: var(--info-bg);
+}
+
+.client-search-input::placeholder {
+  color: var(--text-light);
+}
+
+.client-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.client-option {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.client-option:hover {
+  background: var(--gray-lighter);
+  border-color: var(--info);
+}
+
+.client-option.selected {
+  background: var(--info-bg);
+  border-color: var(--info);
+  color: var(--info);
+  font-weight: 600;
+}
+
+.client-option .client-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-option .client-id {
+  font-size: 11px;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+.client-option.active-client {
+  border-left: 3px solid var(--accent);
+}
+
+.client-current-badge {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.client-no-results {
+  padding: 10px;
+  text-align: center;
+  color: var(--text-light);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.client-visible-count {
+  font-size: 11px;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+
+.tasks-table .task-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.tasks-table .task-completed .task-status {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 
