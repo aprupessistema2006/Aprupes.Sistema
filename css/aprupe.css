@@ -276,18 +276,28 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
-  padding: 20px;
+  padding: 14px 20px;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+}
+.client-container {
+  max-height: 280px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
 }
 
 @media (max-width: 1024px) {
   .client-grid {
     grid-template-columns: 1fr !important;
     max-width: 100% !important;
-    padding: 12px !important;
+    padding: 10px 12px !important;
     gap: 10px !important;
+  }
+  .client-container {
+    max-height: 230px;
   }
 }
 
@@ -310,6 +320,11 @@ body {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
   border-color: var(--accent);
+}
+
+.client-card.selected {
+  border-color: var(--info);
+  background: var(--info-bg);
 }
 
 .client-card-name {

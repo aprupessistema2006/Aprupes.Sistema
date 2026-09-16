@@ -6,6 +6,7 @@ class AprupeController {
     this.filteredClients = [];
     this.currentUser = null;
     this.todayMarks = new Map();
+    this.selectedClientId = null;
     this.init();
   }
 
@@ -32,6 +33,14 @@ class AprupeController {
       syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
     });
 
+    window.addEventListener('syncComplete', async () => {
+      this.filteredClients = [...this.clients];
+      this.renderCards();
+      if (this.selectedClientId) {
+        await this.renderTasksTable(this.selectedClientId);
+      }
+    });
+
     // Manual sync button handler
     const manualSyncBtn = document.getElementById('manualSyncBtn');
     if (manualSyncBtn) {
@@ -53,9 +62,11 @@ class AprupeController {
               this.loadClients(),
               this.loadTodayMarks()
             ]);
-            this.filteredClients = [...this.clients];
+             this.filteredClients = [...this.clients];
             this.renderCards();
-            await this.renderTasksTable();
+            if (this.selectedClientId) {
+              await this.renderTasksTable(this.selectedClientId);
+            }
             this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
@@ -113,14 +124,13 @@ class AprupeController {
       };
     }
 
-    try {
+      try {
       await Promise.all([
         this.loadClients(),
         this.loadTodayMarks()
       ]);
       this.filteredClients = [...this.clients];
       this.renderCards();
-      await this.renderTasksTable();
 
       await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
@@ -131,7 +141,6 @@ class AprupeController {
       ]);
       this.filteredClients = [...this.clients];
       this.renderCards();
-      await this.renderTasksTable();
     } catch (e) {
       console.error(e);
       if (retryBtn) {
@@ -142,16 +151,27 @@ class AprupeController {
     }
   }
 
-  async renderTasksTable() {
+  async renderTasksTable(clientId) {
     const tbody = document.getElementById('tasksTableBody');
+    const tasksSection = document.getElementById('tasksSection');
     if (!tbody || !window.TaskManager || !this.currentUser) return;
+
+    if (!clientId) {
+      tasksSection.style.display = 'none';
+      return;
+    }
+
+    tasksSection.style.display = 'block';
 
     await window.TaskManager.loadAll();
     const allTasks = window.TaskManager.tasks || [];
+    const currentUserId = String(this.currentUser.id || this.currentUser.ID || '');
     const userTasks = allTasks.filter(t => {
       const assignee = String(t.pieskirtDarbiniekamId || t.employeeId || '');
-      const currentUserId = String(this.currentUser.id || this.currentUser.ID || '');
-      return assignee === currentUserId || !assignee;
+      if (assignee !== currentUserId && assignee !== '') return false;
+      const taskClientId = String(t.klientsId || t.clientId || '');
+      if (!taskClientId) return false;
+      return taskClientId === String(clientId);
     }).sort((a, b) => {
       const pa = window.TaskManager.priorityWeight(a.prioritate);
       const pb = window.TaskManager.priorityWeight(b.prioritate);
@@ -163,7 +183,7 @@ class AprupeController {
     });
 
     if (userTasks.length === 0) {
-      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="6" class="loading" data-i18n="noRecords">Nav uzdevumu</td></tr>';
+      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="6" class="loading" data-i18n="noClientTasks">Šim klientam pašlaik nav uzdevumu.</td></tr>';
       if (typeof applyLanguage === 'function') applyLanguage();
       return;
     }
@@ -255,7 +275,7 @@ class AprupeController {
         btn.textContent = '⏳ Saglabā...';
         await window.TaskManager.complete(taskId, this.currentUser.id);
         this.toast && this.toast(t('taskMarkedDone'));
-        await this.renderTasksTable();
+        await this.renderTasksTable(this.selectedClientId);
       });
     });
 
@@ -413,6 +433,7 @@ class AprupeController {
     }
 
     const today = this.todayLocal();
+    const currentUserId = String(this.currentUser.id || this.currentUser.ID || '');
 
     grid.innerHTML = this.filteredClients.map(client => {
       const id = client.id || client.ID;
@@ -439,7 +460,7 @@ class AprupeController {
         : '<div class="client-team" style="color:#999;">Nav komandas darba vēl</div>';
 
       return `
-        <div class="client-card" onclick="window.location.href='aprupetajs.html?client=${id}'">
+        <div class="client-card ${this.selectedClientId === String(id) ? 'selected' : ''}" data-client-id="${id}" data-client-name="${this.escapeHtml(displayName)}">
           <div>
             <div class="client-card-name">${this.escapeHtml(vards)} ${this.escapeHtml(uzvards)}</div>
             <div class="client-card-dob">${age} gadi${dieta ? ', ' + dieta : ''}</div>
@@ -458,6 +479,18 @@ class AprupeController {
     if (!searchCount.textContent) {
       searchCount.textContent = this.clients.length + t('clientsTotal');
     }
+
+    grid.querySelectorAll('.client-card').forEach(card => {
+      card.addEventListener('click', () => {
+        this.selectClient(card.dataset.clientId, card.dataset.clientName);
+      });
+    });
+  }
+
+  selectClient(clientId, clientName) {
+    this.selectedClientId = String(clientId);
+    this.renderCards();
+    this.renderTasksTable(this.selectedClientId);
   }
 
   getTeamCount(clientId) {
