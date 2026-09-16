@@ -14,14 +14,13 @@ class CareFormController {
   }
 
   detectCurrentShift() {
-    const hour = new Date().getHours();
+    const hour = TimezoneUtils.getHourRiga();
     if (hour >= 5 && hour < 19) return 'R';
     return 'V';
   }
 
   getSignatureShift() {
-    const now = new Date();
-    const hour = now.getHours();
+    const hour = TimezoneUtils.getHourRiga();
     const shiftType = String(this.currentUser?.shiftType || '').toLowerCase();
     const isDiennakts = shiftType === 'diennakts';
     
@@ -34,6 +33,18 @@ class CareFormController {
     if (hour >= 19) return 'V';
     if (hour < 7) return 'R';
     return 'R'; // Default to R for 07:00-18:59
+  }
+
+  // Check if a shift is already signed for today (immutable for non-admins)
+  isShiftSigned(shift) {
+    if (this.adminMode) return false; // Admins can always edit
+    const today = this.getToday();
+    return this.history.some(h => 
+      h.category === 'paraksts' && 
+      h.field === 'aprupetaja_paraksts' && 
+      h.shift === shift && 
+      this.extractDateFromAnyField(h) === today
+    );
   }
 
   setupShiftAutoUpdate() {
@@ -125,7 +136,29 @@ class CareFormController {
 
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
+    const retryBtn = document.getElementById('retryLoadBtn');
     if (overlay) overlay.style.display = 'flex';
+
+    // Retry button handler - clears IndexedDB cache and reloads
+    if (retryBtn) {
+      retryBtn.onclick = async () => {
+        retryBtn.disabled = true;
+        retryBtn.textContent = '⏳ Notīra cache...';
+        try {
+          // Clear all IndexedDB stores
+          const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue'];
+          for (const store of stores) {
+            await this.db.clear(store);
+          }
+          // Reload page
+          window.location.reload();
+        } catch (e) {
+          this.toast('Kļūda: ' + e.message, 4000);
+          retryBtn.disabled = false;
+          retryBtn.textContent = t('retryLoad');
+        }
+      };
+    }
 
     try {
       const syncResult = await this.sync.loadInitialData((msg) => {
@@ -165,6 +198,9 @@ class CareFormController {
     } catch (e) {
       console.error(e);
       this.toast(t('partialData') + (e.message || 'Nezināma kļūda'), 4000);
+      if (retryBtn) {
+        retryBtn.style.display = 'block';
+      }
     } finally {
       if (overlay) overlay.style.display = 'none';
     }
@@ -245,6 +281,15 @@ class CareFormController {
       clientMap[String(id)] = name;
     });
 
+    // Get employee names
+    const employees = await this.db.getAll('darbinieki');
+    const employeeMap = {};
+    employees.forEach(e => {
+      const id = e.id || e.ID;
+      const name = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim();
+      employeeMap[String(id)] = name;
+    });
+
     const formatDateTime = (isoString) => {
       if (!isoString) return '';
       const d = new Date(isoString);
@@ -267,20 +312,18 @@ class CareFormController {
 
     const isOverdue = (deadline) => {
       if (!deadline) return false;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = TimezoneUtils.getTodayRiga();
       const d = new Date(deadline);
       d.setHours(0, 0, 0, 0);
-      return d < today;
+      return d < new Date(today + 'T00:00:00');
     };
 
     const isToday = (deadline) => {
       if (!deadline) return false;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = TimezoneUtils.getTodayRiga();
       const d = new Date(deadline);
       d.setHours(0, 0, 0, 0);
-      return d.getTime() === today.getTime();
+      return d.getTime() === new Date(today + 'T00:00:00').getTime();
     };
 
     tbody.innerHTML = allDisplayTasks.map(t => {
@@ -289,6 +332,8 @@ class CareFormController {
       const deadline = t.termins;
       const clientId = t.klientsId || t.clientId;
       const clientName = clientId ? (clientMap[String(clientId)] || 'ID: ' + clientId) : t('taskNoClient');
+      const assigneeId = t.pieskirtDarbiniekamId || t.employeeId;
+      const assigneeName = assigneeId ? (employeeMap[String(assigneeId)] || 'ID: ' + assigneeId) : t('taskNoClient');
       const priority = (t.prioritate || 'videja').toLowerCase();
       const priorityLabels = { augsta: 'Augsta', videja: 'Vidēja', zema: 'Zema', high: 'Augsta', medium: 'Vidēja', low: 'Zema' };
       const priorityLabel = priorityLabels[priority] || priority;
@@ -304,6 +349,7 @@ class CareFormController {
           <td><span class="task-priority ${priority}">${this.escapeHtml(priorityLabel)}</span></td>
           <td class="task-deadline">${this.escapeHtml(formatDate(deadline))}${overdue ? ' ⏰' : (today ? ' 📅' : '')}</td>
           <td class="task-client ${clientId ? '' : 'empty'}">${this.escapeHtml(clientName)}</td>
+          <td class="task-assignee ${assigneeId ? '' : 'empty'}">${this.escapeHtml(assigneeName)}</td>
           <td class="task-description" title="${this.escapeHtml(t.teksts || '')}">${this.escapeHtml(t.teksts || '')}</td>
           <td><button class="task-complete-btn ${btnClass}" data-task-id="${t.id}" ${btnDisabled}>${btnText}</button></td>
         </tr>
@@ -362,6 +408,62 @@ class CareFormController {
         window.location.href = 'aprupe.html';
       }
     });
+
+    // Sync status listener
+    window.addEventListener('syncStatusChange', (e) => {
+      const syncStatusEl = document.getElementById('syncStatus');
+      const manualSyncBtn = document.getElementById('manualSyncBtn');
+      if (syncStatusEl) {
+        syncStatusEl.textContent = e.detail;
+        syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
+      }
+      if (manualSyncBtn) {
+        manualSyncBtn.style.display = navigator.onLine ? 'inline-flex' : 'none';
+      }
+    });
+
+    // Manual sync button handler
+    const manualSyncBtn = document.getElementById('manualSyncBtn');
+    if (manualSyncBtn) {
+      manualSyncBtn.addEventListener('click', async () => {
+        if (!navigator.onLine) {
+          this.toast(t('offline'));
+          return;
+        }
+        manualSyncBtn.disabled = true;
+        manualSyncBtn.innerHTML = '<span>⏳</span> <span data-i18n="syncing">Sinhronizē...</span>';
+        try {
+          const result = await this.sync.forceFullSync((msg) => {
+            if (typeof this.toast === 'function') this.toast(msg, 3000);
+          });
+          if (result.offline) {
+            this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+          } else {
+            // Reload all data from refreshed local DB (authoritative source)
+            await Promise.all([
+              this.loadClient(),
+              this.loadMarks(),
+              this.loadHistory(),
+              this.loadAllClientMarks()
+            ]);
+            this.renderForm();
+            this.renderHistory();
+            this.renderSignature();
+            this.updateTeamSummary();
+            this.renderQuickTotals();
+            this.renderTaskBanner();
+            this.renderTasksTable();
+            this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
+          }
+        } catch (err) {
+          this.toast('⚠️ Kļūda: ' + err.message, 4000);
+        } finally {
+          manualSyncBtn.disabled = false;
+          manualSyncBtn.innerHTML = '<span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span>';
+          if (typeof applyLanguage === 'function') applyLanguage();
+        }
+      });
+    }
 
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
@@ -455,90 +557,27 @@ class CareFormController {
 
   extractDate(v) {
     if (!v) return '';
-    if (v instanceof Date) {
-      if (isNaN(v.getTime())) return '';
-      if (v.getFullYear() < 1900) return '';
-      const y = v.getFullYear();
-      const m = String(v.getMonth() + 1).padStart(2, '0');
-      const d = String(v.getDate()).padStart(2, '0');
-      return y + '-' + m + '-' + d;
-    }
-    if (typeof v === 'string') {
-      if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.substring(0, 10);
-      if (/^\d{2}\.\d{2}\.\d{4}$/.test(v)) {
-        const p = v.split('.');
-        return p[2] + '-' + p[1] + '-' + p[0];
-      }
-    }
-    return '';
+    return TimezoneUtils.formatDateRiga(v);
   }
 
   extractDateFromAnyField(row) {
-    const candidates = [row.date, row.created, row.lastModified, row.izveidots, row.pedeja_laiks];
+    const candidates = [row.date, row.created, row.lastModified, row.izveidots, row.pedeja_laiks, row.pēdējais_laiks];
     for (const c of candidates) {
       if (c === null || c === undefined || c === '') continue;
-      let s = '';
-      if (c instanceof Date) {
-        if (isNaN(c.getTime())) continue;
-        if (c.getFullYear() < 1900) continue;
-        s = c.toISOString();
-      } else if (typeof c === 'string') {
-        s = c;
-      }
-      if (!s) continue;
-      const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m1) {
-        const y = parseInt(m1[1]);
-        if (y >= 1900 && y <= 2100) return m1[0];
-      }
-      const m2 = s.match(/(\d{4}-\d{2}-\d{2})/);
-      if (m2) {
-        const y = parseInt(m2[1].substring(0, 4));
-        if (y >= 1900 && y <= 2100) return m2[1];
-      }
+      const formatted = TimezoneUtils.formatDateRiga(c);
+      if (formatted) return formatted;
     }
     return '';
   }
 
   extractTimeForSort(t) {
     if (!t) return '';
-    if (t instanceof Date) {
-      if (isNaN(t.getTime())) return '';
-      return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
-    }
-    if (typeof t === 'string') {
-      if (/^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
-      const m = t.match(/T(\d{2}):(\d{2})/);
-      if (m) return m[1] + ':' + m[2];
-      const m2 = t.match(/(\d{2}):(\d{2}):(\d{2})/);
-      if (m2) return m2[1] + ':' + m2[2];
-      const m3 = t.match(/ (\d{2}):(\d{2}):(\d{2})/);
-      if (m3) return m3[1] + ':' + m3[2];
-      const m4 = t.match(/ (\d{2}):(\d{2})/);
-      if (m4) return m4[1] + ':' + m4[2];
-    }
-    return String(t);
+    return TimezoneUtils.formatTimeRiga(t).substring(0, 5);
   }
 
   extractTimeDisplay(t) {
     if (!t) return '';
-    if (t instanceof Date) {
-      if (isNaN(t.getTime())) return '';
-      return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0') + ':' + String(t.getSeconds()).padStart(2, '0');
-    }
-    if (typeof t === 'string') {
-      if (/^\d{2}:\d{2}:\d{2}/.test(t)) return t.substring(0, 8);
-      if (/^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
-      const m = t.match(/T(\d{2}):(\d{2}):(\d{2})/);
-      if (m) return m[1] + ':' + m[2] + ':' + m[3];
-      const m2 = t.match(/T(\d{2}):(\d{2})/);
-      if (m2) return m2[1] + ':' + m2[2];
-      const m3 = t.match(/(\d{2}):(\d{2}):(\d{2})/);
-      if (m3) return m3[1] + ':' + m3[2] + ':' + m3[3];
-      const m4 = t.match(/(\d{2}):(\d{2})/);
-      if (m4) return m4[1] + ':' + m4[2];
-    }
-    return String(t);
+    return TimezoneUtils.formatTimeRiga(t);
   }
 
   getMarkTime(m) {
@@ -606,26 +645,23 @@ class CareFormController {
       if (fallback.length === 0) return true;
       if (fallback.includes(today)) return true;
       for (let i = 1; i <= 7; i++) {
-        if (fallback.includes(this.getOffsetDate(-i))) return true;
+        if (fallback.includes(TimezoneUtils.offsetDaysRiga(-i))) return true;
       }
       return false;
     }
     if (primary.includes(today)) return true;
     for (let i = 1; i <= 7; i++) {
-      if (primary.includes(this.getOffsetDate(-i))) return true;
+      if (primary.includes(TimezoneUtils.offsetDaysRiga(-i))) return true;
     }
     return false;
   }
 
   getToday() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return TimezoneUtils.getTodayRiga();
   }
 
   getOffsetDate(days) {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return TimezoneUtils.offsetDaysRiga(days);
   }
 
   clientIdsMatch(mark, clientId) {
@@ -1000,21 +1036,22 @@ class CareFormController {
   renderH2oSection(shift) {
     const uznemtsMark = this.getMark(shift, 'sikdrumi', 'uznemts_ml');
     const dayTotals = this.getDaySikdrumiTotals();
-    const value = uznemtsMark ? uznemtsMark.value : '';
+    const currentTotal = uznemtsMark ? uznemtsMark.value : '0';
     const uznLast = uznemtsMark ? uznemtsMark.value + ' ml' : '-';
     const body = `
       <div class="section-row">
         <div class="section-row-label">
           <span>H2O (ml)</span>
-          <span class="current-value ${value ? 'has-value' : 'empty'}">${value ? '✓ ' + value + ' ml' : ''}</span>
+          <span class="current-value ${currentTotal !== '0' ? 'has-value' : 'empty'}">${currentTotal !== '0' ? '✓ Kopā: ' + currentTotal + ' ml' : 'Nav ieraksta'}</span>
         </div>
-        <input type="number" min="0" step="50" class="number-input" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="0">
-        <button class="submit-btn" data-submit-sikdrumi="uznemts_ml" data-shift="${shift}">✓ Saglabāt</button>
+        <input type="number" min="0" step="50" class="number-input" data-cat="sikdrumi" data-field="uznemts_ml" data-shift="${shift}" placeholder="Pievienot (ml)" value="0">
+        <small style="color:#666;font-size:11px;display:block;margin-top:4px;">Pašreizējais kopsumma: ${currentTotal} ml. Ievadiet daudzumu, ko pievienot.</small>
+        <button class="submit-btn" data-submit-sikdrumi="uznemts_ml" data-shift="${shift}">✓ Pievienot</button>
       </div>
       <div class="section-row" style="border-bottom: none;">
         <div class="field-info">
-          <strong>Kopā:</strong> ${dayTotals.uznemts} ml<br>
-          <strong>Pēdējais:</strong> ${uznLast}
+          <strong>Dienas kopā:</strong> ${dayTotals.uznemts} ml<br>
+          <strong>Pēdējais ieraksts:</strong> ${uznLast}
         </div>
       </div>
     `;
@@ -1024,21 +1061,22 @@ class CareFormController {
   renderUrinaSection(shift) {
     const urinsMark = this.getMark(shift, 'sikdrumi', 'urina_daudzums');
     const dayTotals = this.getDaySikdrumiTotals();
-    const value = urinsMark ? urinsMark.value : '';
+    const currentTotal = urinsMark ? urinsMark.value : '0';
     const urinLast = urinsMark ? urinsMark.value + ' ml' : '-';
     const body = `
       <div class="section-row">
         <div class="section-row-label">
           <span>Urīna daudzums (ml)</span>
-          <span class="current-value ${value ? 'has-value' : 'empty'}">${value ? '✓ ' + value + ' ml' : ''}</span>
+          <span class="current-value ${currentTotal !== '0' ? 'has-value' : 'empty'}">${currentTotal !== '0' ? '✓ Kopā: ' + currentTotal + ' ml' : 'Nav ieraksta'}</span>
         </div>
-        <input type="number" min="0" step="50" class="number-input" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="0">
-        <button class="submit-btn" data-submit-sikdrumi="urina_daudzums" data-shift="${shift}">✓ Saglabāt</button>
+        <input type="number" min="0" step="50" class="number-input" data-cat="sikdrumi" data-field="urina_daudzums" data-shift="${shift}" placeholder="Pievienot (ml)" value="0">
+        <small style="color:#666;font-size:11px;display:block;margin-top:4px;">Pašreizējais kopsumma: ${currentTotal} ml. Ievadiet daudzumu, ko pievienot.</small>
+        <button class="submit-btn" data-submit-sikdrumi="urina_daudzums" data-shift="${shift}">✓ Pievienot</button>
       </div>
       <div class="section-row" style="border-bottom: none;">
         <div class="field-info">
-          <strong>Kopā:</strong> ${dayTotals.urina} ml<br>
-          <strong>Pēdējais:</strong> ${urinLast}
+          <strong>Dienas kopā:</strong> ${dayTotals.urina} ml<br>
+          <strong>Pēdējais ieraksts:</strong> ${urinLast}
         </div>
       </div>
     `;
@@ -1286,24 +1324,24 @@ class CareFormController {
     try {
       if (field === 'urina_daudzums') {
         const val = urinsInput ? urinsInput.value : '';
-        if (val === '') { this.toast(t('enterUrineAmount')); return; }
-        const enteredVal = parseFloat(val);
+        const enteredVal = parseFloat(val) || 0;
+        if (enteredVal <= 0) { this.toast(t('enterUrineAmount')); return; }
         const existing = this.marks.get(this.currentShift + '|sikdrumi|urina_daudzums');
         const currentTotal = existing ? parseFloat(existing.value) || 0 : 0;
         const newTotal = currentTotal + enteredVal;
         const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', String(newTotal), this.currentShift);
         if (!result) return;
-        if (urinsInput) urinsInput.value = '';
+        if (urinsInput) urinsInput.value = '0';
       } else if (field === 'uznemts_ml') {
         const val = uznemtsInput ? uznemtsInput.value : '';
-        if (val === '') { this.toast(t('enterFluidAmount')); return; }
-        const enteredVal = parseFloat(val);
+        const enteredVal = parseFloat(val) || 0;
+        if (enteredVal <= 0) { this.toast(t('enterFluidAmount')); return; }
         const existing = this.marks.get(this.currentShift + '|sikdrumi|uznemts_ml');
         const currentTotal = existing ? parseFloat(existing.value) || 0 : 0;
         const newTotal = currentTotal + enteredVal;
         const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', String(newTotal), this.currentShift);
         if (!result) return;
-        if (uznemtsInput) uznemtsInput.value = '';
+        if (uznemtsInput) uznemtsInput.value = '0';
       } else {
         return;
       }
@@ -1311,7 +1349,8 @@ class CareFormController {
       this.updateCategoryStatuses();
       this.renderQuickTotals();
       this.renderHistory();
-      this.loadAllClientMarks().then(() => this.renderHistory()).catch(() => {});
+      await this.loadAllClientMarks();
+      this.renderHistory();
       this.closeCategoryModal();
       this.toast(t('fluidSaved'));
     } finally {
@@ -1451,6 +1490,12 @@ class CareFormController {
   }
 
   async handleDiaperIncrement(shift, category, field, btn) {
+    // Check if shift is signed (immutable for non-admins)
+    if (!this.adminMode && this.isShiftSigned(shift)) {
+      this.toast(t('shiftSignedImmutable'));
+      return;
+    }
+    
     if (this._processing.has('diaper_increment')) return;
     this._processing.set('diaper_increment', true);
 
@@ -1493,13 +1538,13 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         clientId: this.clientId,
         employeeId: this.currentUser.id,
         date: this.getToday(),
-        time: new Date().toTimeString().split(' ')[0],
+        time: TimezoneUtils.getTimeRiga(),
         shift: shift,
         category: category,
         field: field,
         value: '+1 (kopā: ' + newCount + ')',
         type: 'Jauns',
-        created: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + 'T' + new Date().toTimeString().split(' ')[0] + '.000Z'
+        created: TimezoneUtils.getDateTimeRiga() + '.000Z'
       };
       await this.db.add('atzimes_log', logEntry);
 
@@ -1520,6 +1565,12 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
   }
 
   async handleOptionSelect(shift, category, field, value, btn) {
+    // Check if shift is signed (immutable for non-admins)
+    if (!this.adminMode && this.isShiftSigned(shift)) {
+      this.toast(t('shiftSignedImmutable'));
+      return;
+    }
+
     const actionKey = 'opt_' + shift + '|' + category + '|' + field;
     if (this._processing.has(actionKey)) {
       return;
@@ -1622,6 +1673,12 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
   }
 
   async saveMark(data) {
+    // Check if shift is signed (immutable for non-admins)
+    if (!this.adminMode && this.isShiftSigned(data.shift)) {
+      this.toast(t('shiftSignedImmutable'));
+      return null;
+    }
+    
     const actionKey = data.shift + '|' + data.category + '|' + data.field;
     if (this._processing.has(actionKey)) {
       return null;
@@ -1630,10 +1687,10 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
 
     try {
       const today = this.getToday();
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
+      const nowRiga = TimezoneUtils.getNowRiga();
+      const timeStr = TimezoneUtils.getTimeRiga();
       // Use UTC ISO string for unambiguous timestamp
-      const nowUTC = now.toISOString();
+      const nowUTC = nowRiga.toISOString();
 
       const id = this.db.generateId();
 
@@ -1763,7 +1820,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
   formatHistoryValue(category, field, value) {
     if (category === 'temp' && field === 'temperatura') {
       const v = parseFloat(value);
-      if (!isNaN(v) && v >= 37) return `<span style="color:#e74c3c">${value}°C</span>`;
+      if (!isNaN(v) && v >= 37) return value + '°C (drudzis)';
       return value || '-';
     }
     if (!value || value === '') return 'notīrīts';
@@ -1840,10 +1897,10 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       }
 
       const today = this.getToday();
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
+      const nowRiga = TimezoneUtils.getNowRiga();
+      const timeStr = TimezoneUtils.getTimeRiga();
       // Use UTC ISO string for unambiguous timestamp
-      const nowUTC = now.toISOString();
+      const nowUTC = nowRiga.toISOString();
       const signatureShift = this.getSignatureShift();
       const shiftLabel = signatureShift === 'R' ? 'Rīts' : 'Vakars';
 

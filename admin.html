@@ -12,18 +12,19 @@
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
-   <header class="header">
-    <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ" data-i18n-title="backBtn"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
-    <div class="lang-switcher">
-      <button data-lang="lv" class="lang-btn active">LV</button>
-      <button data-lang="ru" class="lang-btn">RU</button>
-      <button data-lang="en" class="lang-btn">EN</button>
-    </div>
-    <h1 data-i18n="loginTitle">Administratora panelis</h1>
-    <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
-    <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet" data-i18n-title="logout"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
-    <button id="enterAsCaregiverBtn" class="btn-primary btn-sm" data-i18n="enterAsCaregiver">Ieiet kā aprūpētājs</button>
-   </header>
+<header class="header">
+     <button id="backBtn" class="btn-icon btn-text-icon" title="Atpakaļ" data-i18n-title="backBtn"><span>←</span> <span data-i18n="backBtn">Atpakaļ</span></button>
+     <div class="lang-switcher">
+       <button data-lang="lv" class="lang-btn active">LV</button>
+       <button data-lang="ru" class="lang-btn">RU</button>
+       <button data-lang="en" class="lang-btn">EN</button>
+     </div>
+     <h1 data-i18n="loginTitle">Administratora panelis</h1>
+     <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
+     <button id="manualSyncBtn" class="btn-icon btn-text-icon sync-btn" title="Sinhronizēt" data-i18n-title="syncBtn" style="display:none;"><span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span></button>
+     <button id="logoutBtn" class="btn-icon logout-btn btn-text-icon" title="Iziet" data-i18n-title="logout"><span>⎋</span> <span data-i18n="logout">Iziet</span></button>
+     <button id="enterAsCaregiverBtn" class="btn-primary btn-sm" data-i18n="enterAsCaregiver">Ieiet kā aprūpētājs</button>
+    </header>
 
   <nav class="tab-bar">
     <button class="tab-btn active" data-tab="dashboard" data-i18n="dashboard">📊 Pārskats</button>
@@ -151,6 +152,7 @@
 
 <script src="js/config.js?v=20260914-1200"></script>
 <script src="js/i18n.js?v=20260914-1200"></script>
+<script src="js/timezone.js?v=20260914-1200"></script>
 <script src="js/db.js?v=20260914-1200"></script>
 <script src="js/sync.js?v=20260914-1200"></script>
 <script src="js/logout.js?v=20260914-1200"></script>

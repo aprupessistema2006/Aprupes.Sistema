@@ -32,6 +32,42 @@ class AprupeController {
       syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
     });
 
+    // Manual sync button handler
+    const manualSyncBtn = document.getElementById('manualSyncBtn');
+    if (manualSyncBtn) {
+      manualSyncBtn.addEventListener('click', async () => {
+        if (!navigator.onLine) {
+          this.toast && this.toast(t('offline'));
+          return;
+        }
+        manualSyncBtn.disabled = true;
+        manualSyncBtn.innerHTML = '<span>⏳</span> <span data-i18n="syncing">Sinhronizē...</span>';
+        try {
+          const result = await this.sync.forceFullSync((msg) => {
+            if (loadingText) loadingText.textContent = msg;
+          });
+          if (result.offline) {
+            this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+          } else {
+            await Promise.all([
+              this.loadClients(),
+              this.loadTodayMarks()
+            ]);
+            this.filteredClients = [...this.clients];
+            this.renderCards();
+            await this.renderTaskBanner();
+            this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
+          }
+        } catch (err) {
+          this.toast && this.toast('⚠️ Kļūda: ' + err.message, 4000);
+        } finally {
+          manualSyncBtn.disabled = false;
+          manualSyncBtn.innerHTML = '<span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span>';
+          if (typeof applyLanguage === 'function') applyLanguage();
+        }
+      });
+    }
+
     const adminBanner = document.getElementById('adminModeBanner');
     if (adminBanner) {
       adminBanner.style.display = this.adminMode ? 'block' : 'none';
@@ -53,7 +89,29 @@ class AprupeController {
 
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
+    const retryBtn = document.getElementById('retryLoadBtn');
     if (overlay) overlay.style.display = 'flex';
+
+    // Retry button handler - clears IndexedDB cache and reloads
+    if (retryBtn) {
+      retryBtn.onclick = async () => {
+        retryBtn.disabled = true;
+        retryBtn.textContent = '⏳ Notīra cache...';
+        try {
+          // Clear all IndexedDB stores
+          const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue'];
+          for (const store of stores) {
+            await this.db.clear(store);
+          }
+          // Reload page
+          window.location.reload();
+        } catch (e) {
+          this.toast && this.toast('Kļūda: ' + e.message, 4000);
+          retryBtn.disabled = false;
+          retryBtn.textContent = t('retryLoad');
+        }
+      };
+    }
 
     try {
       await Promise.all([
@@ -76,6 +134,9 @@ class AprupeController {
       await this.renderTaskBanner();
     } catch (e) {
       console.error(e);
+      if (retryBtn) {
+        retryBtn.style.display = 'block';
+      }
     } finally {
       if (overlay) overlay.style.display = 'none';
     }
@@ -196,38 +257,15 @@ class AprupeController {
   }
 
   todayLocal() {
-    const d = new Date();
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
+    return TimezoneUtils.getTodayRiga();
   }
 
   offsetLocal(days) {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
+    return TimezoneUtils.offsetDaysRiga(days);
   }
 
   extractDate(v) {
-    if (!v) return '';
-    if (v instanceof Date) {
-      if (isNaN(v.getTime())) return '';
-      const y = v.getFullYear();
-      const m = String(v.getMonth() + 1).padStart(2, '0');
-      const d = String(v.getDate()).padStart(2, '0');
-      if (y < 1900) return '';
-      return y + '-' + m + '-' + d;
-    }
-    if (typeof v === 'string') {
-      if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.substring(0, 10);
-      if (/^\d{2}\.\d{2}\.\d{4}$/.test(v)) {
-        const p = v.split('.');
-        return p[2] + '-' + p[1] + '-' + p[0];
-      }
-    }
-    return '';
+    return TimezoneUtils.formatDateRiga(v);
   }
 
   filterClients(term) {

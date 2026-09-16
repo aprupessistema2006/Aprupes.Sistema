@@ -732,6 +732,12 @@ body {
   padding: 10px;
 }
 
+.month-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
 .month-table {
   border-collapse: collapse;
   font-size: 12px;

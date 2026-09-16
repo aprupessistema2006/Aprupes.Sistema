@@ -1,7 +1,7 @@
 const TaskManager = {
   tasks: [],
   lastFetch: 0,
-  CACHE_TTL: 30000,
+  CACHE_TTL: 0,
 
   async loadAll(force) {
     if (!force && this.tasks.length > 0 && (Date.now() - this.lastFetch) < this.CACHE_TTL) {
@@ -54,25 +54,17 @@ const TaskManager = {
 
   formatDeadline(d) {
     if (!d) return '';
-    if (d instanceof Date) {
-      if (isNaN(d.getTime())) return '';
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return y + '-' + m + '-' + day;
-    }
-    if (typeof d === 'string') return d.substring(0, 10);
-    return String(d);
+    return TimezoneUtils.formatDateRiga(d);
   },
 
   isOverdue(d) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = TimezoneUtils.getTodayRiga();
     const dd = this.formatDeadline(d);
     return dd && dd < today;
   },
 
   isToday(d) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = TimezoneUtils.getTodayRiga();
     return this.formatDeadline(d) === today;
   },
 
@@ -91,7 +83,7 @@ const TaskManager = {
         prioritate: taskData.prioritate || 'videja',
         statuss: 'jauns',
         irPabeigts: false,
-        izveidots: new Date().toISOString(),
+        izveidots: TimezoneUtils.getDateTimeRiga(),
         izveidotajsId: taskData.izveidotajsId || '',
         pabeigtsLaiks: null,
         pabeigtajsId: null
@@ -135,7 +127,7 @@ const TaskManager = {
     try {
     task.irPabeigts = true;
     task.statuss = 'pabeigts';
-    task.pabeigtsLaiks = new Date().toISOString();
+    task.pabeigtsLaiks = TimezoneUtils.getDateTimeRiga();
     task.pabeigtajsId = employeeId;
     await window.careDB.put('uzdevomi', task);
     if (window.careSync) {
@@ -177,7 +169,8 @@ const TaskManager = {
           irPabeigts: false,
           statuss: 'jauns',
           pabeigtsLaiks: null,
-          pabeigtajsId: null
+          pabeigtajsId: null,
+          actionId: 'reopen_' + task.id + '_' + Date.now()
         }
       });
     }
@@ -230,6 +223,13 @@ const TaskManager = {
       const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim();
       clientMap[String(id)] = name;
     });
+    const employees = await window.careDB.getAll('darbinieki');
+    const employeeMap = {};
+    employees.forEach(e => {
+      const id = e.id || e.ID;
+      const name = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim();
+      employeeMap[String(id)] = name;
+    });
     const items = active.map(t => {
       const dd = this.formatDeadline(t.termins);
       const overdue = this.isOverdue(t.termins);
@@ -238,6 +238,8 @@ const TaskManager = {
       const pr = priorityLabel[(t.prioritate || '').toLowerCase()] || t.prioritate;
       const tcid = t.klientsId || t.clientId;
       const cname = tcid ? (clientMap[String(tcid)] || 'ID: ' + tcid) : 'VISPĀRĪGS';
+      const assigneeId = t.pieskirtDarbiniekamId || t.employeeId;
+      const assigneeName = assigneeId ? (employeeMap[String(assigneeId)] || 'ID: ' + assigneeId) : '—';
       return `
         <div class="task-item ${overdue ? 'overdue' : ''} ${today ? 'today' : ''}">
           <div class="task-item-header">
@@ -245,6 +247,7 @@ const TaskManager = {
             <span class="task-deadline">${overdue ? '⏰ NOKAVĒTS: ' : (today ? '📅 Šodien, ' : 'Līdz ')} ${dd}</span>
           </div>
           <div class="task-client">🏥 ${this.escapeHtml(cname)}</div>
+          <div class="task-assignee">👤 ${this.escapeHtml(assigneeName)}</div>
           <div class="task-text">${this.escapeHtml(t.teksts || '')}</div>
           <button class="task-complete-btn" data-task-id="${t.id}">✓ Izdarīju</button>
         </div>
@@ -270,3 +273,14 @@ const TaskManager = {
 if (typeof globalThis !== 'undefined') {
   globalThis.TaskManager = TaskManager;
 }
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('syncComplete', () => {
+    TaskManager.invalidateCache();
+  });
+}
+
+TaskManager.invalidateCache = function() {
+  this.tasks = [];
+  this.lastFetch = 0;
+};

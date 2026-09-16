@@ -102,7 +102,13 @@ function findRow(sheet, conditions) {
         break;
       }
     }
-    if (match) return { row: i + 1, data: values[i], headers: headers };
+    if (match) {
+      const rowData = {};
+      headers.forEach((h, j) => {
+        rowData[normalizeKey(h)] = values[i][j];
+      });
+      return { row: i + 1, data: rowData, headers: headers };
+    }
   }
   return null;
 }
@@ -142,7 +148,7 @@ function doGet(e) {
   try {
     let result;
     if (params.action === 'load') {
-      result = handleLoadData();
+      result = handleLoadData(params);
     } else if (params.data) {
       let data;
       try { data = JSON.parse(params.data); } catch (pe) {
@@ -190,6 +196,7 @@ function doPost(e) {
 function routeActionData(data) {
   const action = data.action;
   try {
+    if (action === 'ping') return { success: true, pong: true };
     if (action === 'createClient') return handleCreateClient(data);
     if (action === 'createEmployee') return handleCreateEmployee(data);
     if (action === 'updateClient') return handleUpdate(data, 'klienti');
@@ -203,16 +210,98 @@ function routeActionData(data) {
   }
 }
 
-function handleLoadData() {
-  return {
-    darbinieki: getSheetData(getSheet('darbinieki')),
-    klienti: getSheetData(getSheet('klienti')),
-    atzimes: getSheetData(getSheet('atzimes')),
-    atzimes_log: getSheetData(getSheet('atzimes_log')),
-    uzdevomi: getSheetData(getSheet('uzdevomi')),
-    success: true
-  };
-}
+function handleLoadData(params) {
+    // Support optional filtering parameters
+    const filters = {
+      clientId: params.clientId || '',
+      employeeId: params.employeeId || '',
+      dateFrom: params.dateFrom || '',
+      dateTo: params.dateTo || '',
+      limit: params.limit ? parseInt(params.limit) : 0
+    };
+    
+    // Use cached spreadsheet reference to avoid repeated openById calls
+    const ss = getSpreadsheet();
+    
+    // Load reference data (small, rarely changes)
+    const darbinieki = getSheetData(getSheet('darbinieki'));
+    const klienti = getSheetData(getSheet('klienti'));
+    
+    // Load transactional data with optional filtering
+    const atzimes = getSheetDataFiltered(getSheet('atzimes'), filters);
+    const atzimes_log = getSheetDataFiltered(getSheet('atzimes_log'), filters);
+    const uzdevomi = getSheetDataFiltered(getSheet('uzdevomi'), filters);
+    
+    return {
+      darbinieki: darbinieki,
+      klienti: klienti,
+      atzimes: atzimes,
+      atzimes_log: atzimes_log,
+      uzdevomi: uzdevomi,
+      success: true,
+      serverTime: Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd'T'HH:mm:ss"),
+      filters: filters
+    };
+  }
+
+  function getSheetDataFiltered(sheet, filters) {
+    if (!sheet) return [];
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    if (lastRow === 0 || lastCol === 0) return [];
+    
+    const range = sheet.getRange(1, 1, lastRow, lastCol);
+    const values = range.getValues();
+    const headers = values[0].map(h => String(h).trim());
+    const rows = [];
+    
+    // Build column index map once
+    const colMap = {};
+    headers.forEach((h, i) => { colMap[normalizeKey(h)] = i; });
+    
+    for (let i = 1; i < values.length; i++) {
+      const row = {};
+      let hasData = false;
+      
+      // Check filters early to skip unnecessary processing
+      if (filters.clientId && colMap['klients_id'] !== undefined) {
+        if (String(values[i][colMap['klients_id']]) !== filters.clientId) continue;
+      }
+      if (filters.employeeId && colMap['darbinieks_id'] !== undefined) {
+        if (String(values[i][colMap['darbinieks_id']]) !== filters.employeeId) continue;
+      }
+      if (filters.dateFrom && colMap['datums'] !== undefined) {
+        const rowDate = String(values[i][colMap['datums']]);
+        if (rowDate && rowDate < filters.dateFrom) continue;
+      }
+      if (filters.dateTo && colMap['datums'] !== undefined) {
+        const rowDate = String(values[i][colMap['datums']]);
+        if (rowDate && rowDate > filters.dateTo) continue;
+      }
+      
+      for (let j = 0; j < headers.length; j++) {
+        const v = values[i][j];
+        if (v !== '' && v !== null && v !== undefined) {
+          hasData = true;
+        }
+        const headerKey = normalizeKey(headers[j]);
+        if (v instanceof Date) {
+          if (headerKey === 'laiks') {
+            row[headerKey] = Utilities.formatDate(v, TZ, 'HH:mm:ss');
+          } else {
+            row[headerKey] = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+          }
+        } else {
+          row[headerKey] = v;
+        }
+      }
+      if (hasData) rows.push(row);
+      
+      // Respect limit
+      if (filters.limit > 0 && rows.length >= filters.limit) break;
+    }
+    return rows;
+  }
 
 function handleCreateClient(data) {
   const sheet = getSheet('klienti');
@@ -290,28 +379,50 @@ function handleMark(data) {
   }
 
   try {
+    // Get all data at once to minimize API calls
+    const atzimesLastRow = atzimesSheet.getLastRow();
+    const logLastRow = logSheet.getLastRow();
+    
+    // Build column maps once
+    const atzimesHeaders = atzimesSheet.getRange(1, 1, 1, atzimesSheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    const logHeaders = logSheet.getRange(1, 1, 1, logSheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    const atzimesColMap = {};
+    const logColMap = {};
+    atzimesHeaders.forEach((h, i) => { atzimesColMap[normalizeKey(h)] = i; });
+    logHeaders.forEach((h, i) => { logColMap[normalizeKey(h)] = i; });
+    
+    // Read all data at once
+    const atzimesData = atzimesLastRow > 1 ? atzimesSheet.getRange(2, 1, atzimesLastRow - 1, atzimesHeaders.length).getValues() : [];
+    const logData = logLastRow > 1 ? logSheet.getRange(2, 1, logLastRow - 1, logHeaders.length).getValues() : [];
+
     // Dubultās ieraksta novēršana: ja ir actionId, pārbaudām vai tas jau eksistē
-    if (m.actionId) {
-      const existingById = findRow(atzimesSheet, [['action_id', m.actionId]]);
-      if (existingById) {
-        return {
-          success: true,
-          id: existingById.data.id,
-          already_processed: true
-        };
+    if (m.actionId && atzimesColMap['action_id'] !== undefined) {
+      for (let i = 0; i < atzimesData.length; i++) {
+        if (String(atzimesData[i][atzimesColMap['action_id']]) === String(m.actionId)) {
+          return {
+            success: true,
+            id: atzimesData[i][atzimesColMap['id']],
+            already_processed: true
+          };
+        }
       }
     }
 
-    SpreadsheetApp.flush();
-
-    const existingMark = findRow(atzimesSheet, [
-      ['klients_id', m.clientId || ''],
-      ['darbinieks_id', m.employeeId || ''],
-      ['datums', m.date || ''],
-      ['periods', m.shift || 'R'],
-      ['kategorija', m.category || ''],
-      ['lauka_nosaukums', m.field || '']
-    ]);
+    // Find existing mark in memory
+    let existingMarkRow = -1;
+    let existingMarkValue = '';
+    for (let i = 0; i < atzimesData.length; i++) {
+      if (String(atzimesData[i][atzimesColMap['klients_id']]) === String(m.clientId || '') &&
+          String(atzimesData[i][atzimesColMap['darbinieks_id']]) === String(m.employeeId || '') &&
+          String(atzimesData[i][atzimesColMap['datums']]) === String(m.date || '') &&
+          String(atzimesData[i][atzimesColMap['periods']]) === String(m.shift || 'R') &&
+          String(atzimesData[i][atzimesColMap['kategorija']]) === String(m.category || '') &&
+          String(atzimesData[i][atzimesColMap['lauka_nosaukums']]) === String(m.field || '')) {
+        existingMarkRow = i + 2; // +2 because data starts at row 2 (1-indexed, plus header)
+        existingMarkValue = String(atzimesData[i][atzimesColMap['vertiba']]);
+        break;
+      }
+    }
 
     // Parse timestamp from frontend (UTC ISO string) and convert to Europe/Riga
     let lastModifiedRiga;
@@ -337,81 +448,103 @@ function handleMark(data) {
       logDateTimeRiga = formatDateTimeLV(new Date());
     }
 
-    if (existingMark) {
-      const existingLog = findRow(logSheet, [
-        ['atzimes_id', existingMark.data.id]
-      ]);
+    const updates = []; // Batch updates to apply at once
+    
+    if (existingMarkRow > 0) {
       // Ja vērtība ir tā pati, neizveido duplikātu žurnāla ierakstu
-      if (existingMark.data.vertiba === m.value) {
+      if (existingMarkValue === String(m.value)) {
         return {
           success: true,
-          id: existingMark.data.id,
+          id: atzimesData[existingMarkRow - 2][atzimesColMap['id']],
           already_processed: true,
-          logId: existingLog ? existingLog.data.id : null
+          logId: null
         };
       }
 
-      // Ja vērtība atšķiras, atjaunojam esošo ierakstu un pievienojam žurnālā
-      setCellValue(atzimesSheet, existingMark.row, 'vertiba', m.value);
-      setCellValue(atzimesSheet, existingMark.row, 'pedeja_laiks', lastModifiedRiga);
-      if (m.actionId) setCellValue(atzimesSheet, existingMark.row, 'action_id', m.actionId);
-      SpreadsheetApp.flush();
-
+      // Batch updates for existing mark
+      if (atzimesColMap['vertiba'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['vertiba'] + 1, value: m.value });
+      if (atzimesColMap['pedeja_laiks'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['pedeja_laiks'] + 1, value: lastModifiedRiga });
+      if (m.actionId && atzimesColMap['action_id'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['action_id'] + 1, value: m.actionId });
+      
+      const markId = atzimesData[existingMarkRow - 2][atzimesColMap['id']];
+      
+      // Prepare log entry
       const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
-      appendRow(logSheet, {
-        id: logId,
-        atzimes_id: existingMark.data.id,
-        klients_id: m.clientId,
-        darbinieks_id: m.employeeId,
-        datums: formatDate(new Date()),  // log date is current date
-        laiks: lastModifiedRiga,  // use the timestamp from frontend
-        periods: m.shift || 'R',
-        kategorija: m.category,
-        lauka_nosaukums: m.field,
-        vertiba: m.value,
-        izveidots: logDateTimeRiga
-      });
+      const logRow = [
+        logId,
+        markId,
+        m.clientId,
+        m.employeeId,
+        formatDate(new Date()),
+        lastModifiedRiga,
+        m.shift || 'R',
+        m.category,
+        m.field,
+        m.value,
+        logDateTimeRiga
+      ];
+      
+      // Apply all updates at once
+      updates.forEach(u => u.sheet.getRange(u.row, u.col).setValue(u.value));
+      
+      // Append log row
+      if (logData.length > 0) {
+        logSheet.getRange(logLastRow + 1, 1, 1, logHeaders.length).setValues([logRow]);
+      } else {
+        logSheet.getRange(2, 1, 1, logHeaders.length).setValues([logRow]);
+      }
+      
       SpreadsheetApp.flush();
 
       return {
         success: true,
-        id: existingMark.data.id,
+        id: markId,
         already_processed: true,
         updated: true,
         logId: logId
       };
     }
 
+    // New mark - prepare both rows and write at once
     const id = 'm_' + Date.now();
-    // Jauna atzīme: ierakstam ar action_id dubultās ierakstīšanas novēršanai
-    appendRow(atzimesSheet, {
-      id: id,
-      klients_id: m.clientId,
-      darbinieks_id: m.employeeId,
-      datums: m.date || formatDate(new Date()),
-      laiks: lastModifiedRiga,  // use the timestamp from frontend
-      periods: m.shift || 'R',
-      kategorija: m.category,
-      lauka_nosaukums: m.field,
-      vertiba: m.value,
-      action_id: m.actionId || ''
+    const markRow = new Array(atzimesHeaders.length).fill('');
+    atzimesHeaders.forEach((h, i) => {
+      const nk = normalizeKey(h);
+      if (nk === 'id') markRow[i] = id;
+      else if (nk === 'klients_id') markRow[i] = m.clientId;
+      else if (nk === 'darbinieks_id') markRow[i] = m.employeeId;
+      else if (nk === 'datums') markRow[i] = m.date || formatDate(new Date());
+      else if (nk === 'laiks') markRow[i] = lastModifiedRiga;
+      else if (nk === 'periods') markRow[i] = m.shift || 'R';
+      else if (nk === 'kategorija') markRow[i] = m.category;
+      else if (nk === 'lauka_nosaukums') markRow[i] = m.field;
+      else if (nk === 'vertiba') markRow[i] = m.value;
+      else if (nk === 'action_id') markRow[i] = m.actionId || '';
     });
-    SpreadsheetApp.flush();
 
     const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
-    appendRow(logSheet, {
-      id: logId,
-      atzimes_id: id,
-      klients_id: m.clientId,
-      darbinieks_id: m.employeeId,
-      datums: formatDate(new Date()),  // log date is current date
-      laiks: lastModifiedRiga,  // use the timestamp from frontend
-      periods: m.shift || 'R',
-      kategorija: m.category,
-      lauka_nosaukums: m.field,
-      vertiba: m.value,
-      izveidots: logDateTimeRiga
-    });
+    const logRow = [
+      logId,
+      id,
+      m.clientId,
+      m.employeeId,
+      formatDate(new Date()),
+      lastModifiedRiga,
+      m.shift || 'R',
+      m.category,
+      m.field,
+      m.value,
+      logDateTimeRiga
+    ];
+
+    // Write both rows at once
+    atzimesSheet.getRange(atzimesLastRow + 1, 1, 1, atzimesHeaders.length).setValues([markRow]);
+    if (logData.length > 0) {
+      logSheet.getRange(logLastRow + 1, 1, 1, logHeaders.length).setValues([logRow]);
+    } else {
+      logSheet.getRange(2, 1, 1, logHeaders.length).setValues([logRow]);
+    }
+    
     SpreadsheetApp.flush();
 
     return { success: true, id: id, already_processed: false };
@@ -476,7 +609,7 @@ function handleCreateTask(data) {
       };
     }
 
-    const id = 't_' + Date.now();
+    const id = t.id || 't_' + Date.now();
     // Jauns uzdevums: ierakstam ar action_id dubultās izveides novēršanai
     // Convert UTC timestamp from frontend to Europe/Riga
     let izveidotsRiga = '';

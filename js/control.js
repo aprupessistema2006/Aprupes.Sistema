@@ -25,11 +25,51 @@ class ControlPanel {
     window.careSync = this.sync;
 
     const syncStatusEl = document.getElementById('syncStatus');
+    const manualSyncBtn = document.getElementById('manualSyncBtn');
     if (syncStatusEl) {
-      window.addEventListener('syncStatusChange', (e) => {
-        if (!syncStatusEl) return;
-        syncStatusEl.textContent = e.detail;
-        syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
+    window.addEventListener('syncStatusChange', (e) => {
+      if (!syncStatusEl) return;
+      syncStatusEl.textContent = e.detail;
+      syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
+    });
+    window.addEventListener('syncComplete', () => {
+      this.loadData().then(() => {
+        this.renderAll();
+      }).catch(() => {});
+    });
+    }
+    if (manualSyncBtn) {
+      manualSyncBtn.style.display = navigator.onLine ? 'inline-flex' : 'none';
+      manualSyncBtn.addEventListener('click', async () => {
+        if (!navigator.onLine) {
+          this.toast && this.toast(t('offline'));
+          return;
+        }
+        manualSyncBtn.disabled = true;
+        manualSyncBtn.innerHTML = '<span>⏳</span> <span data-i18n="syncing">Sinhronizē...</span>';
+        const overlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        if (overlay) overlay.style.display = 'flex';
+        try {
+          const result = await this.sync.forceFullSync((msg) => {
+            if (loadingText) loadingText.textContent = msg;
+          });
+          if (result.offline) {
+            this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+          } else {
+            await this.loadData();
+            this.renderAll();
+            await this.renderTasksList();
+            this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
+          }
+        } catch (err) {
+          this.toast && this.toast('⚠️ Kļūda: ' + err.message, 4000);
+        } finally {
+          manualSyncBtn.disabled = false;
+          manualSyncBtn.innerHTML = '<span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span>';
+          if (overlay) overlay.style.display = 'none';
+          if (typeof applyLanguage === 'function') applyLanguage();
+        }
       });
     }
 
@@ -41,15 +81,12 @@ class ControlPanel {
     if (overlay) overlay.style.display = 'flex';
 
     try {
-      await this.loadData();
-      this.renderAll();
-      await this.setupTasksUI();
-
       await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
       });
       await this.loadData();
       this.renderAll();
+      await this.setupTasksUI();
       await this.renderTasksList();
     } catch (e) {
       console.error(e);
@@ -129,14 +166,19 @@ class ControlPanel {
         if (btn) btn.disabled = true;
         if (overlay) overlay.style.display = 'flex';
         try {
-          await this.sync.loadInitialData((msg) => {
+          const result = await this.sync.forceFullSync((msg) => {
             if (loadingText) loadingText.textContent = msg;
           });
-          await this.loadData();
-          this.renderAll();
-          this.toast(t('dataUpdated'));
+          if (result.offline) {
+            this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+          } else {
+            await this.loadData();
+            this.renderAll();
+            await this.renderTasksList();
+            this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
+          }
         } catch (e) {
-          this.toast(t('errorOccurred') + e.message);
+          this.toast && this.toast('⚠️ Kļūda: ' + e.message, 4000);
         } finally {
           if (btn) btn.disabled = false;
           if (overlay) overlay.style.display = 'none';
@@ -183,11 +225,7 @@ class ControlPanel {
   }
 
   todayLocal() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + day;
+    return TimezoneUtils.getTodayRiga();
   }
 
   updateDateModeBadge() {
@@ -306,28 +344,11 @@ class ControlPanel {
   }
 
   extractDateFromAnyField(row) {
-    const candidates = [row.date, row.created, row.lastModified, row.izveidots, row.pedeja_laiks];
+    const candidates = [row.date, row.created, row.lastModified, row.izveidots, row.pedeja_laiks, row.pēdējais_laiks];
     for (const c of candidates) {
       if (c === null || c === undefined || c === '') continue;
-      let s = '';
-      if (c instanceof Date) {
-        if (isNaN(c.getTime())) continue;
-        if (c.getFullYear() < 1900) continue;
-        s = c.toISOString();
-      } else if (typeof c === 'string') {
-        s = c;
-      }
-      if (!s) continue;
-      const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m1) {
-        const y = parseInt(m1[1]);
-        if (y >= 1900 && y <= 2100) return m1[0];
-      }
-      const m2 = s.match(/(\d{4}-\d{2}-\d{2})/);
-      if (m2) {
-        const y = parseInt(m2[1].substring(0, 4));
-        if (y >= 1900 && y <= 2100) return m2[1];
-      }
+      const formatted = TimezoneUtils.formatDateRiga(c);
+      if (formatted) return formatted;
     }
     return '';
   }
@@ -377,17 +398,7 @@ class ControlPanel {
   extractDateFromAnyFieldField(row, field) {
     const v = row[field];
     if (!v) return '';
-    if (v instanceof Date) {
-      const y = v.getFullYear();
-      const m = String(v.getMonth() + 1).padStart(2, '0');
-      const d = String(v.getDate()).padStart(2, '0');
-      return y + '-' + m + '-' + d;
-    }
-    if (typeof v === 'string') {
-      const m1 = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m1) return m1[0];
-    }
-    return '';
+    return TimezoneUtils.formatDateRiga(v);
   }
 
   renderAll() {
@@ -490,24 +501,7 @@ class ControlPanel {
 
   formatTimeForDisplay(t) {
     if (!t) return '';
-    if (t instanceof Date) {
-      if (isNaN(t.getTime())) return '';
-      return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0') + ':' + String(t.getSeconds()).padStart(2, '0');
-    }
-    if (typeof t === 'string') {
-      const trimmed = t.trim();
-      if (/^\d{2}:\d{2}:\d{2}/.test(trimmed)) return trimmed.substring(0, 8);
-      if (/^\d{2}:\d{2}/.test(trimmed)) return trimmed.substring(0, 5);
-      const timeMatch = trimmed.match(/(?:^|[ T])(\d{2}:\d{2}(:\d{2})?)/);
-      if (timeMatch) return timeMatch[1];
-      if (trimmed.includes('T')) {
-        const d = new Date(trimmed);
-        if (!isNaN(d.getTime())) {
-          return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
-        }
-      }
-    }
-    return String(t);
+    return TimezoneUtils.formatTimeRiga(t);
   }
 
   formatFieldLabel(category, field) {
@@ -884,10 +878,15 @@ class ControlPanel {
 
       const daysInMonth = new Date(year, month, 0).getDate();
       const dataByDay = {};
+      
+      // For signature placement - track which shift the signature belongs to
+      const signaturesByDay = {};
+
       clientMarks.forEach(m => {
         let d;
-        const dateStr = m.date || m.datums;
-        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+        // Use extractDateFromAnyField for consistent date parsing
+        const dateStr = this.extractDateFromAnyField(m);
+        if (dateStr) {
           const parts = dateStr.split('-');
           d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
         } else if (m.date instanceof Date) {
@@ -901,8 +900,28 @@ class ControlPanel {
           if (!dataByDay[day]) dataByDay[day] = {};
           const shift = m.shift || m.periods || 'R';
           const key = shift + '|' + m.category + '|' + m.field;
-          if (dataByDay[day][key] === undefined) {
-            dataByDay[day][key] = m.value;
+          
+          // For numeric fields, SUM values; for others, keep latest
+          const isNumeric = m.category === 'sikdrumi' && (m.field === 'urina_daudzums' || m.field === 'uznemts_ml') ||
+                           m.category === 'citsi_pasakomi' && m.field === 'autins_biksitu_skaits';
+          
+          if (isNumeric) {
+            const val = parseFloat(m.value) || 0;
+            if (dataByDay[day][key] === undefined) {
+              dataByDay[day][key] = val;
+            } else {
+              dataByDay[day][key] += val;
+            }
+          } else {
+            if (dataByDay[day][key] === undefined) {
+              dataByDay[day][key] = m.value;
+            }
+          }
+          
+          // Track signatures for correct shift placement
+          if (m.category === 'paraksts' && m.field === 'aprupetaja_paraksts') {
+            if (!signaturesByDay[day]) signaturesByDay[day] = {};
+            signaturesByDay[day][shift] = m.value;
           }
         }
       });
@@ -944,7 +963,7 @@ class ControlPanel {
         return s;
       };
 
-      let html = '<table class="month-table"><thead><tr><th>Laiks / Diena</th>';
+      let html = '<div class="month-table-wrapper"><table class="month-table"><thead><tr><th>Laiks / Diena</th>';
       for (let day = 1; day <= daysInMonth; day++) {
         html += `<th colspan="2" class="day-header">${day}</th>`;
       }
@@ -960,7 +979,12 @@ class ControlPanel {
           const dayData = dataByDay[day] || {};
           let valR = dayData['R|' + f.category + '|' + f.field];
           let valV = dayData['V|' + f.category + '|' + f.field];
+          
+          // For signatures, use the tracked shift-specific values
           if (f.category === 'paraksts') {
+            const sigData = signaturesByDay[day] || {};
+            valR = sigData['R'] || '';
+            valV = sigData['V'] || '';
             if (typeof valR === 'string') valR = valR.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
             if (typeof valV === 'string') valV = valV.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
           }
@@ -989,8 +1013,8 @@ class ControlPanel {
           const dayData = dataByDay[day] || {};
           const valR = dayData['R|' + sf.category + '|' + sf.field];
           const valV = dayData['V|' + sf.category + '|' + sf.field];
-          if (valR && !isNaN(parseFloat(valR))) sumR += parseFloat(valR);
-          if (valV && !isNaN(parseFloat(valV))) sumV += parseFloat(valV);
+          if (valR !== undefined && !isNaN(parseFloat(valR))) sumR += parseFloat(valR);
+          if (valV !== undefined && !isNaN(parseFloat(valV))) sumV += parseFloat(valV);
         }
         html += `<tr class="summary-row"><td><strong>${this.escapeHtml(sf.label)}</strong></td>`;
         for (let day = 1; day <= daysInMonth; day++) {
@@ -1000,7 +1024,7 @@ class ControlPanel {
         html += '</tr>';
       });
 
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
       container.innerHTML = html;
     } catch (err) {
       this.toast('Kļūda: ' + err.message);

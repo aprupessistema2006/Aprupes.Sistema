@@ -26,11 +26,54 @@ class AdminPanel {
     window.careSync = this.sync;
 
     const syncStatusEl = document.getElementById('syncStatus');
+    const manualSyncBtn = document.getElementById('manualSyncBtn');
     if (syncStatusEl) {
       window.addEventListener('syncStatusChange', (e) => {
         if (!syncStatusEl) return;
         syncStatusEl.textContent = e.detail;
         syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
+      });
+      window.addEventListener('syncComplete', () => {
+        this.loadData().then(() => {
+          this.renderDashboard();
+          this.renderClientList();
+          this.renderEmployeeList();
+        }).catch(() => {});
+      });
+    }
+    if (manualSyncBtn) {
+      manualSyncBtn.style.display = navigator.onLine ? 'inline-flex' : 'none';
+      manualSyncBtn.addEventListener('click', async () => {
+        if (!navigator.onLine) {
+          this.toast && this.toast(t('offline'));
+          return;
+        }
+        manualSyncBtn.disabled = true;
+        manualSyncBtn.innerHTML = '<span>⏳</span> <span data-i18n="syncing">Sinhronizē...</span>';
+        const overlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        if (overlay) overlay.style.display = 'flex';
+        try {
+          const result = await this.sync.forceFullSync((msg) => {
+            if (loadingText) loadingText.textContent = msg;
+          });
+          if (result.offline) {
+            this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+          } else {
+            await this.loadData();
+            this.renderDashboard();
+            this.renderClientList();
+            this.renderEmployeeList();
+            this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
+          }
+        } catch (err) {
+          this.toast && this.toast('⚠️ Kļūda: ' + err.message, 4000);
+        } finally {
+          manualSyncBtn.disabled = false;
+          manualSyncBtn.innerHTML = '<span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span>';
+          if (overlay) overlay.style.display = 'none';
+          if (typeof applyLanguage === 'function') applyLanguage();
+        }
       });
     }
 
@@ -614,12 +657,26 @@ class AdminPanel {
     this.showEmployeeForm(employee);
   }
 
-async syncNow() {
+  async syncNow() {
+    if (!navigator.onLine) {
+      this.toast(t('offline'));
+      return;
+    }
     this.toast(t('syncing'));
-    await this.sync.sync();
-    this.toast(t('syncCompleted'));
-    this.renderDashboard();
-    this.toast('Sinhronizācija pabeigta');
+    try {
+      const result = await this.sync.forceFullSync();
+      if (result.offline) {
+        this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+      } else {
+        await this.loadData();
+        this.renderDashboard();
+        this.renderClientList();
+        this.renderEmployeeList();
+        this.toast('✅ ' + t('syncCompleted'));
+      }
+    } catch (err) {
+      this.toast('⚠️ Kļūda: ' + err.message, 4000);
+    }
   }
 
   async checkConnection() {

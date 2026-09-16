@@ -2,6 +2,16 @@ const SYNC_URL = typeof CONFIG !== 'undefined' ? CONFIG.GAS_URL : null;
 
 const CACHE_BUSTER = () => Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
+function getSyncStatusClass(status) {
+  const value = String(status || '').toLowerCase();
+  if (value.includes('kļū') || value.includes('neizdev') || value.includes('error')) return 'sync-badge error';
+  if (value.includes('gaida') || value.includes('rindā')) return 'sync-badge pending';
+  if (value.includes('sinhronizē')) return 'sync-badge syncing';
+  if (value.includes('saglabāts') || value.includes('saved') || value.includes('saglabāt')) return 'sync-badge saved';
+  if (value.includes('offline') || value.includes('bezsaist') || value.includes('nav savienojuma')) return 'sync-badge offline';
+  return 'sync-badge saved';
+}
+
 async function fetchWithTimeout(url, timeout = 8000, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -17,10 +27,22 @@ async function fetchWithTimeout(url, timeout = 8000, options = {}) {
   }
 }
 
-function jsonpRequest(url, timeout = 15000) {
+// JSONP request — primary transport for Google Apps Script
+// GAS does not send CORS headers, so fetch with mode:'cors' always fails.
+// JSONP works without CORS since <script> tags bypass the same-origin policy.
+function jsonpRequest(url, timeout = 10000) {
   return new Promise((resolve, reject) => {
     const callbackName = 'jsonp_cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     let script;
+    let resolved = false;
+
+    const done = (fn, arg) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      cleanup();
+      fn(arg);
+    };
 
     const cleanup = () => {
       if (script && script.parentNode) {
@@ -30,14 +52,11 @@ function jsonpRequest(url, timeout = 15000) {
     };
 
     const timer = setTimeout(() => {
-      cleanup();
-      reject(new Error('JSONP timeout'));
+      done(reject, new Error('Timeout'));
     }, timeout);
 
     window[callbackName] = function (data) {
-      clearTimeout(timer);
-      cleanup();
-      resolve(data);
+      done(resolve, data);
     };
 
     const separator = url.includes('?') ? '&' : '?';
@@ -45,44 +64,52 @@ function jsonpRequest(url, timeout = 15000) {
     script = document.createElement('script');
     script.src = jsonpUrl;
     script.onerror = function () {
-      clearTimeout(timer);
-      cleanup();
-      reject(new Error('JSONP script load error'));
+      done(reject, new Error('Savienojuma kļūda'));
     };
     document.head.appendChild(script);
   });
 }
 
-function requestJson(url, timeout = 10000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-  return fetch(url + (url.includes('?') ? '&' : '?') + '_t=' + CACHE_BUSTER(), {
-    mode: 'cors',
-    signal: controller.signal
-  })
-    .then(r => {
-      clearTimeout(timer);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .catch(e => {
-      clearTimeout(timer);
-      throw e;
-    });
+// Primary request function — uses JSONP since GAS supports it natively
+// Falls back to fetch only if JSONP is unavailable (non-browser environments)
+async function requestData(url, timeout = 10000) {
+  if (typeof document !== 'undefined') {
+    return await jsonpRequest(url, timeout);
+  }
+  // Node.js fallback
+  try {
+    return await fetch(url).then(r => r.json());
+  } catch (e) {
+    throw new Error('Savienojuma kļūda: ' + e.message);
+  }
 }
 
-function requestData(url, timeout = 15000) {
-  return jsonpRequest(url, timeout).catch(jsonpErr => {
-    return requestJson(url, timeout).catch(fetchErr => {
-      throw new Error('Savienojuma kļūda: ' + jsonpErr.message + ', ' + fetchErr.message);
-    });
-  });
-}
+// Request deduplication — prevent parallel identical requests
+const pendingActions = new Map();
 
-function jsonpAction(action, data, timeout = 15000) {
+async function jsonpAction(action, data, timeout = 10000) {
+  const actionKey = action + ':' + JSON.stringify(data);
+
+  if (pendingActions.has(actionKey)) {
+    return pendingActions.get(actionKey);
+  }
+
   const payload = encodeURIComponent(JSON.stringify({ action: action, data: data }));
-  const url = SYNC_URL + '?data=' + payload + '&t=' + Date.now();
-  return requestData(url, timeout);
+  let url = SYNC_URL + '?data=' + payload;
+
+  const promise = requestData(url, timeout).finally(() => {
+    pendingActions.delete(actionKey);
+  });
+
+  pendingActions.set(actionKey, promise);
+  return promise;
+}
+
+// POST-based action for write operations
+// Uses JSONP (GET) since GAS doesn't support CORS for fetch POST.
+// This is equivalent to jsonpAction but with a distinct key prefix.
+async function postAction(action, data, timeout = 10000) {
+  return jsonpAction(action, data, timeout);
 }
 
 function excelSerialToDate(serial) {
@@ -254,18 +281,28 @@ class CareSync {
     this._queueProcessing = false;
     this._queueTimer = null;
     this._loading = false;
+    this._syncTail = Promise.resolve();
+    this._connectionStatus = 'unknown';
     this._setupOfflineDetection();
+  }
+
+  _runExclusive(operation) {
+    const run = this._syncTail.then(operation, operation);
+    this._syncTail = run.catch(() => {});
+    return run;
   }
 
   _setupOfflineDetection() {
     const updateStatus = () => {
-      this._updateSyncStatus(navigator.onLine ? 'Saglabāts' : 'Bezsaistē');
+      if (!navigator.onLine) {
+        this._connectionStatus = 'offline';
+        this._updateSyncStatus('Nav savienojuma');
+      }
     };
     updateStatus();
     window.addEventListener('online', () => {
       updateStatus();
-      this._scheduleQueueProcessing();
-      this.loadInitialData();
+      this.forceFullSync().catch(() => {});
     });
     window.addEventListener('offline', updateStatus);
   }
@@ -275,6 +312,35 @@ class CareSync {
       const event = new CustomEvent('syncStatusChange', { detail: status });
       window.dispatchEvent(event);
     } catch (e) {}
+  }
+
+  async checkConnection() {
+    if (!navigator.onLine) {
+      this._connectionStatus = 'offline';
+      this._updateSyncStatus('Nav savienojuma');
+      return { connected: false, status: 'offline', message: '🔴 Nav interneta savienojuma.' };
+    }
+    if (!SYNC_URL) {
+      this._connectionStatus = 'offline';
+      this._updateSyncStatus('Nav savienojuma');
+      return { connected: false, status: 'offline', message: '🔴 Nav interneta savienojuma.' };
+    }
+    try {
+      const url = SYNC_URL + '?action=ping&t=' + Date.now();
+      const data = await requestData(url, 8000);
+      if (data && (data.success === true || data.pong === true)) {
+        this._connectionStatus = 'connected';
+        this._updateSyncStatus('Saglabāts');
+        return { connected: true, status: 'connected', message: '✅ Google Sheets savienojums aktīvs' };
+      }
+      this._connectionStatus = 'error';
+      this._updateSyncStatus('Sinhronizācijas kļūda');
+      return { connected: false, status: 'error', message: '⚠️ Neizdevās sazināties ar serveri.' };
+    } catch (err) {
+      this._connectionStatus = 'error';
+      this._updateSyncStatus('Sinhronizācijas kļūda');
+      return { connected: false, status: 'error', message: '⚠️ Neizdevās sazināties ar serveri.' };
+    }
   }
 
   _collectLocalCompletions() {
@@ -332,69 +398,70 @@ class CareSync {
   }
 
   async loadInitialData(onProgress) {
-    if (this._loading) {
-      return { offline: true, error: 'Sinhronizācija jau notiek', count: {} };
-    }
+    return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true));
+  }
+
+  async _loadInitialDataUnlocked(onProgress, processQueueFirst) {
     this._loading = true;
     this._updateSyncStatus('Sinhronizē...');
     onProgress = onProgress || function() {};
     try {
-      const allStores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue'];
-      // Pirms tīrīšanas saglabājam vietējos pabeigšanas statusus
-      const localCompletions = await this._collectLocalCompletions();
-      onProgress('Dzēšu visus vietējos datus...');
-      for (const store of allStores) {
-        await this.db.clear(store);
+      if (processQueueFirst) {
+        await this._processQueueUnlocked();
       }
 
       onProgress('Ielādēju datus no servera...');
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const data = await requestData(url, 20000);
+      const data = await requestData(url, 10000);
 
       if (data.error) {
         throw new Error(data.error);
       }
 
-      const counts = {};
+      onProgress('Atjaunoju lokālos datus...');
+      const lastSync = Date.now();
+      await this.db.replaceStores({
+        darbinieki: (data.darbinieki || []).map(normalizeRow),
+        klienti: (data.klienti || []).map(normalizeRow),
+        atzimes: (data.atzimes || []).map(normalizeRow),
+        atzimes_log: (data.atzimes_log || []).map(normalizeRow),
+        uzdevomi: (data.uzdevomi || []).map(normalizeRow),
+        meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
+      });
 
-      onProgress('Ierakstu darbiniekus un klientus...');
-      const criticalItems = (data.darbinieki || []).concat(data.klienti || []).map(normalizeRow);
-      if (criticalItems.length > 0) {
-        await this.db.batchPut('darbinieki', (data.darbinieki || []).map(normalizeRow));
-        await this.db.batchPut('klienti', (data.klienti || []).map(normalizeRow));
-      }
-      counts.darbinieki = (data.darbinieki || []).length;
-      counts.klienti = (data.klienti || []).length;
-
-      onProgress('Ierakstu atzīmes un uzdevumus...');
-      const otherStores = ['atzimes', 'atzimes_log', 'uzdevomi'];
-      for (const store of otherStores) {
-        const items = (data[store] || []).map(normalizeRow);
-        counts[store] = items.length;
-        if (items.length > 0) {
-          await this.db.batchPut(store, items);
-        }
-      }
-
-      await this.db.setMeta('lastSync', Date.now());
-      // Atjauno lokāli pabeigtos uzdevumus, ja serveris tos atgrieza kā nepabeigtus
-      await this._applyLocalCompletions(localCompletions);
-      this._updateSyncStatus('Saglabāts');
-      onProgress('✓ Dati veiksmīgi ielādēti');
-      return { offline: false, count: counts };
+      this.loaded = true;
+      this.revision = (this.revision || 0) + 1;
+      const remaining = await this.getUnsyncedCount();
+      const status = remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts';
+      this._updateSyncStatus(status);
+      const result = {
+        offline: false,
+        connected: true,
+        count: {
+          darbinieki: (data.darbinieki || []).length,
+          klienti: (data.klienti || []).length,
+          atzimes: (data.atzimes || []).length,
+          atzimes_log: (data.atzimes_log || []).length,
+          uzdevomi: (data.uzdevomi || []).length
+        },
+        pending: remaining,
+        revision: this.revision
+      };
+      try {
+        window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
+      } catch (e) {}
+      onProgress('✓ Dati veiksmīgi ielādēti no Google Sheets');
+      return result;
     } catch (err) {
-      // Atjauno lokāli pabeigtos uzdevumus, jo tika iztīrīti pirms neveiksmīgas mēģinājuma
-      await this._applyLocalCompletions(localCompletions);
-      this._updateSyncStatus('Bezsaistē');
-      onProgress('⚠️ Neizdevās ielādēt datus: ' + err.message);
-      return { offline: true, error: err.message, count: {} };
+      this._updateSyncStatus(navigator.onLine ? 'Sinhronizācijas kļūda' : 'Nav savienojuma');
+      onProgress('⚠️ Neizdevās ielādēt datus no Google Sheets: ' + err.message);
+      return { offline: true, error: err.message, count: {}, pending: await this.getUnsyncedCount().catch(() => 0) };
     } finally {
       this._loading = false;
     }
   }
 
   async enqueueChange(change) {
-    // Dubultās izveides novēršana: actionId pārbaude pirms jauna ieraksta izvezes
     if (!SYNC_URL) return;
     if (change.data && change.data.actionId) {
       const existing = await this.db.getAll('sync_queue');
@@ -403,6 +470,7 @@ class CareSync {
       );
       if (duplicate) {
         duplicate.change.data = change.data;
+        duplicate.timestamp = Date.now();
         await this.db.put('sync_queue', duplicate);
         return duplicate.id;
       }
@@ -423,49 +491,76 @@ class CareSync {
     if (this._queueTimer) return;
     this._queueTimer = setTimeout(() => {
       this._queueTimer = null;
-      this.processQueue();
+      this.processQueue().catch(() => {});
     }, 500);
   }
 
   async processQueue() {
-    if (this._queueProcessing || !SYNC_URL) return;
+    return this._runExclusive(() => this._processQueueUnlocked());
+  }
+
+  async _processQueueUnlocked() {
+    const summary = { synced: 0, failed: 0, remaining: 0 };
+    if (!SYNC_URL) {
+      this._updateSyncStatus('Nav savienojuma');
+      return summary;
+    }
     this._queueProcessing = true;
     this._updateSyncStatus('Sinhronizē...');
     try {
       const items = await this.db.getAll('sync_queue');
       if (items.length === 0) {
-        this._updateSyncStatus('Saglabāts');
-        return;
+        this._updateSyncStatus(navigator.onLine ? 'Saglabāts' : 'Nav savienojuma');
+        return summary;
       }
 
-      const sorted = items.sort((a, b) => a.timestamp - b.timestamp);
-      const now = Date.now();
-      const MAX_AGE = 24 * 60 * 60 * 1000;
+      const sorted = items.slice().sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
-        if (now - (item.timestamp || 0) > MAX_AGE && item.retries > 0) {
-          await this.db.delete('sync_queue', item.id);
-          continue;
-        }
         try {
-          const result = await jsonpAction(item.change.action || item.change.type || 'mark', item.change.data || item.change);
-          if (!result.error) {
-            await this.db.delete('sync_queue', item.id);
-          } else {
-            item.retries++;
-            item.lastError = result.error;
+          const action = item.change.action || item.change.type || 'mark';
+          const data = item.change.data || item.change;
+          const isWriteOp = ['mark', 'createTask', 'updateTask', 'createClient', 'createEmployee', 'updateClient', 'updateEmployee'].includes(action);
+          const result = isWriteOp
+            ? await postAction(action, data)
+            : await jsonpAction(action, data);
+
+          if (!result || result.error || result.success === false) {
+            item.retries = (item.retries || 0) + 1;
+            item.lastError = result && result.error ? result.error : 'Nezināma sinhronizācijas kļūda';
             await this.db.put('sync_queue', item);
+            summary.failed++;
+          } else {
+            await this.db.delete('sync_queue', item.id);
+            summary.synced++;
           }
         } catch (e) {
-          item.retries++;
+          item.retries = (item.retries || 0) + 1;
           item.lastError = e.message;
           await this.db.put('sync_queue', item);
+          summary.failed++;
         }
       }
-      const remaining = await this.db.getAll('sync_queue');
-      this._updateSyncStatus(remaining.length === 0 ? 'Saglabāts' : 'Gaida nosūtīšanu');
+      summary.remaining = await this.getUnsyncedCount();
+      const status = summary.remaining > 0 ? 'Gaida nosūtīšanu' : (navigator.onLine ? 'Saglabāts' : 'Nav savienojuma');
+      this._updateSyncStatus(summary.synced || summary.failed
+        ? status + ' (✓' + summary.synced + ' ✗' + summary.failed + ')'
+        : status);
+      return summary;
     } finally {
       this._queueProcessing = false;
     }
+  }
+
+  async forceFullSync(onProgress) {
+    return this._runExclusive(async () => {
+      const queue = await this._processQueueUnlocked();
+      const load = await this._loadInitialDataUnlocked(onProgress, false);
+      const result = { ...load, queue };
+      try {
+        window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
+      } catch (e) {}
+      return result;
+    });
   }
 
   async getUnsyncedItems() {
@@ -479,7 +574,10 @@ class CareSync {
   }
 
   async sync() {
-    await this.processQueue();
+    const summary = await this.processQueue();
+    try {
+      window.dispatchEvent(new CustomEvent('syncComplete', { detail: { queue: summary } }));
+    } catch (e) {}
   }
 
   async hasLocalData() {
@@ -494,7 +592,7 @@ class CareSync {
   async hasRemoteEmployees() {
     try {
       const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const data = await requestData(url, 15000);
+      const data = await requestData(url, 8000);
       if (data.error) return false;
       return (data.darbinieki || []).length > 0;
     } catch (e) {

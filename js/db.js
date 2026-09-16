@@ -134,6 +134,32 @@ class CareDB {
     });
   }
 
+  async replaceStores(storeItems) {
+    const storeNames = Object.keys(storeItems || {});
+    if (this.db && this.db._isMemory) {
+      storeNames.forEach(storeName => {
+        this.db._memory[storeName] = {};
+        (storeItems[storeName] || []).forEach(item => {
+          if (item && item.id !== undefined) this.db._memory[storeName][item.id] = item;
+        });
+      });
+      return;
+    }
+    if (!this.db || storeNames.length === 0) return;
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeNames, 'readwrite');
+      storeNames.forEach(storeName => {
+        tx.objectStore(storeName).clear();
+        (storeItems[storeName] || []).forEach(item => {
+          if (item && item.id !== undefined) tx.objectStore(storeName).put(item);
+        });
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Datu atjaunošana atcelta'));
+    });
+  }
+
   async delete(storeName, key) {
     if (this.db && this.db._isMemory) {
       if (this.db._memory[storeName]) delete this.db._memory[storeName][key];

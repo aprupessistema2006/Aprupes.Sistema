@@ -87,6 +87,79 @@ body {
   font-weight: 500;
 }
 
+.sync-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--info-bg);
+  color: var(--info);
+  font-weight: 500;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition);
+  border: none;
+  cursor: pointer;
+}
+
+.sync-btn:hover:not(:disabled) {
+  background: var(--info);
+  color: white;
+}
+
+.sync-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sync-badge.synced,
+.sync-badge.saglabāts {
+  background: #e8f5e9;
+  color: var(--accent);
+}
+
+.sync-badge.syncing,
+.sync-badge.sinhronizē {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.sync-badge.offline,
+.sync-badge.bezsaistē {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.sync-badge.error,
+.sync-badge.kļūda {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.retry-btn {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: var(--warning);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  min-height: 44px;
+}
+
+.retry-btn:hover:not(:disabled) {
+  background: #e67e22;
+  transform: translateY(-1px);
+}
+
+.retry-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-icon {
   width: 40px;
   height: 40px;
@@ -463,10 +536,26 @@ body {
   .client-card-dob {
     font-size: 13px;
   }
-  .client-card .open-btn {
+.client-card .open-btn {
     padding: 12px 14px;
     font-size: 14px;
     min-height: 44px;
+  }
+  .sync-btn {
+    min-height: 44px !important;
+    font-size: 12px !important;
+    padding: 6px 12px !important;
+  }
+  .retry-btn {
+    min-height: 44px !important;
+    font-size: 13px !important;
+    padding: 10px 20px !important;
+  }
+}
+  .sync-btn {
+    min-height: 44px !important;
+    font-size: 12px !important;
+    padding: 6px 12px !important;
   }
 }
 
