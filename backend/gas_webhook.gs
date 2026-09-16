@@ -172,7 +172,9 @@ function wrapResponse(params, data) {
   const output = ContentService.createTextOutput(
     callback ? (callback + '(' + json + ');') : json
   );
-  output.setMimeType(callback ? ContentService.MimeType.TEXT : ContentService.MimeType.JSON);
+  // Use JAVASCRIPT MIME type for JSONP so browsers execute script tags correctly
+  // text/plain (MimeType.TEXT) causes onerror in Chrome for script-loaded resources
+  output.setMimeType(callback ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON);
   return output;
 }
 

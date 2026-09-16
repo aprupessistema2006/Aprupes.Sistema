@@ -66,6 +66,11 @@ function jsonpRequest(url, timeout = 10000) {
     script.onerror = function () {
       done(reject, new Error('Savienojuma kļūda'));
     };
+    script.onload = function () {
+      setTimeout(() => {
+        done(reject, new Error('Callback neizsaukts (JSONP atbilde)'));
+      }, 2000);
+    };
     document.head.appendChild(script);
   });
 }
