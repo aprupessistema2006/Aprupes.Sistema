@@ -364,10 +364,20 @@ function handleUpdate(data, sheetName) {
   return { success: true };
 }
 
+function signatureFieldAlias(field) {
+  if (field === 'r_paraksts' || field === 'v_paraksts') return 'aprupetaja_paraksts';
+  return field;
+}
+
 function handleMark(data) {
   const atzimesSheet = getSheet('atzimes');
   const logSheet = getSheet('atzimes_log');
   const m = data.data;
+
+  // Normalize signature field names to canonical 'aprupetaja_paraksts'
+  // (shift R/V is already distinguished by the 'periods' column).
+  const mFieldNormalized = signatureFieldAlias(m.field || '');
+  m.field = mFieldNormalized;
 
   ensureColumns(atzimesSheet, ['action_id']);
 

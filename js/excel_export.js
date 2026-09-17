@@ -183,13 +183,15 @@ class ExcelExporter {
         const cR = ws.getCell(`${addrR}${row}`);
         const cV = ws.getCell(`${addrV}${row}`);
 
-        if (isSig) {
-          let valR = dayData['R|' + category + '|r_paraksts'];
-          if (valR === undefined) valR = dayData['D|' + category + '|' + field];
-          if (valR === undefined) valR = dayData['R|' + category + '|' + field];
-          let valV = dayData['V|' + category + '|v_paraksts'];
-          if (valV === undefined) valV = dayData['D|' + category + '|' + field];
-          if (valV === undefined) valV = dayData['V|' + category + '|' + field];
+          if (isSig) {
+            let valR = dayData['R|' + category + '|r_paraksts'];
+            if (valR === undefined) valR = dayData['R|' + category + '|aprupetaja_paraksts'];
+            if (valR === undefined) valR = dayData['D|' + category + '|' + field];
+            if (valR === undefined) valR = dayData['R|' + category + '|' + field];
+            let valV = dayData['V|' + category + '|v_paraksts'];
+            if (valV === undefined) valV = dayData['V|' + category + '|aprupetaja_paraksts'];
+            if (valV === undefined) valV = dayData['D|' + category + '|' + field];
+            if (valV === undefined) valV = dayData['V|' + category + '|' + field];
           if (valR !== undefined && valR !== '') {
             if (typeof valR === 'string') {
               valR = valR.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();

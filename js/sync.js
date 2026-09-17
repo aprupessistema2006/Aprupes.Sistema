@@ -225,7 +225,7 @@ function normalizeRow(raw) {
     prevValue: 'lastValue',
     ieprijuma: 'lastValue',
     iprijuma: 'lastValue',
-    pievienots: 'lastValue'
+    pievienots: 'lastValue',
     created: 'created',
     izveidots: 'created',
     time: 'time',

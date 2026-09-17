@@ -39,7 +39,7 @@ class CareFormController {
   isShiftSigned(shift) {
     if (this.adminMode) return false; // Admins can always edit
     const today = this.getToday();
-    const sectionField = shift === 'R' ? 'r_paraksts' : 'v_paraksts';
+    const sectionField = 'aprupetaja_paraksts';
     return this.history.some(h => 
       h.category === 'paraksts' && 
       h.field === sectionField && 
@@ -1671,14 +1671,14 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     const signatureShift = this.currentShift;
     const today = this.getToday();
 
-    const sectionField = signatureShift === 'R' ? 'r_paraksts' : 'v_paraksts';
+    const sectionField = 'aprupetaja_paraksts';
     const signatureForShift = this.history.find(h => {
       return h.category === 'paraksts' &&
-        (h.field === sectionField || h.field === 'aprupetaja_paraksts') &&
+        (h.field === sectionField || h.field === 'r_paraksts' || h.field === 'v_paraksts') &&
         h.shift === signatureShift &&
         this.extractDateFromAnyField(h) === today;
     });
-    const signatureAny = this.history.find(h => h.category === 'paraksts' && (h.field === sectionField || h.field === 'aprupetaja_paraksts'));
+    const signatureAny = this.history.find(h => h.category === 'paraksts' && (h.field === sectionField || h.field === 'r_paraksts' || h.field === 'v_paraksts'));
 
     // Check database for any signature from any day for this client
     let anySignature = signatureAny;
@@ -1687,7 +1687,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         const allMarks = await this.db.getAll('atzimes');
         anySignature = allMarks.find(m =>
           m.category === 'paraksts' &&
-          (m.field === sectionField || m.field === 'aprupetaja_paraksts') &&
+          (m.field === sectionField || m.field === 'r_paraksts' || m.field === 'v_paraksts') &&
           this.clientIdsMatch(m, this.clientId)
         );
       } catch (e) {
@@ -1759,10 +1759,10 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const signatureShift = this.getSignatureShift();
       const shiftLabel = signatureShift === 'R' ? 'Rīts' : 'Vakars';
 
-      const sectionField = signatureShift === 'R' ? 'r_paraksts' : 'v_paraksts';
+      const sectionField = 'aprupetaja_paraksts';
       const existingForShift = this.history.find(h => {
         return h.category === 'paraksts' &&
-          (h.field === sectionField || h.field === 'aprupetaja_paraksts') &&
+          (h.field === sectionField || h.field === 'r_paraksts' || h.field === 'v_paraksts') &&
           h.shift === signatureShift &&
           this.extractDateFromAnyField(h) === today;
       });
@@ -1770,7 +1770,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       // Check if this specific section (R/V) already has a signature (any day)
       let existingForSection = this.history.find(h =>
         h.category === 'paraksts' &&
-        (h.field === sectionField || h.field === 'aprupetaja_paraksts') &&
+        (h.field === sectionField || h.field === 'r_paraksts' || h.field === 'v_paraksts') &&
         this.clientIdsMatch(h, this.clientId)
       );
 
@@ -1779,7 +1779,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
           const allMarks = await this.db.getAll('atzimes');
           existingForSection = allMarks.find(m =>
             m.category === 'paraksts' &&
-            (m.field === sectionField || m.field === 'aprupetaja_paraksts') &&
+            (m.field === sectionField || m.field === 'r_paraksts' || m.field === 'v_paraksts') &&
             this.clientIdsMatch(m, this.clientId)
           );
         } catch (e) {
@@ -1815,13 +1815,13 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         date: today,
         shift: signatureShift,
         category: 'paraksts',
-        field: signatureShift === 'R' ? 'r_paraksts' : 'v_paraksts',
+        field: 'aprupetaja_paraksts',
         value: displayValue,
         lastModified: nowUTC,
         lastBy: this.currentUser.id
       };
 
-      const key = signatureShift + '|paraksts|' + (signatureShift === 'R' ? 'r_paraksts' : 'v_paraksts');
+      const key = signatureShift + '|paraksts|aprupetaja_paraksts';
       this.marks.set(key, mark);
       await this.db.put('atzimes', mark);
 
@@ -1834,7 +1834,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         time: timeStr,
         shift: signatureShift,
         category: 'paraksts',
-        field: signatureShift === 'R' ? 'r_paraksts' : 'v_paraksts',
+        field: 'aprupetaja_paraksts',
         value: displayValue,
         prevValue: existingForSection ? existingForSection.value : null,
         type: isResign ? t('rewritten') : 'Jauns',
@@ -1856,7 +1856,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
           date: today,
           shift: signatureShift,
           category: 'paraksts',
-          field: signatureShift === 'R' ? 'r_paraksts' : 'v_paraksts',
+          field: 'aprupetaja_paraksts',
           value: displayValue,
           reason: isResign ? t('rewritten') : (this.currentUser._adminOverride ? t('adminSignatureReason') + (this.currentUser._adminName || t('admins')) : t('nightShiftSignatureReason')),
           // Sūtām UTC timestamp backendam
