@@ -231,10 +231,20 @@ Administrācijas panelis var darboties kā aprūpētājs:
 ## Parakstu sistēma (`js/care_form.js`)
 
 - **Kas var parakstīt**: Nakts maiņas (`diennakts`) darbinieki un administratori
-- **Kad**: Katrā maiņā (R/V) dienā ir atsevišķs paraksts
+- **Kad**: Katrā maiņā (R/V) dienā ir atsevišķs paraksts. `getSignatureShift()` (`care_form.js:22`) noteic parakstāmajā maiņu: diennakts darbinieks pulksten 19:00–23:59 paraksta `V`, pulksten 00:00–06:59 paraksta `R`.
 - **Pēc parakstīšanas labošana**: Pēc paraksta pievienošanas, darbinieks var turpināt labot atzīmes — paraksta pārbaude neatbloķē ievadi (skat. `js/care_form.js` `handleOptionSelect`, `handleNumberChange`, `handleSikdrumiSubmit`, `handleDiaperIncrement` — neizmanto `isShiftSigned()`)
+- **Krustmaiņu bloķēšana**: Kad viens aprūpētājs ir jau parakstījies klientam (jebkurai maiņas, jebkurai dienā), citi aprūpētāji **nevar parakstīties** — signāla poga tiek atkārtoti izlīdzintā kopā ar zināmību, kurš ir parakstījies. Tikai administrators var pārparakstīt.
 - **Administrators ignorēšana**: Administratori var atkārtoti parakstīt vai parakstīt citu maiņu pašreizējā aprūpētāja identitātei
 - Paraksti tiek glabāti kā atzīmes ar `kategorija: 'paraksts'` un `lauks: 'aprupetaja_paraksts'`
+
+### Parakstu scenārijs (stundu pārklājums)
+
+Pietāvājumā: Dāvis (diennakts) strādā no 01.09.2026 19:00 līdz 02.09.2026 08:30.
+
+1. **01.09.2026., Vakars (V) sadaļa**: Dāvis paraksta klienta V maiņā — paraksts tiek glabāts ar `periods: 'V'`.
+2. **02.09.2026., Rīts (R) sadaļa**: Dāvis var parakstīt atkārtoti R maiņā — tas ir atļauts, jo tas ir viņa pats pats paraksts. `actionId` atšķiras, jo ietver atšķirīgu datumu.
+3. **02.09.2026., citā aprūpētājs (piem., Armands)**: Armands atver tos pašus klienta profilu. Viņa signāla poga ir atkārtoti izlīdzintā ar ziņojumu "🔒 Parakstījis: Dāvis". Armands var veikt aprūpes darbības (ie. ierakstīt temperatūru, higiēnu, utt.), bet **nevar parakstīties**.
+4. **Administrators**: Var jebreiz pārparakstīt jebkuru parakstu, izmantojot "🔄 Admin: Pārparakstīt" pogu.
 
 ## Excel eksports (`js/excel_export.js`)
 
@@ -375,7 +385,7 @@ Funkcija definēta `js/care_form.js:39-48`, bet **netiek izsaukta nekur** (neatr
 
 **Ietekme**: README iepriekšējā versija nepareizāk paziņoja, ka "neadministratori nevar labot pēc parakstīšanas". Tas nav pareizs — pēc parakstīšanas labošana ir atļauta.
 
-**Ieteikums**: Izņemt `isShiftSigned()` metodi vai to activēt, ja atpakaļeja konspektēšana ir nepieciešama.
+**Ieteikums**: Izņemt `isShiftSigned()` metodi un noņemt to no dokumentācijas. Uzlabošana: klāsts parakstu bloķēšana (skat. punkts #12 zemāk) ir ieviesta `handleSign()` un `renderSignature()` metodēs.
 
 ### 2. `doPost` netiek izmantots no klienta puses
 
@@ -456,3 +466,16 @@ Kods izmanto gan camelCase (piem., `clientId`, `employeeId`), gan snake_case (pi
 **Ietekums**: Datums lauks var būt nepareizs, ja avotā ir konfliktējoši datumi vai nestandartizēts ID formāts.
 
 **Ieteikums**: Skaidrīt datumu prioritātes kārtību un validēt ID formātu.
+
+### 12. [IAMLĪDLABS] Krustmaiņu parakstu bloķēšana — ieviesta ✅
+
+**Problēma**: Pirms šīs izmaiņas, kad viens aprūpētāps parakstīja klientu, citi aprūpētāji varēja parakstīt tik pašā vai citā dienā bez ierobežojuma. Tas varēja radīt konfliktus, kad vairāki aprūpētāji parakstās vienam klientam.
+
+**Ieviestā izmaiņa**: `renderSignature()` (care_form.js:1667-1718) un `handleSign()` (care_form.js:1721-1845) tagad pārbauda datubāzi (`atzimes` krātuve) par jebkādu iepriekšējo parakstu šim klientam. Ja atrasts paraksts no cita darbinieka (jebkurai maiņas, jebkurai dienā), tas:
+- Atkārtoti izlīdzina signāla pogu (neatļauts neiespējots)
+- Parāda "🔒 Parakstījis: [vārds]"
+- Toast ziņojums: "Parakstījis: [vārds]" (lv), "Подпись уже есть: [vārds]" (ru), "Already signed by: [vārds]" (en)
+
+Tas paļažņojas uz i18n atslēgām `cantSignOthersSigned` un `signLockedByOther`, kuras ir pievienotas visās trīs valodās.
+
+**Scenārijs**: Dāvis (diennakts) paraksta klientu V maiņā 01.09. Armands atver to pašu klientu 02.09 — viņa signāla poga ir atkārtoti izlīdzinta ar ziņojumu "🔒 Parakstījis: Dāvis". Armands var veikt aprūpes darbības, bet nevar parakstīties. Administrators var jebreiz pārparakstīt.

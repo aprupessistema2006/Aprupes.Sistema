@@ -1666,11 +1666,30 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     });
     const signatureAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
 
-    const signature = signatureForShift || signatureAny;
+    // Check database for any signature from any day for this client
+    let anySignature = signatureAny;
+    if (!anySignature && this.db) {
+      try {
+        const allMarks = await this.db.getAll('atzimes');
+        anySignature = allMarks.find(m =>
+          m.category === 'paraksts' &&
+          m.field === 'aprupetaja_paraksts' &&
+          this.clientIdsMatch(m, this.clientId)
+        );
+      } catch (e) {
+        console.warn('[care_form] renderSignature: DB query for anySignature failed:', e);
+      }
+    }
+
+    const signature = signatureForShift || anySignature;
     const shiftLabel = signatureShift === 'V' ? 'Vakars' : 'Rīts';
 
+    // Check if another caregiver already signed (any shift, any day)
+    const otherSignedId = anySignature ? (anySignature.employeeId || anySignature.darbinieks_id) : null;
+    const otherEmployeeSigned = otherSignedId && !isAdmin && String(otherSignedId) !== String(this.currentUser.id || '');
+
     if (signature) {
-      const actor = this.empMap[signature.employeeId] || 'Nezināms';
+      const actor = this.empMap[signature.employeeId || signature.darbinieks_id] || 'Nezināms';
       const who = actor === this.empMap[this.currentUser.id] ? 'Tu' : actor;
       const time = this.extractTimeDisplay(this.getMarkTime(signature)) || '';
       const adminNote = this.currentUser._adminOverride ? ' (ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ')' : '';
@@ -1679,6 +1698,8 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         signBtn.textContent = t('signAdminRewriteBtn');
       } else if (signatureForShift) {
         signBtn.textContent = t('signSignedBtn') + shiftLabel;
+      } else if (otherEmployeeSigned) {
+        signBtn.textContent = t('signLockedByOther') + actor;
       } else if (isAdmin) {
         signBtn.textContent = t('signAdminOtherBtn');
       } else {
@@ -1686,7 +1707,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       }
 
       signBtn.classList.add('signed');
-      signBtn.disabled = !isAdmin && signatureForShift;
+      signBtn.disabled = !isAdmin && (signatureForShift || otherEmployeeSigned);
       signedBy.textContent = (signatureForShift ? shiftLabel + ' ' + t('signature') + ': ' : t('signOtherShift') + ': ') + who + adminNote + ' (' + time + ')';
       signedBy.style.display = 'block';
     } else {
@@ -1731,7 +1752,33 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
           this.extractDateFromAnyField(h) === today;
       });
       const existingAny = this.history.find(h => h.category === 'paraksts' && h.field === 'aprupetaja_paraksts');
-      const isResign = !!existingAny;
+
+      // Check database for any signature from any day for this client
+      let anySignature = existingAny;
+      if (!anySignature && this.db) {
+        try {
+          const allMarks = await this.db.getAll('atzimes');
+          anySignature = allMarks.find(m =>
+            m.category === 'paraksts' &&
+            m.field === 'aprupetaja_paraksts' &&
+            this.clientIdsMatch(m, this.clientId)
+          );
+        } catch (e) {
+          console.warn('[care_form] handleSign: DB query failed:', e);
+        }
+      }
+
+      // Block if another caregiver already signed (any shift, any day)
+      if (anySignature && !isAdmin) {
+        const signerId = anySignature.employeeId || anySignature.darbinieks_id;
+        if (signerId && String(signerId) !== String(this.currentUser.id || '')) {
+          const signerName = this.empMap[signerId] || this.empMap[String(signerId)] || 'cits darbinieks';
+          this.toast(t('cantSignOthersSigned') + signerName);
+          return;
+        }
+      }
+
+      const isResign = !!anySignature;
       const isDuplicate = !!existingForShift;
 
       if (isDuplicate && !isAdmin) {
@@ -1743,7 +1790,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const adminNote = this.currentUser._adminOverride ? t('adminOverridePrefix') + (this.currentUser._adminName || t('admins')) + ']' : '';
       const displayValue = signatureValue + adminNote;
       const mark = {
-        id: existingAny ? existingAny.markId : this.db.generateId(),
+        id: anySignature ? anySignature.markId : this.db.generateId(),
         clientId: this.clientId,
         employeeId: this.currentUser.id,
         date: today,
@@ -1770,7 +1817,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         category: 'paraksts',
         field: 'aprupetaja_paraksts',
         value: displayValue,
-        prevValue: existingAny ? existingAny.value : null,
+        prevValue: anySignature ? anySignature.value : null,
         type: isResign ? t('rewritten') : 'Jauns',
         created: nowUTC
       };
