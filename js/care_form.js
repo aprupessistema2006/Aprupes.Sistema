@@ -520,9 +520,13 @@ class CareFormController {
   async loadHistory() {
     const today = this.getToday();
     const allLog = await this.db.getAll('atzimes_log');
-    this.history = allLog
-      .filter(l => this.clientIdsMatch(l, this.clientId))
-      .filter(l => this.isToday(l, today))
+    console.log('[loadHistory] allLog count:', allLog.length, 'clientId:', this.clientId, 'today:', today);
+    const clientMatched = allLog.filter(l => this.clientIdsMatch(l, this.clientId));
+    console.log('[loadHistory] client matched:', clientMatched.length);
+    const todayMatched = clientMatched.filter(l => this.isToday(l, today));
+    console.log('[loadHistory] today matched:', todayMatched.length);
+    console.log('[loadHistory] sample log:', JSON.stringify(allLog.length > 0 ? allLog[0] : null));
+    this.history = todayMatched
       .sort((a, b) => {
         const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.lastModified || a.created || a.izveidots || '';
         const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.lastModified || b.created || b.izveidots || '';
