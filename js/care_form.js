@@ -1551,12 +1551,6 @@ class CareFormController {
   }
 
   async handleDiaperIncrement(shift, category, field, btn) {
-    // Check if shift is signed (immutable for non-admins)
-    if (!this.adminMode && this.isShiftSigned(shift)) {
-      this.toast(t('shiftSignedImmutable'));
-      return;
-    }
-    
     if (this._processing.has('diaper_increment')) return;
     this._processing.set('diaper_increment', true);
 
@@ -1626,12 +1620,6 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
   }
 
   async handleOptionSelect(shift, category, field, value, btn) {
-    // Check if shift is signed (immutable for non-admins)
-    if (!this.adminMode && this.isShiftSigned(shift)) {
-      this.toast(t('shiftSignedImmutable'));
-      return;
-    }
-
     const actionKey = 'opt_' + shift + '|' + category + '|' + field;
     if (this._processing.has(actionKey)) {
       return;
@@ -1734,12 +1722,6 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
   }
 
   async saveMark(data) {
-    // Check if shift is signed (immutable for non-admins)
-    if (!this.adminMode && this.isShiftSigned(data.shift)) {
-      this.toast(t('shiftSignedImmutable'));
-      return null;
-    }
-    
     const actionKey = data.shift + '|' + data.category + '|' + data.field;
     if (this._processing.has(actionKey)) {
       return null;
