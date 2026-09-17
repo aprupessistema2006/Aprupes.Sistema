@@ -416,7 +416,7 @@ class ControlPanel {
     const targetClients = clientId ? [clientId] : activeClients.map(c => c.id || c.ID);
 
     const completed = new Set();
-    marks.filter(m => m.category === 'paraksts' || m.field === 'aprupetaja_paraksts').forEach(m => {
+    marks.filter(m => m.category === 'paraksts').forEach(m => {
       completed.add(m.clientId);
     });
 
@@ -529,6 +529,8 @@ class ControlPanel {
       'pastaigas': 'Pastaiga',
       'ciemini': 'Ciemiņi',
       'autins_biksitu_skaits': 'Higiēnas maiņa',
+      'r_paraksts': 'Paraksts (Rīts)',
+      'v_paraksts': 'Paraksts (Vakars)',
       'aprupetaja_paraksts': 'Paraksts'
     };
     return map[field] || field;
@@ -919,7 +921,7 @@ class ControlPanel {
           }
           
           // Track signatures for correct shift placement
-          if (m.category === 'paraksts' && m.field === 'aprupetaja_paraksts') {
+          if (m.category === 'paraksts' && (m.field === 'r_paraksts' || m.field === 'v_paraksts' || m.field === 'aprupetaja_paraksts')) {
             if (!signaturesByDay[day]) signaturesByDay[day] = {};
             signaturesByDay[day][shift] = m.value;
           }
@@ -949,6 +951,8 @@ class ControlPanel {
         { category: 'citsi_pasakomi', field: 'pastaigas', label: 'Pastaiga' },
         { category: 'citsi_pasakomi', field: 'ciemini', label: 'Ciemiņi' },
         { category: 'citsi_pasakomi', field: 'autins_biksitu_skaits', label: 'Autiņbiksīšu maiņa' },
+        { category: 'paraksts', field: 'r_paraksts', label: 'Paraksts (Rīts)' },
+        { category: 'paraksts', field: 'v_paraksts', label: 'Paraksts (Vakars)' },
         { category: 'paraksts', field: 'aprupetaja_paraksts', label: 'Paraksts' }
       ];
 

@@ -63,7 +63,7 @@ class ExcelExporter {
         const key = shift + '|' + m.category + '|' + m.field;
         if (dataByDay[day][key] === undefined) {
           let value = m.value;
-          if (typeof value === 'string' && m.category === 'paraksts' && m.field === 'aprupetaja_paraksts') {
+          if (typeof value === 'string' && m.category === 'paraksts' && (m.field === 'r_paraksts' || m.field === 'v_paraksts' || m.field === 'aprupetaja_paraksts')) {
             value = value.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
           }
           dataByDay[day][key] = value;
@@ -152,6 +152,8 @@ class ExcelExporter {
       'citsi_pasakomi|pastaigas': dataRowStart + 19,
       'citsi_pasakomi|ciemini': dataRowStart + 20,
       'citsi_pasakomi|autins_biksitu_skaits': dataRowStart + 21,
+      'paraksts|r_paraksts': dataRowEnd,
+      'paraksts|v_paraksts': dataRowEnd,
       'paraksts|aprupetaja_paraksts': dataRowEnd
     };
 
@@ -182,12 +184,23 @@ class ExcelExporter {
         const cV = ws.getCell(`${addrV}${row}`);
 
         if (isSig) {
-          let valD = dayData['D|' + category + '|' + field];
-          if (valD !== undefined && valD !== '') {
-            if (typeof valD === 'string') {
-              valD = valD.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
+          let valR = dayData['R|' + category + '|r_paraksts'];
+          if (valR === undefined) valR = dayData['D|' + category + '|' + field];
+          if (valR === undefined) valR = dayData['R|' + category + '|' + field];
+          let valV = dayData['V|' + category + '|v_paraksts'];
+          if (valV === undefined) valV = dayData['D|' + category + '|' + field];
+          if (valV === undefined) valV = dayData['V|' + category + '|' + field];
+          if (valR !== undefined && valR !== '') {
+            if (typeof valR === 'string') {
+              valR = valR.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
             }
-            cR.value = valD || null;
+            cR.value = valR || null;
+          }
+          if (valV !== undefined && valV !== '') {
+            if (typeof valV === 'string') {
+              valV = valV.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
+            }
+            cV.value = valV || null;
           }
         } else {
           const valR = dayData['R|' + category + '|' + field];

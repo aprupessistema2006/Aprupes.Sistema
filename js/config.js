@@ -103,7 +103,7 @@ const CONFIG = {
     },
     paraksts: {
       label: 'Paraksts',
-      field: 'aprupetaja_paraksts',
+      field: ['r_paraksts', 'v_paraksts'],
       type: 'signature'
     }
   },
