@@ -29,12 +29,19 @@ class AprupeController {
     const roleLabels = { 'aprūpētājs': t('roleAprupetajs'), 'kontroliere': t('roleKontroliere'), 'administrators': t('roleAdmin') };
     const role = roleLabels[(this.currentUser.loma || '').toLowerCase()] || this.currentUser.loma || '';
     const fname = this.currentUser.vards || '';
+    const lname = this.currentUser.uzvards || '';
     const labelEl = document.getElementById('currentUserLabel');
     if (labelEl) {
-      const parts = [];
-      if (role) parts.push(role);
-      if (fname) parts.push(fname);
-      labelEl.textContent = parts.length > 0 ? (role + ': ' + (fname || '')) : 'Aprūpētājs';
+      const fullName = [fname, lname].filter(x => x).join(' ');
+      if (role && fullName) {
+        labelEl.textContent = role + ': ' + fullName;
+      } else if (role) {
+        labelEl.textContent = role;
+      } else if (fullName) {
+        labelEl.textContent = fullName;
+      } else {
+        labelEl.textContent = 'Aprūpētājs';
+      }
     }
 
     const syncStatusEl = document.getElementById('syncStatus');
@@ -155,7 +162,7 @@ class AprupeController {
       ]);
       this.filteredClients = [...this.clients];
       this.renderCards();
-      this.renderTasksTable();
+      await this.renderTasksTable();
     } catch (e) {
       console.error(e);
       if (retryBtn) {
@@ -176,7 +183,7 @@ class AprupeController {
 
     const userTasks = allTasks.filter(t => {
       const assignee = String(t.pieskirtDarbiniekamId || t.employeeId || '');
-      if (assignee !== '' && assignee !== currentUserId) return false;
+      if (assignee !== currentUserId) return false;
       if (clientId) {
         const taskClientId = String(t.klientsId || t.clientId || '');
         if (taskClientId !== String(clientId)) return false;
@@ -193,7 +200,7 @@ class AprupeController {
     });
 
     if (userTasks.length === 0) {
-      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="7" class="loading" data-i18n="noClientTasks">Šim klientam pašlaik nav aktīvu uzdevumu.</td></tr>';
+      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="7" class="loading" data-i18n="noClientTasks">Jums pašlaik nav aktīvu uzdevumu.</td></tr>';
       if (typeof applyLanguage === 'function') applyLanguage();
       return;
     }
