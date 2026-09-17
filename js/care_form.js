@@ -393,7 +393,7 @@ class CareFormController {
 
     tbody.innerHTML = visibleTasks.map(task => {
       const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
-      const created = formatDateTimeRiga(task.izveidots);
+      const created = formatDateTimeRiga(task.created || task.izveidots);
       const deadline = task.termins;
       const deadlineDisplay = formatDateRiga(deadline);
       const priority = (task.prioritate || 'videja').toLowerCase();

@@ -264,7 +264,7 @@ class AprupeController {
       const btnDisabled = done ? 'disabled' : '';
       const btnClass = done ? 'completed' : '';
       const taskText = task.teksts || '';
-      const taskClientId = String(t.klientsId || t.clientId || '');
+      const taskClientId = String(task.klientsId || task.clientId || '');
       const clientName = taskClientId ? (clientMap[taskClientId] || 'ID: ' + taskClientId) : '—';
       return `
         <tr class="${rowClass}">
