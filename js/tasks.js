@@ -1,7 +1,7 @@
 const TaskManager = {
   tasks: [],
   lastFetch: 0,
-  CACHE_TTL: 0,
+  CACHE_TTL: 60000,
 
   async loadAll(force) {
     if (!force && this.tasks.length > 0 && (Date.now() - this.lastFetch) < this.CACHE_TTL) {
@@ -11,9 +11,6 @@ const TaskManager = {
       const local = await window.careDB.getAll('uzdevomi');
       this.tasks = local || [];
       this.lastFetch = Date.now();
-      if (window.careSync && navigator.onLine) {
-        window.careSync.sync().catch(() => {});
-      }
     } catch (e) {
       this.tasks = [];
     }
