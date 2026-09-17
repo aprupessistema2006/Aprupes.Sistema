@@ -239,11 +239,11 @@ Administrācijas panelis var darboties kā aprūpētājs:
 
 ### Parakstu scenārijs (stundu pārklājums)
 
-Pietāvājumā: Dāvis (diennakts) strādā no 01.09.2026 19:00 līdz 02.09.2026 08:30.
+Pietāvājums: Darbinieks Dāvis ierodas uz diennakts maiņu 01.09.2026 plkst. 8:30 (maiņa beidzas 02.09.2026 plkst. 8:30). Tas ir 24-stundu pārklājums pār divām dienām.
 
-1. **01.09.2026., Vakars (V) sadaļa**: Dāvis paraksta klienta V maiņā — paraksts tiek glabāts ar `periods: 'V'`.
-2. **02.09.2026., Rīts (R) sadaļa**: Dāvis var parakstīt atkārtoti R maiņā — tas ir atļauts, jo tas ir viņa pats pats paraksts. `actionId` atšķiras, jo ietver atšķirīgu datumu.
-3. **02.09.2026., citā aprūpētājs (piem., Armands)**: Armands atver tos pašus klienta profilu. Viņa signāla poga ir atkārtoti izlīdzintā ar ziņojumu "🔒 Parakstījis: Dāvis". Armands var veikt aprūpes darbības (ie. ierakstīt temperatūru, higiēnu, utt.), bet **nevar parakstīties**.
+1. **01.09.2026., V sadaļa**: Dāvis paraksta klientu V (vakars) sadaļā — paraksts glabājas ar `periods: 'V'`.
+2. **02.09.2026., R sadaļa**: Dāvis paraksta atkārtoti R (rīts) sadaļā — tas ir atļauts, jo tas ir **viņa pats** paraksts (pirms iepriekšējais paraksts ir viņa pats, ne citā darbinieka).
+3. **Pēc Dāvis parakstījis**: Jebkūds cits aprūpētājs (piem., Armands) ienākot klienta profilā — viņa signāla poga ir **atkārtoti izlīdzinta** ar ziņojumu "🔒 Parakstījis: Dāvis". Armands var veikt visas aprūpes darbības (temperatūra, higiēna, ēdienreizes, šķidrums, utt.), bet **nevar parakstīties ne R, ne V sadaļā**.
 4. **Administrators**: Var jebreiz pārparakstīt jebkuru parakstu, izmantojot "🔄 Admin: Pārparakstīt" pogu.
 
 ## Excel eksports (`js/excel_export.js`)
@@ -471,11 +471,11 @@ Kods izmanto gan camelCase (piem., `clientId`, `employeeId`), gan snake_case (pi
 
 **Problēma**: Pirms šīs izmaiņas, kad viens aprūpētāps parakstīja klientu, citi aprūpētāji varēja parakstīt tik pašā vai citā dienā bez ierobežojuma. Tas varēja radīt konfliktus, kad vairāki aprūpētāji parakstās vienam klientam.
 
-**Ieviestā izmaiņa**: `renderSignature()` (care_form.js:1667-1718) un `handleSign()` (care_form.js:1721-1845) tagad pārbauda datubāzi (`atzimes` krātuve) par jebkādu iepriekšējo parakstu šim klientam. Ja atrasts paraksts no cita darbinieka (jebkurai maiņas, jebkurai dienā), tas:
-- Atkārtoti izlīdzina signāla pogu (neatļauts neiespējots)
-- Parāda "🔒 Parakstījis: [vārds]"
-- Toast ziņojums: "Parakstījis: [vārds]" (lv), "Подпись уже есть: [vārds]" (ru), "Already signed by: [vārds]" (en)
+**Ieviestā izmaiņa**: `renderSignature()` (care_form.js:1667-1718) un `handleSign()` (care_form.js:1740-1784) tagad vaicā datubāzi (`atzimes` krātuve) par jebkādu iepriekšējo parakstu šim klientam jebkurā dienā. Ja atrasts paraksts no **cita** darbinieka (jebkurai maiņas, jebkurai dienā):
+- Signāla poga tiek atkārtoti izlīdzinta (neatļauts neiespējots)
+- Parādās "🔒 Parakstījis: [vārds]"
+- Toast: "Parakstījis: [vārds]"
 
-Tas paļažņojas uz i18n atslēgām `cantSignOthersSigned` un `signLockedByOther`, kuras ir pievienotas visās trīs valodās.
+Tas paļažņojas uz i18n atslēgām `cantSignOthersSigned` un `signLockedByOther`, kuras ir pievienotas visās trīs valodās (lv/ru/en).
 
-**Scenārijs**: Dāvis (diennakts) paraksta klientu V maiņā 01.09. Armands atver to pašu klientu 02.09 — viņa signāla poga ir atkārtoti izlīdzinta ar ziņojumu "🔒 Parakstījis: Dāvis". Armands var veikt aprūpes darbības, bet nevar parakstīties. Administrators var jebreiz pārparakstīt.
+**Scenārijs**: Dāvis paraksta 01.09 V sadaļu. Kad Dāvis pats paraksta 02.09 R sadaļu, tas ir atļauts (tas ir viņa pats paraksts). Kad Armands ienāk klienta profilā jebkurai dienā — signāla poga ir atkārtoti izlīdzinta ar "🔒 Parakstījis: Dāvis". Armands var veikt aprūpes darbības (temperatūra, higiēna, utt.), bet **nevar parakstīties ne R, ne V sadaļā**. Tikai administrators var pārparakstīt.
