@@ -131,6 +131,11 @@ class CareFormController {
       this.renderQuickTotals();
     });
 
+    // Force full sync on page load to ensure we have latest data from all caregivers
+    this.sync.forceFullSync().catch(e => {
+      console.warn('[care_form] initial forceFullSync failed:', e);
+    });
+
     this.setupLanguageSwitcher();
 
     const overlay = document.getElementById('loadingOverlay');

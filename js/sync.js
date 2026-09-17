@@ -221,6 +221,11 @@ function normalizeRow(raw) {
     lastBy: 'lastBy',
     darbinieksPedejais: 'lastBy',
     darbinieks_pedejais: 'lastBy',
+    darbinieks_pedejais_id: 'lastBy',
+    prevValue: 'lastValue',
+    ieprijuma: 'lastValue',
+    iprijuma: 'lastValue',
+    pievienots: 'lastValue'
     created: 'created',
     izveidots: 'created',
     time: 'time',
