@@ -232,7 +232,7 @@ Administrācijas panelis var darboties kā aprūpētājs:
 
 - **Kas var parakstīt**: Nakts maiņas (`diennakts`) darbinieki un administratori
 - **Kad**: Katrā maiņā (R/V) dienā ir atsevišķs paraksts
-- **Nemainīgība**: Neadministratoriem parakstīta ma maiņu nevar labot (`isShiftSigned()` pārbaude)
+- **Pēc parakstīšanas labošana**: Pēc paraksta pievienošanas, darbinieks var turpināt labot atzīmes — paraksta pārbaude neatbloķē ievadi (skat. `js/care_form.js` `handleOptionSelect`, `handleNumberChange`, `handleSikdrumiSubmit`, `handleDiaperIncrement` — neizmanto `isShiftSigned()`)
 - **Administrators ignorēšana**: Administratori var atkārtoti parakstīt vai parakstīt citu maiņu pašreizējā aprūpētāja identitātei
 - Paraksti tiek glabāti kā atzīmes ar `kategorija: 'paraksts'` un `lauks: 'aprupetaja_paraksts'`
 
@@ -364,3 +364,95 @@ Sistēma apstrādā vairākas datuma formātu konvencijas:
 - Google Sheets datuma objekti tiek konvertēti uz `yyyy-MM-dd` vai `HH:mm:ss` atkarībā no lauka nosaukuma
 - `normalizeRow()` failā `js/sync.js` secina datumus no ID laika zīmogiem (piemēram, `m_1234567890`) ik vien trūkst eksplīcīti datumu
 - Funkcija `normalizeKey()` noņem diakritiskās zīmes no latviešu valodas kolonnu nosaukumiem (piemēram, `Ā` → `a`), lai nodrošinātu uzticamu lauku sakritību
+
+## Uzlabojumi / Potenciālie uzlabojumi
+
+Šī sadaļa dokumentē konkrētus kods neattiecīgos novērtētos uzlabojumus. Katrs punkts ir verificēts pret faktisko kodu.
+
+### 1. `isShiftSigned()` ir mirusi kods (Dead Code)
+
+Funkcija definēta `js/care_form.js:39-48`, bet **netiek izsaukta nekur** (neatrasta nekuru citu atsaukumu). Funkcija tika atstāta pēc commit `5446c43` ("remove sign-based locking from activity input"), kas noņāca paraksta bloķēšanu no visiem ievades manuskriptiem (`handleOptionSelect`, `handleNumberChange`, `handleSikdrumiSubmit`, `handleDiaperIncrement`).
+
+**Ietekme**: README iepriekšējā versija nepareizāk paziņoja, ka "neadministratori nevar labot pēc parakstīšanas". Tas nav pareizs — pēc parakstīšanas labošana ir atļauta.
+
+**Ieteikums**: Izņemt `isShiftSigned()` metodi vai to activēt, ja atpakaļeja konspektēšana ir nepieciešama.
+
+### 2. `doPost` netiek izmantots no klienta puses
+
+README rindā 53 apgalvo, ka `doPost` apstrūdā rakstīšanas operācijas. Tomēr `js/sync.js:130` `postAction()` funkcija ir tikai `jsonpAction()` aizvietotājs — tā izmanto **GET ar `?data=<json>` parametru**, kas sauc `doGet` (backend/gas_webhook.gs:146-167), nevis `doPost`. `doPost` (rinda 179) eksistē backendā, bet klients to neizsauc.
+
+**Ietekme**: Transporta slānis ir JSONP GET, nevis POST. Lieli datu kopumos var sasniegt URL garuma ierobežojumus.
+
+**Ieteikums**: Atjaunināt README, lai norādātu, ka visas operācijas pārvietojas caur `doGet` JSONP, vai pārimplementēt klientu, lai izmantotu `doPost` reālos requestos.
+
+### 3. `mark` darbības `actionId` izraisa kluso datu zudušanu
+
+`js/care_form.js:1567` `actionId` ir veidots kā `'mark_' + clientId + '_' + shift + '_' + category + '_' + field + '_' + today + '_' + userId`. Backend `handleMark` (backend/gas_webhook.gs:399-409) pārbauda, vai `actionId` jau eksistē, un ja jā, atgriež `already_processed: true` **bez vērtības atjaunināšanas**. Nozīme: ja aprūpētājs pārslēgs kādu lauku (X → tukšs → X) divas reizes vienā dienā, otrā izmaiņa tiek klusā režīmā noignorēta.
+
+**Ietekme**: Toggle lauki (piemēram, higiēnas pārslēgi) var zaudēt datus, ja viņi tiek pārslēgti atpakaļ.
+
+**Ieteikums**: Iekļaut sekvenciālu numuru vai laikspiedāmju `actionId` formulē, vai pārbaudīt vērtību atš distinctions pirms `already_processed` atgriešanas.
+
+### 4. `getSignatureShift()` neatbilst reālajai maiņas logikai
+
+`js/care_form.js:22-36` — funkcija, kas noteic kuru shiftu parakstīt. Diennakts (nakts) darbinieki strādā 19:00–07:00, bet ja viņi paraksta pulksten 07:00–18:59, funkcija atgriež `'R'` (Rīts), kas nav toādais paraksts par nakts maiņu. Komentārs pats pieņem: "// 07:00-18:59 -> not night shift time, but could be R if signing late".
+
+**Ietekme**: Paraksts tiek piesaistēts nepareizai maiņai dienas laikā, kad darbinieks nav darbījumā.
+
+**Ieteikums**: Skaidrs ieveināgre: ja darbinieks ir diennakts un pulksten ir 07:00–18:59, parakstamām vajadzētu būt iepriekšējai nakts maiņai (kurš sākās pulksten 19:00).
+
+### 5. `handleSign` nesaglabā lomu normalizācijā
+
+`js/care_form.js:1707` — `handleSign` izmanto `userRole = (this.currentUser.loma || '').toLowerCase()` bez NFD normalizēšanas (no diakritiskajām zīmēm). Salīdzinājumā, `renderSignature` (rinda 1653) normalizē: `.normalize('NFD').replace(/[\u0300-\u036f]/g, '')`. Tā rezultātā `handleSign` pārbauda pret `'aprūpētājs'` (ar diakritiskajām) un `'aprupetas'` (bez tām), bet `renderSignature` vienmēr atzīmē kā `'aprupetajs'`.
+
+**Ietekme**: Rolu atpakaļeja var būt neatbilstīga starp signāla pogas stāvokli un paraksta apstrādi.
+
+**Ieteikums**: Izveidot kopsavilkumu helperi funkciju `getNormalizedRole()` un izmantot to vienādā veidā visās vietās.
+
+### 6. `sync()` metode ir mirusi kods
+
+`js/sync.js:595-600` — `CareSync.sync()` metode eksistē, izsauc `processQueue()` un notik `syncComplete` notikumu, bet **netiek izsaukta nevienā miejā** (`grep` neko neatrod). Visi sinhronizācijas izsutījumi notiek ca `loadInitialData()`, `forceFullSync()`, `_scheduleQueueProcessing()`, vai manuālo sinhronizācijas pogu.
+
+**Ieteikums**: Izņemt `sync()` metodi, ja tā nav paredzēta nolaižamam izmantošanai, vai dokumentēt tās mērķi.
+
+### 7. Nav periodiskas sinhronizācijas
+
+README neizņem periodisko sinhronizāciju kā funkcionalitāti (tas ir pareizi). Taču kods ir tāds, ka dati tiek ielādēti vienu reizi `loadInitialData()` inicializācijā, un pēc tam:
+- `syncComplete` notikums informē UI par atkārtotu renderēšanu
+- `online`/`offline` notikumi aktivizē `forceFullSync()`
+- `_scheduleQueueProcessing()` (500ms debounce) apstrādā rindu pēc `enqueueChange`
+- Manuālā "Sinhronizēt" poga
+
+Nav `setInterval` vai `setTimeout` kas periodāli izsūtā datus no servera. Tātad ja citā darbinieks labo datus Google Sheets, tas netiek automātiski synchronizēts līdz lietotājs spiež "Sinhronizēt" vai pārlādē lapu.
+
+**Ieteikums**: Pievienot nejaudīgu periodisko sinhronizāciju (piemēram, ik 60 sekundes) vai WebSocket savienojumu reāla laika atjauninājumiem.
+
+### 8. `scripts/gen-ranges.js` trūkst repo
+
+`package.json:7` definē skriptu `"build:xlsx": "node scripts/gen-ranges.js"`, bet `scripts/` mape **neatradamas** repo. README rinda 103 arī pieļauj: "scripts/ # (norādīts package.json, nav repozitorijā)".
+
+**Ieteikums**: Izveidot `scripts/gen-ranges.js` vai noņemt/skaidrot atsauces no `package.json`.
+
+### 9. Datu lauka nosaukumu nevienenotība
+
+Kods izmanto gan camelCase (piem., `clientId`, `employeeId`), gan snake_case (piem., `klients_id`, `darbinieks_id`) lauku nosaukumus. `normalizeRow()` (`js/sync.js:189-259`) kartē vairāk nekā 80 nosaukumu variaciju uz kanoniskiem. Piemēram, `clientIdsMatch()` (`js/care_form.js:508-511`) ir jāatbalsta četras nosaukumu formas: `clientId`, `klients_id`, `klientsId`, `klienti_id`.
+
+**Ietekme**: Kods ir robusts pret dažādām konvencijām, bet ir sarežģītāks un grūtāk uzturama.
+
+**Ieteikums**: Standartizēt vienu nosaukuma konvenciju un migrēt esošos datus.
+
+### 10. `_getStore` atmiņas režīmā neatbilst IndexedDB API
+
+`js/db.js:49-66` — atmiņas fona tilpe atgriež fiktīvus transakcijas objektus ar `onsuccess` logiem, kas ir sinhronas. Tomēr `getByIndex()` (rinda 189-204) izmanto `store.index` kas nav definēts atmiņas režīmā (mock transakcijā ir tikai `add`, `put`, `get`, `getAll`, `delete`, `openCursor`, `createIndex`, `getAllKeys`).
+
+**Ietekme**: Ja `getByIndex` tiek izsaukts atmiņas režīmā (piem., testā), tā var nebūt veidā.
+
+**Ieteikums**: Pievienot `index()` metodi atmiņas fona tilpēm, lai `getByIndex` darbotos korekti.
+
+### 11. `normalizeRow` datuma apstrāde ir frāģilā
+
+`js/sync.js:152-188` — `normalizeRow()` mēģina secināt datumu no četrām potenciālajām laukiem (`izveidots`, `pedeja_laiks`, `pēdējais_laiks`, `date`). Ja ir vairākas laukus ar konfliktējošiem datumiem, pēdējais pārbaudītais pārdefinē iepriekšējo. Tāpat ID laika zīmoga pareizrakstība (sync.js:277-286) pieņem formātu `xxx_<10-13 cipari>`, kas var nepazīt īsākus ID.
+
+**Ietekums**: Datums lauks var būt nepareizs, ja avotā ir konfliktējoši datumi vai nestandartizēts ID formāts.
+
+**Ieteikums**: Skaidrīt datumu prioritātes kārtību un validēt ID formātu.
