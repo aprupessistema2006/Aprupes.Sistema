@@ -1,366 +1,366 @@
 # Aprūpes sistēma
 
-A web-based social care documentation system for recording eldercare and disability support care. The system is built as a Progressive Web App (PWA) with offline capability, using Google Sheets as the authoritative data source via a Google Apps Script backend.
+Tīmekļu balstīta sociālās aprūpes dokumentēšanas sistēma veco ķermeņu un cilvēku ar invaliditāti atbalstošiem aprūpes ierakliem. Sistēma ir izveidota kā Progresīvā tīmekļa lietotne (PWA) ar iespēju darboties bezsaistē, izmantojot Google Sheets kā galveno datu avotu caur Google Apps Script aizmugursistēmu.
 
-## Key Features
+## Galvenās funkcijas
 
-- **Three user roles**: aprūpētājs (caregiver), kontroliere (controller), administrators
-- **Offline-first**: Uses IndexedDB as a local cache; changes are queued and synced when connectivity is restored
-- **Multi-language**: Latvian (LV), Russian (RU), and English (EN) interfaces
-- **Two shift types**: Rīts (Morning, R) and Vakars (Evening, V)
-- **Care documentation**: Temperature, hygiene, activity, meals, fluid intake/output, bowel movements, skin care, walks, visitors, diaper changes, and signatures
-- **Task management**: Assignable, prioritizable tasks with deadline tracking
-- **Excel export**: Monthly care documentation generated from an Excel template (`Aprūpes lapas.xlsx`)
-- **Duplicate prevention**: Server-side deduplication via `actionId` and local debouncing
+- **Trīs lietotāju lomas**: aprūpētājs (caregiver), kontroliere (controller), administrators
+- **Darbība bezsaistē pirmās**: Izmanto IndexedDB kā lokālo kešatmiņu; izmaiņas tiek rindā un sinhronizētas, kad atjaunojas savienojums
+- **Daudzvalodu atbalsts**: Latviešu (LV), krievu (RU) un angļu (EN) interfeisi
+- **Divi maiņu veidi**: Rīts (Rīts, R) un Vakars (Vakars, V)
+- **Aprūpes dokumentēšana**: Temperatūra, higiēna, aktivitāte, ēdienreizes, šķidruma uzņemšana/izvadīšana, vēdera izeja, ādas kopšana, pastaigas, ciemiņi, autiņbiksīšu maiņa un paraksti
+- **Uzdevumu pārvaldība**: Piešķirami, priorītātei izložņamie uzdevumi ar termiņu izsekošanu
+- **Excel eksporta funkcija**: Ikmēneša aprūpes dokumentācija, kas tiek ģenerēta no Excel veidnes (`Aprūpes lapas.xlsx`)
+- **Dublikātu novēršana**: Dublikātu novēršana servera pusē, izmantojot `actionId`, un lokālā aizkavēšanās (debouncing)
 
-## Architecture Overview
+## Arhitektūras pārskats
 
 ```
-Google Sheets (source of truth)
-    ↑ (JSONP/CORS via script tag)
+Google Sheets (patiesības avots)
+    ↑ (JSONP/CORS caur skriptu tagu)
 Google Apps Script (backend/gas_webhook.gs)
     ↓ (JSON)
 js/sync.js → requestData() → normalizeRow()
-    ↓ (IndexedDB via CareDB)
-js/db.js → IndexedDB stores
-    ↓ (DOM rendering)
-HTML pages → category forms → care_form.js / aprupe.js / admin.js / control.js
+    ↓ (IndexedDB caur CareDB)
+js/db.js → IndexedDB krātuves
+    ↓ (DOM renderēšana)
+HTML lapas → kategoriju formas → care_form.js / aprupe.js / admin.js / control.js
 ```
 
-### Data Flow
+### Datu plūsma
 
-1. **Initial load**: `CareSync.loadInitialData()` fetches all sheet data via the GAS webhook URL (`CONFIG.GAS_URL`)
-2. **Normalization**: `normalizeRow()` in `js/sync.js` maps Google Sheets column names (Latvian, with diacritics) to camelCase keys and handles date parsing from ID timestamps
-3. **Storage**: Normalized data is stored in IndexedDB via `CareDB.replaceStores()` across five stores: `darbinieki`, `klienti`, `atzimes`, `atzimes_log`, `uzdevomi`
-4. **Caching**: Sync status is tracked in a `meta` store; pending changes go to a `sync_queue` store
-5. **Event-driven updates**: The `syncComplete` custom event triggers UI re-renders across all page controllers
-6. **Offline detection**: `window.addEventListener('online'/'offline')` triggers `forceFullSync()` on reconnection
+1. **Sākotnējā ielāde**: `CareSync.loadInitialData()` ielasa visus lapas datus caur GAS webhook URL (`CONFIG.GAS_URL`)
+2. **Normalizācija**: `normalizeRow()` failā `js/sync.js` kartē Google Sheets kolonnu nosaukumus (latviešu valodā, ar diakritiskajām zīmēm) uz camelCase atslēgām un apstrādā datumu no ID laika zīmogiem
+3. **Glābāšana**: Normalizētie dati tiek glabāti IndexedDB, izmantojot `CareDB.replaceStores()` piecās krātuvēs: `darbinieki`, `klienti`, `atzimes`, `atzimes_log`, `uzdevomi`
+4. **Kešatmiņa**: Sinhronizācijas statuss tiek izsekots `meta` krātuvē; gaidāmās izmaiņas nonāk `sync_queue` krātuvē
+5. **Notikumu vadīti atjauninājumi**: Pielāgotais notikums `syncComplete` aktivizē UI atkārtotu renderēšanu visos lapu kontrolleros
+6. **Bezsaistes noteikšana**: `window.addEventListener('online'/'offline')` aktivizē `forceFullSync()`, kad savienojums atjaunojas
 
-### Communication with Backend
+### Saziņa ar aizmugursistēmu
 
-- The GAS backend does not send CORS headers on POST, so the system uses **JSONP** (script tag injection) as the primary transport method
-- `requestData()` tries `fetch` with CORS first, then falls back to `jsonpRequest()` with a 10-second timeout and retry logic
-- Write operations use `postAction()` which is an alias for `jsonpAction()` with request deduplication via the `pendingActions` Map
-- Each write operation includes a unique `actionId` to prevent duplicate processing on the server
+- GAS aizmugursistēma nesūta CORS galvenes POST pieprasījumiem, tāpēc sistēma izmanto **JSONP** (skriptu taga injekciju) kā primāro transporta metodi
+- `requestData()` vispirms mēģina izmantot `fetch` ar CORS, pēc tam pāriet uz `jsonpRequest()` ar 10 sekunžu taimautu un atkārtotu mēģinājumu loģiku
+- Rakstīšanas operācijas izmanto `postAction()`, kas ir `jsonpAction()` aizvietotājs ar pieprasījumu dublikātu novēršanu, izmantojot `pendingActions` karti (Map)
+- Katra rakstīšanas operācija ietver unikālu `actionId`, lai novēretu dubultu apstrādi serverī
 
-### Google Apps Script Backend (`backend/gas_webhook.gs`)
+### Google Apps Script aizmugursistēma (`backend/gas_webhook.gs`)
 
-Exposes two entry points:
+Nodrošina trīs ieejas punktus:
 
-| HTTP Method | Parameters | Purpose |
-|-------------|-----------|---------|
-| `doGet` | `action`, `data`, `callback` | Data loading (`action=load`) and write operations (via `data` JSON parameter) |
-| `doPost` | POST body (JSON) | Write operations (create/update marks, tasks, clients, employees) |
-| `doOptions` | — | CORS preflight handler |
+| HTTP metode | Parametri | Nolūks |
+|-------------|-----------|--------|
+| `doGet` | `action`, `data`, `callback` | Datu ielāde (`action=load`) un rakstīšanas operācijas (caur `data` JSON parametru) |
+| `doPost` | POST pamatteksts (JSON) | Rakstīšanas operācijas (izveidot/atjaunināt atzīmes, uzdevumus, klientus, darbiniekus) |
+| `doOptions` | — | CORS priekšpieprasījuma apstrādātājs |
 
-**Supported actions** (via `routeActionData`):
+**Atbalstītās darbības** (caur `routeActionData`):
 
-| Action | Handler | Sheet | Description |
-|--------|---------|-------|-------------|
-| `ping` | — | — | Health check, returns `{ success: true, pong: true }` |
-| `load` | `handleLoadData` | All | Fetches all sheets with optional filtering by `clientId`, `employeeId`, `dateFrom`, `dateTo`, `limit` |
-| `createClient` | `handleCreateClient` | `klienti` | Creates a new client with duplicate name checking |
-| `createEmployee` | `handleCreateEmployee` | `darbinieki` | Creates a new employee with duplicate name+role checking |
-| `updateClient` | `handleUpdate` | `klienti` | Updates a client by `id` |
-| `updateEmployee` | `handleUpdate` | `darbinieki` | Updates an employee by `id` |
-| `mark` | `handleMark` | `atzimes` + `atzimes_log` | Creates or updates a care mark; writes a log entry |
-| `createTask` | `handleCreateTask` | `uzdevomi` | Creates a task with `actionId` deduplication |
-| `updateTask` | `handleUpdateTask` | `uzdevomi` | Updates task status, completion, and timestamps |
+| Darbība | Apstrādātājs | Lapa (Sheet) | Apraksts |
+|--------|-------------|-------------|----------|
+| `ping` | — | — | Veselības pārbaude, atgriež `{ success: true, pong: true }` |
+| `load` | `handleLoadData` | Visi | Ielādē visas lapas ar iespēju filtrēt pēc `clientId`, `employeeId`, `dateFrom`, `dateTo`, `limit` |
+| `createClient` | `handleCreateClient` | `klienti` | Izveido jaunu klientu ar dublikāta vārda pārbaudi |
+| `createEmployee` | `handleCreateEmployee` | `darbinieki` | Izveido jaunu darbinieku ar vārda un lomas dublējuma pārbaudi |
+| `updateClient` | `handleUpdate` | `klienti` | Atjaunina klientu pēc `id` |
+| `updateEmployee` | `handleUpdate` | `darbinieki` | Atjaunina darbinieku pēc `id` |
+| `mark` | `handleMark` | `atzimes` + `atzimes_log` | Izveido vai atjaunina aprūpes atzīmi; ieraksta žurnāla ierakstu |
+| `createTask` | `handleCreateTask` | `uzdevomi` | Izveido uzdevumu ar `actionId` dublikātu novēršanu |
+| `updateTask` | `handleUpdateTask` | `uzdevomi` | Atjaunina uzdevuma statusu, izpildi un laika zīmogus |
 
-All timestamps are converted to `Europe/Riga` timezone on the backend using `Utilities.formatDate(v, TZ, format)`. Date fields use `yyyy-MM-dd`, time fields use `HH:mm:ss`.
+Visi laika zīmogi aizmugursistēmā tiek konvertēti uz `Europe/Riga` laika joslu, izmantojot `Utilities.formatDate(v, TZ, formāts)`. Datumlauki izmanto formātu `yyyy-MM-dd`, laiklauki — `HH:mm:ss`.
 
-## Project Structure
+## Projekta struktūra
 
 ```
 Aprupes_sistema/
-├── index.html              # Login page — PIN-based authentication
-├── aprupe.html             # Caregiver start page — client list + task table
-├── aprupetajs.html         # Client detail page — care form with categories
-├── admin.html              # Admin panel — dashboard, client/employee management
-├── control.html            # Controller panel — stats, history, Excel export, month view
-├── Aprūpes lapas.xlsx      # Excel template for monthly care documentation
+├── index.html              # Pieteikšanās lapa — autentifikācija ar PIN
+├── aprupe.html             # Aprūpētāja sākumlapa — klientu saraksts + uzdevumu tabula
+├── aprupetajs.html         # Klienta detalizētā informācija — aprūpes forma ar kategorijām
+├── admin.html              # Administrācijas panelis — informācijas panelis, klientu/darbinieku pārvaldība
+├── control.html            # Kontroleiļa panelis — statistika, vēsture, Excel eksports, mēneša skats
+├── Aprūpes lapas.xlsx      # Excel veidne ikmēneša aprūpes dokumentācijai
 ├── backend/
-│   └── gas_webhook.gs      # Google Apps Script backend (all data operations)
+│   └── gas_webhook.gs      # Google Apps Script aizmugursistēma (visas datu operācijas)
 ├── js/
-│   ├── config.js           # Configuration constants (GAS_URL, SHEET_ID, field definitions, shift options)
-│   ├── i18n.js             # Multi-language translations (LV/RU/EN) with setLang/applyLanguage
-│   ├── timezone.js         # Timezone utilities (Europe/Riga) using Intl.DateTimeFormat
-│   ├── db.js               # IndexedDB wrapper (CareDB) with in-memory fallback
-│   ├── sync.js             # Synchronization engine (CareSync) — load, queue, sync, network detection
-│   ├── login.js            # Login controller — PIN auth, setup mode, employee selection
-│   ├── logout.js           # Logout with pending changes confirmation and sync option
-│   ├── tasks.js            # Task manager — load, filter, create, complete, reopen tasks
-│   ├── aprupe.js           # AprupeController — client list page logic
-│   ├── care_form.js        # CareFormController — client detail page with care categories and signature
-│   ├── admin.js            # AdminPanel — dashboard, CRUD for clients/employees, backups, duplicate detection
-│   ├── control.js          # ControlPanel — stats, history table, Excel export, month view rendering
-│   └── excel_export.js     # ExcelExporter — generates monthly Excel files from template
+│   ├── config.js           # Konfigurācijas konstantes (GAS_URL, SHEET_ID, lauku definīcijas, maiņu opcijas)
+│   ├── i18n.js             # Daudzvalodu tulkojumi (LV/RU/EN) ar setLang/applyLanguage
+│   ├── timezone.js         # Laika joslas utilītas (Europe/Riga) izmantojot Intl.DateTimeFormat
+│   ├── db.js               # IndexedDB ietvars (CareDB) ar atmiņas rezerves iespēju
+│   ├── sync.js             # Sinhronizācijas dzinējs (CareSync) — ielādēt, rinda, sinhronizēt, tīkla noteikšana
+│   ├── login.js            # Pieteikšanās kontrolleris — PIN autentifikācija, iestatīšanas režīms, darbinieku izlase
+│   ├── logout.js           # Iziet ar nesaglabāto izmaiņu apstiprinājumu un sinhronizācijas iespēju
+│   ├── tasks.js            # Uzdevumu pārvaldnieks — ielādēt, filtrēt, izveidot, pabeigt, atkārtoti atvērt
+│   ├── aprupe.js           # AprupeController — klientu saraksta lapas logika
+│   ├── care_form.js        # CareFormController — klienta detalizētā lapa ar aprūpes kategorijām un parakstu
+│   ├── admin.js            # AdminPanel — informācijas panelis, CRUD klientiem/darbiniekiem, dublikātu noteikšana
+│   ├── control.js          # ControlPanel — statistika, vēstures tabula, Excel eksports, mēneša skata renderēšana
+│   └── excel_export.js     # ExcelExporter — ģenerē ikmēneša Excel failus no veidnes
 ├── css/
-│   ├── index.css           # Login page styles (splash screen, login card, language switcher)
-│   ├── aprupe.css          # Caregiver start page styles (client grid, task table)
-│   ├── aprupetajs.css      # Client detail page styles (category grid, modal, signature card)
-│   └── admin.css           # Admin and controller panel styles (shared by admin.html and control.html)
-├── scripts/                    # (referenced in package.json, not present in repo)
-├── package.json            # Node.js config (exceljs, xlsx dependencies; dev server and build scripts)
-├── DUPLICATE_FIX_README.md # Documentation of duplicate prevention measures
-└── test*.js                # Test files (test, test_e2e, test_duplicate_*, test_gas_style, etc.)
+│   ├── index.css           # Pieteikšanās lapas stili (sākuma ekrāns, pieteikšanās karte, valodas pārslēgs)
+│   ├── aprupe.css          # Aprūpētāja sākumlapas stili (klientu režģis, uzdevumu tabula)
+│   ├── aprupetajs.css      # Klienta detalizētās lapas stili (kategoriju režģis, modālais logs, paraksta karte)
+│   └── admin.css           # Administrācijas un kontroleiļa paneļa stili ( koplietoti starp admin.html un control.html)
+├── scripts/                # (norādīts package.json, nav repozitorijā)
+├── package.json            # Node.js konfigurācija (exceljs, xlsx atkarības; izstrādes serveris un būvēšanas skripti)
+├── DUPLICATE_FIX_README.md # Dokumentācija par dublikātu novēršanas pasākumiem
+└── test*.js                # Testa faili (test, test_e2e, test_duplicate_*, test_gas_style, utt.)
 ```
 
-## Google Sheets Structure
+## Google Sheets struktūra
 
-The system uses the following sheets (identified by `SHEET_ID` in `config.js`):
+Sistēma izmanto šādas lapas (identificētas pēc `SHEET_ID` failā `config.js`):
 
-| Sheet Name | Description |
-|------------|-------------|
-| `darbinieki` | Employees (name, role, PIN, active status) |
-| `klienti` | Clients (name, birth date, diet, contact info, active status) |
-| `atzimes` | Care marks/records (client, employee, date, shift, category, field, value) |
-| `atzimes_log` | Audit log of all care mark changes (new entries, edits) |
-| `uzdevomi` | Tasks assigned to employees (text, deadline, priority, status) |
+| Lapas nosaukums | Apraksts |
+|-----------------|----------|
+| `darbinieki` | Darbinieki (vārds, loma, PIN, aktīvais statuss) |
+| `klienti` | Klienti (vārds, dzimšanas datums, diēta, kontaktinformācija, aktīvais statuss) |
+| `atzimes` | Aprūpes atzīmes/rezultāti (klients, darbinieks, datums, maiņa, kategorija, lauks, vērtība) |
+| `atzimes_log` | Visu aprūpes atzīmju izmaiņu auditņš (jauni ieraksti, labojumi) |
+| `uzdevomi` | Darbiniekiem piešķirti uzdevumi (teksts, termiņš, prioritāte, statuss) |
 
-**Key columns in `atzimes`** (care marks):
-- `id` — unique identifier (format: `m_` + timestamp)
-- `klients_id` — client ID
-- `darbinieks_id` — employee ID
-- `datums` — date in Europe/Riga timezone
-- `laiks` — time in HH:mm:ss format
-- `periods` — shift: `R` (Rīts) or `V` (Vakars)
-- `kategorija` — care category (see Field Definitions below)
-- `lauka_nosaukums` — field name within the category
-- `vertiba` — the recorded value
-- `pedeja_laiks` — last modified timestamp
-- `action_id` — deduplication key for sync
+**Galvenās kolonnas `atzimes` (aprūpes atzīmēs):**
+- `id` — unikālais identifikators (formāts: `m_` + laika zīmogs)
+- `klients_id` — klienta ID
+- `darbinieks_id` — darbinieka ID
+- `datums` — datums Europe/Riga laika joslā
+- `laiks` — laiks `HH:mm:ss` formātā
+- `periods` — maiņa: `R` (Rīts) vai `V` (Vakars)
+- `kategorija` — aprūpes kategorija (skat. Lauku definīcijas zemāk)
+- `lauka_nosaukums` — lauka nosaukums kategorijas ietvaros
+- `vertiba` — reģistrētā vērtība
+- `pedeja_laiks` — pēdējās modificēšanas laika zīmogs
+- `action_id` — sinhronizācijas dublikātu novēršanas atslēga
 
-**Key columns in `uzdevomi`** (tasks):
-- `id` — unique identifier (format: `t_` + timestamp)
-- `teksts` — task description
-- `klients_id` — optional client ID
-- `piešķirt_darbiniekam_id` — assigned employee ID
-- `termins` — deadline date
-- `prioritate` — `augsta` (high), `videja` (medium), or `zema` (low)
-- `statuss` — `jauns` (new), `procesā` (in progress), or `pabeigts` (completed)
-- `pabeigts` — boolean completion flag
-- `izveidots` — creation timestamp
-- `izveidotajs_id` — creator employee ID
-- `pabeigts_laiks` — completion timestamp
-- `pabeigtajs_id` — completing employee ID
-- `action_id` — deduplication key for sync
+**Galvenās kolonnas `uzdevomi` (uzdevumos):**
+- `id` — unikālais identifikators (formāts: `t_` + laika zīmogs)
+- `teksts` — uzdevuma apraksts
+- `klients_id` — izvēles klienta ID
+- `piešķirt_darbiniekam_id` — piešķirā pašreizējais darbinieka ID
+- `termins` — izpildes termiņa datums
+- `prioritate` — `augsta` (high), `videja` (medium), vai `zema` (low)
+- `statuss` — `jauns` (new), `procesā` (in progress), vai `pabeigts` (completed)
+- `pabeigts` — boolean izpildes karodziņš
+- `izveidots` — izveides laika zīmogs
+- `izveidotajs_id` — izveidotāja darbinieka ID
+- `pabeigts_laiks` — izpildes laika zīmogs
+- `pabeigtajs_id` — izpildītāja darbinieka ID
+- `action_id` — sinhronizācijas dublikātu novēršanas atslēga
 
-## Field Definitions
+## Lauku definīcijas
 
-Defined in `js/config.js` under `FIELD_DEFINITIONS`, the care categories and their fields are:
+Definēts failā `js/config.js` sadaļā `FIELD_DEFINITIONS`, aprūpes kategorijas un to lauki ir:
 
-| Category Key | Label (LV) | Fields |
-|-------------|-----------|--------|
-| `temp` | Temperatūra | `temperatura` (number, °C; ≥37 = fever) |
-| `higiena` | Higiēna | 7 toggle fields: mutes dobuma kopšana, vana/duša, daļēja apmazgāšana, veļas maiņa, nagu kopšana, matu kopšana, bārdas skūšana |
-| `aktivitate` | Aktivitāte | 3 toggle fields: parvietojas ar palīglīdzekli, stāv ar palīdzību, sēž ar palīdzību |
-| `edinasana` | Ēdīšana | 4 food fields: brokastis, pusdienas, launags, vakariņi (values: X = full, ½ = half, A = refused) |
-| `sikdrumi` | Šķidrumi | `urina_daudzums` (number, ml), `uznemts_ml` (number, ml) — cumulative within shift |
-| `fiziologija` | Fiziologija | `vedera_izeja` (select: N=Normal, A=Constipation, S=Diarrhea, C=Constipated, K=Laxative) |
-| `citsi_pasakomi` | Citi pasākumi | `adas_kopsana` (toggle), `pastaigas` (toggle), `ciemini` (toggle: X/Nē), `autins_biksitu_skaits` (number, incremental) |
-| `paraksts` | Paraksts | `aprupetaja_paraksts` (signature field) |
+| Kategorijas atslēga | Etiķete (LV) | Lauki |
+|-------------------|-----------|------|
+| `temp` | Temperatūra | `temperatura` (skaitlis, °C; ≥37 = drudzis) |
+| `higiena` | Higiēna | 7 pārslēdzami lauki: mutes dobuma kopšana, vana/duša, daļēja apmazgāšana, veļas maiņa, nagu kopšana, matu kopšana, bārdas skūšana |
+| `aktivitate` | Aktivitāte | 3 pārslēdzami lauki: pārvietojas ar palīglīdzekli, stāv ar palīdzību, sēž ar palīdzību |
+| `edinasana` | Ēdīšana | 4 ēdienrezei lauki: brokastis, pusdienas, launags, vakariņi (vērtības: X = pilna, ½ = puse, A = atteicās) |
+| `sikdrumi` | Šķidrumi | `urina_daudzums` (skaitlis, ml), `uznemts_ml` (skaitlis, ml) — kumulatīvi maiņas ietvaros |
+| `fiziologija` | Fiziologija | `vedera_izeja` (izvēle: N=Normāla, A=Aizcietējums, S=Caureja, C=Svecīte, K=Klizma) |
+| `citsi_pasakomi` | Citi pasākumi | `adas_kopsana` (pārslēgs), `pastaigas` (pārslēgs), `ciemini` (pārslēgs: X/Nē), `autins_biksitu_skaits` (skaitlis, pieaugoši) |
+| `paraksts` | Paraksts | `aprupetaja_paraksts` (paraksta lauks) |
 
-**Excel template field mapping** (`EXCEL_TEMPLATE.rowMapping` in `config.js`):
-The Excel template maps 23 fields to rows 9–31, with columns offset by 2 per day (R shift = base column, V shift = base + 1).
+Excel veidnes lauku kartēšana (`EXCEL_TEMPLATE.rowMapping` failā `config.js`):
+Excel veidne kartē 23 laukus uz 9.–31. rindu, kolonnām dienā mainoties par 2 (R maiņa = bāzes kolonna, V maiņa = bāse + 1).
 
-## Synchronization
+## Sinhronizācija
 
-### CareSync Class (`js/sync.js`)
+### CareSync klase (`js/sync.js`)
 
-The `CareSync` class manages the event-driven sync architecture:
+Klase `CareSync` pārvalda notikumu vadītu sinhronizācijas arhitektūru:
 
-**Initialization** (`loadInitialData`):
-- Runs queue processing first (to flush pending local changes)
-- Fetches all data from the GAS `?action=load` endpoint
-- Calls `normalizeRow()` on each row before storing in IndexedDB
-- Dispatches `syncComplete` event with result summary (counts, pending count, revision)
-- Falls back to local IndexedDB data when offline
+**Inicializācija** (`loadInitialData`):
+- Vispirms palaiž rindas apstrādi (lai nosūtītu gaidāmās lokālās izmaiņas)
+- Ielādē visus datus no GAS `?action=load` galapunkta
+- Izsauc `normalizeRow()` katrai rindai pirms saglabāšanas IndexedDB
+- Praftē notikumu `syncComplete` ar rezultāta kopsavilkumu (skaitļi, gaidāmo skaits, versija)
+- Atgriežas pie lokālo IndexedDB datu, kad ir bezsaistē
 
-**Queue processing** (`processQueue`):
-- Processes items from the `sync_queue` store in chronological order
-- Classifies actions as write operations (`mark`, `createTask`, `updateTask`, `createClient`, `createEmployee`, `updateClient`, `updateEmployee`) or non-write
-- Write operations use `postAction()`, others use `jsonpAction()`
-- Retries failed items (incrementing `retries` counter)
-- Deletes items only on success
-- Processes are serialized via `_runExclusive()` to prevent race conditions
+**Rindas apstrāde** (`processQueue`):
+- Apstrādā vienumus no `sync_queue` krātuves hronoloģiskā secībā
+- Klasificē darbības kā rakstīšanas operācijas (`mark`, `createTask`, `updateTask`, `createClient`, `createEmployee`, `updateClient`, `updateEmployee`) vai citus veidus
+- Rakstīšanas operācijas izmanto `postAction()`, pārējās izmanto `jsonpAction()`
+- Atkārto neizdevušos vienumus (palielinot `retries` skaitītāju)
+- Dzēš vienumus tikai pēc sekmīgas izpildes
+- Procesi tiek serializēti caur `_runExclusive()`, lai novērtēstraides stāvokļus (race conditions)
 
-**Offline support**:
-- `_setupOfflineDetection()` listens for `online`/`offline` window events
-- On reconnection, triggers `forceFullSync()`
-- `checkConnection()` pings the backend to verify connectivity
+**Atbalsts bezsaistē**:
+- `_setupOfflineDetection()` klausās `online`/`offline` loga notikumiem
+- Atjaunojoties savienojumam, aktivizē `forceFullSync()`
+- `checkConnection()` sūta ping signālu uz aizmugursistēmu, lai pārbaudītu savienojamību
 
-**Request deduplication**:
-- `pendingActions` Map prevents parallel identical requests
-- Server-side `actionId` deduplication prevents duplicate marks/tasks on retry
+**Pieprasījumu dublikātu novēršana**:
+- `pendingActions` karte (Map) novērš paralēlus identiskus pieprasījumus
+- Servera puses `actionId` dublikātu novēršana novērš dubultas atzīmes/uzdevumus atkārtotās mēģinājumā
 
-## User Roles
+## Lietotāju lomas
 
-| Role (lv) | Role (en) | Page | Permissions |
-|-----------|-----------|------|-------------|
-| `aprūpētājs` | Caregiver | aprupe.html, aprupetajs.html | View clients, record care marks, sign shifts, complete tasks |
-| `kontroliere` | Controller | control.html | View stats, audit history, create tasks, export Excel |
-| `administrators` | Administrator | admin.html, aprupetajs.html (admin mode) | Full access; create/edit clients and employees; enter caregiver mode |
+| Loma (lv) | Loma (en) | Lapa | Atļaujas |
+|-----------|-----------|------|----------|
+| `aprūpētājs` | Caregiver | aprupe.html, aprupetajs.html | Skatīt klientus, reģistrēt aprūpes atzīmes, parakstīt maiņas, pabeigt uzdevumus |
+| `kontroliere` | Controller | control.html | Skatīt statistiku, auditņa vēsturi, izveidot uzdevumus, eksportēt uz Excel |
+| `administrators` | Administrator | admin.html, aprupetajs.html (administrators režīmā) | Pilna piekļuve; izveidot/rediģēt klientus un darbiniekus; ieiet aprūpētāja režīmā |
 
-### Login Flow (`js/login.js`)
+### Pieteikšanās plūsma (`js/login.js`)
 
-1. On page load, checks `sessionStorage` for existing `careUser` — if found with `pinVerified: true`, redirects by role
-2. Checks Google Sheets connectivity via `sync.checkConnection()`
-3. If no remote connection and no local data → enters **setup mode** to create the first administrator
-4. Loads data from Google Sheets via `sync.loadInitialData()`
-5. On successful connection, loads employees from the `darbinieki` store
-6. Employee selection with role filtering ( Admins, Controllers, Caregivers, or All)
-7. PIN input (4-6 digits, numeric) with backspace support
-8. Shift type selection: `diennakts` (night shift, 19:00–07:00) or `dienas` (day shift)
-9. On login, validates PIN against `employee.pin` (local comparison), saves user to sessionStorage, plays a random encouragement message, then redirects by role
+1. Ielādējot lapu, pārbauda `sessionStorage` esošo `careUser` — ja atrasts ar `pinVerified: true`, pāradresē pēc lomas
+2. Pārbauda Google Sheets savienojamību, izmantojot `sync.checkConnection()`
+3. Ja nav attālinātā savienojuma un nav lokālo datu → pāriet iestatīšanas režīmā, lai izveidotu pirmo administratoru
+4. Ielādē datus no Google Sheets, izmantojot `sync.loadInitialData()`
+5. Veiksmīgā savienojumā ielādē darbiniekus no `darbinieki` krātuves
+6. Darbinieka izvēle ar lomu filtrēšanu (Administratorsi, Kontroleiri, Aprūpētāji vai Visi)
+7. PIN ievade (4–6 cipari, skaitliski) ar atpakaļspausces atbalstu
+8. Maiņu tipa izvēle: `diennakts` (nakts maiņa, 19:00–07:00) vai `dienas` (dienas maiņa)
+9. Pieteikšanās brīdī validē PIN pret `employee.pin` (lokalā salīdzinājums), saglabā lietotāju `sessionStorage`, atskaņo nejaušu iedrošinājuma ziņojumu, pēc tam pāradresē pēc lomas
 
-### Role-Based Redirects (`login.js` `redirectByRole`)
+### Pāradresācija pēc lomas (`login.js` `redirectByRole`)
 - `administrators` → `admin.html`
 - `kontroliere` → `control.html`
-- all others → `aprupe.html`
+- visi pārējie → `aprupe.html`
 
-## Caregiver Mode (Admin Override)
+## Aprūpētāja režīms (Administrators ignorēšana)
 
-The admin panel can act as a caregiver:
-1. Click "Ieiet kā aprūpētājs" (Enter as Caregiver) button
-2. Select a client and caregiver from dropdowns
-3. Sets `careAdminMode=true` and `careAdminCaregiverId` in sessionStorage
-4. Navigates to `aprupetajs.html?client=<id>&mode=admin&caregiverId=<id>`
-5. In admin mode, the admin can sign shifts, edit records after they've been signed, and the admin's name is appended as `[ADMIN: Name]`
+Administrācijas panelis var darboties kā aprūpētājs:
+1. Noklikšķiniet uz pogas "Ieiet kā aprūpētājs"
+2. Atlasiet klientu un aprūpētāju no nolaižamajām izvēlēm
+3. Iestata `careAdminMode=true` un `careAdminCaregiverId` `sessionStorage`
+4. Navigē uz `aprupetajs.html?client=<id>&mode=admin&caregiverId=<id>`
+5. Administrācijas režīmā administrators var parakstīt maiņas, labot ierakstus pēc to parakstīšanas, un administratora vārds tiek pievienots kā `[ADMIN: Vārds]`
 
-## Signature System (`js/care_form.js`)
+## Parakstu sistēma (`js/care_form.js`)
 
-- **Who can sign**: Night shift (`diennakts`) employees and administrators
-- **When**: Each shift (R/V) per day has a separate signature
-- **Immutability**: For non-admins, a signed shift cannot be edited (`isShiftSigned()` check)
-- **Admin override**: Admins can re-sign or sign a different shift for the current caregiver's identity
-- Signatures are stored as marks with `category: 'paraksts'` and `field: 'aprupetaja_paraksts'`
+- **Kas var parakstīt**: Nakts maiņas (`diennakts`) darbinieki un administratori
+- **Kad**: Katrā maiņā (R/V) dienā ir atsevišķs paraksts
+- **Nemainīgība**: Neadministratoriem parakstīta ma maiņu nevar labot (`isShiftSigned()` pārbaude)
+- **Administrators ignorēšana**: Administratori var atkārtoti parakstīt vai parakstīt citu maiņu pašreizējā aprūpētāja identitātei
+- Paraksti tiek glabāti kā atzīmes ar `kategorija: 'paraksts'` un `lauks: 'aprupetaja_paraksts'`
 
-## Excel Export (`js/excel_export.js`)
+## Excel eksports (`js/excel_export.js`)
 
-Uses the `ExcelJS` library and an Excel template file (`Aprūpes lapas.xlsx`) to generate monthly care documentation:
+Izmanto `ExcelJS` bibliotēku un Excel veidnes failu (`Aprūpes lapas.xlsx`), lai ģenerētu ikmēneša aprūpes dokumentāciju:
 
-- **Template sheets**: `APRŪPES DOKUMANTĀCIJA_1` (days 1-15) and `APRŪPES DOKUMANTĀCIJA_2` (days 16-31)
-- **Data mapping**: Row 9 = temperature, rows 10–16 = hygiene fields, rows 17–19 = activity, rows 20–23 = meals, row 24 = urine, row 25 = H2O, rows 26–31 = other activities and signature
-- **Columns**: Each day gets 2 columns (R shift base, V shift base+1), starting at column 2
-- **Summary rows**: Auto-generated at the end with totals for urine, H2O, and diaper changes
-- Available in `control.html` (controller panel)
+- **Veidnes lapas**: `APRŪPES DOKUMANTĀCIJA_1` (dienu 1–15) un `APRŪPES DOKUMANTĀCIJA_2` (dienu 16–31)
+- **Datu kartēšana**: Rinda 9 = temperatūra, rindas 10–16 = higiēnas lauki, rindas 17–19 = aktivitāte, rindas 20–23 = ēdienrezes, rinda 24 = urīns, rinda 25 = H2O, rindas 26–31 = citi pasākumi un paraksts
+- **Kolonnas**: Katrā dienā ir 2 kolonnas (R maiņas bāse, V maiņas bāse + 1), sākot no 2. kolonnas
+- **Kopsavilkuma rindas**: Tiek automātiski ģenerētas beigās ar kopsummām urīnam, H2O un autiņbiksīšu maiņām
+- Pieejams `control.html` (kontroleiļa panelis)
 
-## Month View (`js/control.js`)
+## Mēneša skats (`js/control.js`)
 
-The controller panel includes a month view feature that renders a grid of all care marks:
-- Rows = care categories and fields (23 rows as defined in `fieldMap`)
-- Columns = days of the month, with separate columns for R and V shifts
-- Signature cells are filtered for admin override tags
-- Numeric fields (urine, H2O, diaper changes) are summed per shift and overall
+Kontroleiļa panelis ietver mēneša skata funkciju, kas renderē visu aprūpes atzīmju režģi:
+- Rindas = aprūpes kategorijas un lauki (23 rindas, kā definēts `fieldMap`)
+- Kolonnas = mēneša dienas, ar atsevišķām kolonnām R un V maiņām
+- Parakstu šūnas tiek filtrētas, lai noņemtu administratora ignorēšanas tagus
+- Skaitliskie lauki (urīns, H2O, autiņbiksīšu maiņas) tiek summēti pēc maiņām un kopumā
 
-## Configuration (`js/config.js`)
+## Konfigurācija (`js/config.js`)
 
-All configuration is centralized in a single `CONFIG` object:
+Visa konfigurācija ir centralizēta vienā `CONFIG` objektā:
 
-| Property | Value |
-|----------|-------|
+| Īpašība | Vērtība |
+|--------|---------|
 | `APP_NAME` | `Aprūpes sistēma` |
 | `VERSION` | `1.0.0` |
-| `GAS_URL` | Google Apps Script deployment URL |
+| `GAS_URL` | Google Apps Script izvietošanas URL |
 | `SHEET_ID` | `1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E` |
 | `TIMEZONE` | `Europe/Riga` |
 | `SHIFTS` | `{ R: 'Rīts', V: 'Vakars' }` |
 | `ROLES` | `{ aprupetas: 'aprūpētājs', kontroliere: 'kontroliere', admins: 'administrators' }` |
-| `STORES` | IndexedDB store name mappings |
+| `STORES` | IndexedDB krātuvju nosaukumu kartējumi |
 
-## Internationalization (`js/i18n.js`)
+## Starptautifikācija (`js/i18n.js`)
 
-The `I18N` object contains translation dictionaries for `lv`, `ru`, and `en` with over 300 keys covering all UI text, status messages, role labels, date/time terms, and error messages.
+Objekts `I18N` satur tulkojumu vārdnīcas valodām `lv`, `ru` un `en` ar vairāk nekā 300 atslēgām, kas aptver visu lietotāja saskarnes tekstu, statusa ziņojumus, lomu etiķetes, datum/laika terminus un kļūdu ziņojumus.
 
-Language switching is handled by:
-- `setLang(lang)` — sets the current language and saves to `localStorage`
-- `applyLanguage()` — translates all `data-i18n` attributes in the DOM
-- `t(key)` — shorthand function returning the translation for the current language
+Valodas maiņa tiek pārvaldīta ar:
+- `setLang(lang)` — iestata pašreizējo valodu un saglabā `localStorage`
+- `applyLanguage()` — tulko visus `data-i18n` atribūtus DOM
+- `t(key)` — īsa funkcija, kas atgriež tulkojumu pašreizējai valodai
 
-The `t()` function is available globally and used throughout all controllers.
+Funkcija `t()` ir pieejama globāli un tiek izmantota visos kontrolleros.
 
-## Timezone Handling (`js/timezone.js`)
+## Laika joslas apstrāde (`js/timezone.js`)
 
-All date/time operations use `Europe/Riga` timezone via `Intl.DateTimeFormat`:
+Visas datuma/laika operācijas izmanto `Europe/Riga` laika joslu, izmantojot `Intl.DateTimeFormat`:
 
-| Method | Returns |
+| Metode | Atgriež |
 |--------|---------|
-| `getNowRiga()` | Current `Date` object |
-| `getHourRiga(date)` | Hour (0–23) in Riga time |
-| `getTodayRiga()` | Today's date as `YYYY-MM-DD` in Riga time |
-| `getTimeRiga()` | Current time as `HH:mm:ss` in Riga time |
-| `getDateTimeRiga()` | Combined `YYYY-MM-DD'T'HH:mm:ss` |
-| `formatDateRiga(date)` | Date as `YYYY-MM-DD` (handles ISO strings and Date objects) |
-| `formatTimeRiga(date)` | Time as `HH:mm:ss` |
-| `formatDateTimeRiga(date)` | Combined date-time string |
-| `offsetDaysRiga(days)` | Date offset by N days (negative for past) |
-| `isSameDay(date1, date2)` | Boolean comparison |
-| `isTodayRiga(date)` | Boolean: is the given date today in Riga time |
+| `getNowRiga()` | Pašreizējo `Date` objektu |
+| `getHourRiga(date)` | stundu (0–23) Rīgas laikā |
+| `getTodayRiga()` | Šodieno datumu kā `YYYY-MM-DD` Rīgas laikā |
+| `getTimeRiga()` | Pašreizējo laiku kā `HH:mm:ss` Rīgas laikā |
+| `getDateTimeRiga()` | Apvienoto `YYYY-MM-DD'T'HH:mm:ss` |
+| `formatDateRiga(date)` | Datumu kā `YYYY-MM-DD` (apstrādā ISO virknes un Date objektus) |
+| `formatTimeRiga(date)` | Laiku kā `HH:mm:ss` |
+| `formatDateTimeRiga(date)` | Apvienoto datuma un laika virkni |
+| `offsetDaysRiga(days)` | Datumu, kas pārvietots par N dienām (negatīvs pagātnei) |
+| `isSameDay(date1, date2)` | Būla salīdzinājums |
+| `isTodayRiga(date)` | Būla vērtība: vai dotais datums ir šodien Rīgas laikā |
 
-## Running the Application
+## Lietotnes palaišana
 
-### Prerequisites
+### Priekšnosacījumi
 
-- A Google account with access to the Google Sheet (SHEET_ID: `1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E`)
-- Node.js 14+ (for Excel export and test scripts)
+- Google konts ar piekļuvi Google izklājlapai (SHEET_ID: `1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E`)
+- Node.js 14+ (Excel eksportam un testa skriptiem)
 
-### Setup
+### Iestatīšana
 
-1. Deploy `backend/gas_webhook.gs` to Google Apps Script and set up the `doGet` and `doPost` endpoints
-2. Ensure the Google Sheet with ID `1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E` has sheets named `darbinieki`, `klienti`, `atzimes`, `atzimes_log`, and `uzdevomi`
-3. Serve the application locally:
+1. Ievietojiet `backend/gas_webhook.gs` Google Apps Script vidē un iestatiet `doGet` un `doPost` galapunktus
+2. Pārliecinieties, ka Google izklājlapa ar ID `1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E` satur lapas ar nosaukumiem `darbinieki`, `klienti`, `atzimes`, `atzimes_log` un `uzdevomi`
+3. Palaidiet lietotni lokāli:
    ```bash
    npm install
    npm run dev
    ```
-4. Open `http://localhost:3000` (or the port shown) in a browser
+4. Atveriet `http://localhost:3000` (vai parādīto pieslēgumu) pārlūkprogrammā
 
-### Excel Export Dependencies
+### Excel eksporta atkarības
 
 ```bash
 npm install
 ```
 
-The `exceljs` and `xlsx` packages are used by `js/excel_export.js` for generating monthly care documentation. The script loads libraries (`xlsx.full.min.js`, `exceljs.bare.min.js`) dynamically in `control.html`.
+Paketes `exceljs` un `xlsx` tiek izmantotas failā `js/excel_export.js`, lai ģenerētu ikmēneša aprūpes dokumentāciju. Skripts dinamiski ielādē bibliotēkas (`xlsx.full.min.js`, `exceljs.bare.min.js`) failā `control.html`.
 
-## Testing
+## Testēšana
 
 ```bash
-node test.js              # Unit tests
-node test_e2e.js          # End-to-end tests
-node test_duplicate_fix.js # Duplicate prevention tests
-node test_verify_fixes.js  # Fix verification
+node test.js                  # Vienības testi
+node test_e2e.js              # Gala-gala testi
+node test_duplicate_fix.js    # Dublikātu novēršanas testi
+node test_verify_fixes.js     # Labojumu pārbaude
 ```
 
-## Key Design Decisions
+## Galvenie arhitektūras lēmumi
 
-### Event-Driven Sync (Not Polling)
+### Notikumu vadīta sinhronizācija (nevis periodiska vaicāšana)
 
-The system does not poll the server. Instead:
-- Data loads once on page init via `loadInitialData()`
-- The `syncComplete` custom event notifies all controllers to re-render
-- Manual sync is triggered explicitly via the "Sinhronizēt" button
-- The `syncComplete` event listener in `tasks.js` calls `invalidateCache()` to force task reload
+Sistēma nepārtraukti neatpakaļo serveri. Tā vietā:
+- Dati ielādējas vienu reizi lapas inicializācijā, izmantojot `loadInitialData()`
+- Pielāgotais notikums `syncComplete` informēt visus kontrollerus par nepieciešamību veikt atkārtotu renderēšanu
+- Manuālā sinhronizācija tiek aktivizēta tieši ar pogu "Sinhronizēt"
+- Notikumu klausītājs `syncComplete` failā `tasks.js` izsauc `invalidateCache()`, lai piespiestu pārlādēt uzdevumus
 
-### Local-First with Offline Support
+### Lokālā pirmā prioritāte ar atbalstu bezsaistē
 
-- IndexedDB is the working database; Google Sheets is the source of truth
-- All care marks are written to IndexedDB immediately for instant UI feedback
-- Changes are enqueued in `sync_queue` and sent to the backend in the background
-- If offline, marks persist locally and sync when connectivity returns
-- The retry button clears all IndexedDB stores and reloads from Google Sheets
+- IndexedDB ir darbojošā datu bāze; Google Sheets ir patiesības avots
+- Visas aprūpes atzīmes tiek nekavējoties rakstītas IndexedDB tūlītējai lietotāja saskarnes atgriezeniskajai saitei
+- Izmaiņas tiek ievietotas rindā `sync_queue` un fonā nosūtītas uz aizmugursistēmu
+- Ja nav interneta savienojuma, atzīmes saglabājas lokāli un sinhronizējas, kad savienojums atjaunojas
+- Atkārtota mēģinājuma poga notīra visas IndexedDB krātuves un veic atkārtotu ielādi no Google Sheets
 
-### Duplicate Prevention
+### Dublikātu novēršana
 
-Three layers of duplicate prevention:
-1. **Server-side**: `handleMark()` checks for existing marks by client+employee+date+shift+category+field before creating new entries
-2. **actionId deduplication**: Each write includes a unique `actionId` checked before insertion on the server
-3. **Client-side**: 300ms debounce on client/employee creation; `_processing` Map prevents double-clicking on care form submissions
+Trīs dublikātu novēršanas līmeņi:
+1. **Servera pusē**: `handleMark()` pārbauda esošās atzīmes pēc klients+darbinieks+datums+maiņa+kategorija+lauks, pirms izveido jaunus ierakstus
+2. **actionId dublikātu novēršana**: Katrs rakstīšanas pieprasījums ietver unikālu `actionId`, kas pirms ievietošanas tiek pārbaudīts serverī
+3. **Klienta pusē**: 300 ms aizkavēšanās klientu/darbinieku izveidē; `_processing` karte (Map) novērš dubultklikšķi uz aprūpes formas iesniegšanas pogām
 
-### Date/Date Parsing
+### Datumu un laika parsēšana
 
-The system handles multiple date format conventions:
-- Google Sheets Date objects are converted to `yyyy-MM-dd` or `HH:mm:ss` based on field name
-- `normalizeRow()` in `js/sync.js` infers dates from ID timestamps (e.g., `m_1234567890`) when explicit dates are missing
-- The `normalizeKey()` function strips diacritics from Latvian column names (e.g., `Ā` → `a`) for reliable field matching
+Sistēma apstrādā vairākas datuma formātu konvencijas:
+- Google Sheets datuma objekti tiek konvertēti uz `yyyy-MM-dd` vai `HH:mm:ss` atkarībā no lauka nosaukuma
+- `normalizeRow()` failā `js/sync.js` secina datumus no ID laika zīmogiem (piemēram, `m_1234567890`) ik vien trūkst eksplīcīti datumu
+- Funkcija `normalizeKey()` noņem diakritiskās zīmes no latviešu valodas kolonnu nosaukumiem (piemēram, `Ā` → `a`), lai nodrošinātu uzticamu lauku sakritību
