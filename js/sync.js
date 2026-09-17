@@ -127,7 +127,7 @@ async function jsonpAction(action, data, timeout = 30000) {
 // POST-based action for write operations
 // Uses JSONP (GET) since GAS doesn't support CORS for fetch POST.
 // This is equivalent to jsonpAction but with a distinct key prefix.
-async function postAction(action, data, timeout = 10000) {
+async function postAction(action, data, timeout = 30000) {
   return jsonpAction(action, data, timeout);
 }
 
