@@ -1669,11 +1669,11 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     const sectionField = signatureShift === 'R' ? 'r_paraksts' : 'v_paraksts';
     const signatureForShift = this.history.find(h => {
       return h.category === 'paraksts' &&
-        h.field === sectionField &&
+        (h.field === sectionField || h.field === 'aprupetaja_paraksts') &&
         h.shift === signatureShift &&
         this.extractDateFromAnyField(h) === today;
     });
-    const signatureAny = this.history.find(h => h.category === 'paraksts' && h.field === sectionField);
+    const signatureAny = this.history.find(h => h.category === 'paraksts' && (h.field === sectionField || h.field === 'aprupetaja_paraksts'));
 
     // Check database for any signature from any day for this client
     let anySignature = signatureAny;
@@ -1682,7 +1682,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         const allMarks = await this.db.getAll('atzimes');
         anySignature = allMarks.find(m =>
           m.category === 'paraksts' &&
-          m.field === sectionField &&
+          (m.field === sectionField || m.field === 'aprupetaja_paraksts') &&
           this.clientIdsMatch(m, this.clientId)
         );
       } catch (e) {
@@ -1757,7 +1757,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const sectionField = signatureShift === 'R' ? 'r_paraksts' : 'v_paraksts';
       const existingForShift = this.history.find(h => {
         return h.category === 'paraksts' &&
-          h.field === sectionField &&
+          (h.field === sectionField || h.field === 'aprupetaja_paraksts') &&
           h.shift === signatureShift &&
           this.extractDateFromAnyField(h) === today;
       });
@@ -1765,7 +1765,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       // Check if this specific section (R/V) already has a signature (any day)
       let existingForSection = this.history.find(h =>
         h.category === 'paraksts' &&
-        h.field === sectionField &&
+        (h.field === sectionField || h.field === 'aprupetaja_paraksts') &&
         this.clientIdsMatch(h, this.clientId)
       );
 
@@ -1774,7 +1774,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
           const allMarks = await this.db.getAll('atzimes');
           existingForSection = allMarks.find(m =>
             m.category === 'paraksts' &&
-            m.field === sectionField &&
+            (m.field === sectionField || m.field === 'aprupetaja_paraksts') &&
             this.clientIdsMatch(m, this.clientId)
           );
         } catch (e) {
