@@ -1569,6 +1569,13 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         }
       });
 
+      // Piespiedu sinhronizācija pēc katra ieraksta
+      try {
+        await this.sync.processQueue();
+      } catch (e) {
+        console.warn('[care_form] saveMark: sync failed:', e);
+      }
+
       if (this.allClientMarks) {
         const idx = this.allClientMarks.findIndex(m => m.shift === mark.shift && m.category === mark.category && m.field === mark.field);
         if (idx >= 0) {
@@ -1852,6 +1859,13 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
           actionId: 'sign_' + (this.currentUser.id || '') + '_' + signatureShift + '_' + today
         }
       });
+
+      // Piespiedu sinhronizācija pēc parakstīšanas
+      try {
+        await this.sync.processQueue();
+      } catch (e) {
+        console.warn('[care_form] handleSign: sync failed:', e);
+      }
 
       this.renderSignature();
       this.updateCategoryStatuses();
