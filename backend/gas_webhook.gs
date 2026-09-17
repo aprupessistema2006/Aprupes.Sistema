@@ -369,6 +369,30 @@ function signatureFieldAlias(field) {
   return field;
 }
 
+function buildLogRow(headers, colMap, data) {
+  const row = new Array(headers.length).fill('');
+  Object.keys(data).forEach(k => {
+    const nk = normalizeKey(k);
+    const idx = colMap[nk];
+    if (idx !== undefined) {
+      let v = data[k];
+      if (v instanceof Date) {
+        if (nk === 'laiks') {
+          v = Utilities.formatDate(v, TZ, 'HH:mm:ss');
+        } else {
+          v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+        }
+      } else if (typeof v === 'boolean') {
+        v = v ? 'TRUE' : 'FALSE';
+      } else if (v === null || v === undefined) {
+        v = '';
+      }
+      row[idx] = v;
+    }
+  });
+  return row;
+}
+
 function handleMark(data) {
   const atzimesSheet = getSheet('atzimes');
   const logSheet = getSheet('atzimes_log');
@@ -480,19 +504,24 @@ function handleMark(data) {
       
       // Prepare log entry
       const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
-      const logRow = [
-        logId,
-        markId,
-        m.clientId,
-        m.employeeId,
-        formatDate(new Date()),
-        lastModifiedRiga,
-        m.shift || 'R',
-        m.category,
-        m.field,
-        m.value,
-        logDateTimeRiga
-      ];
+      const logRowData = {
+        id: logId,
+        atzimes_id: markId,
+        klients_id: m.clientId,
+        darbinieks_id: m.employeeId,
+        datums: formatDate(new Date()),
+        laiks: lastModifiedRiga,
+        periods: m.shift || 'R',
+        kategorija: m.category,
+        lauka_nosaukums: m.field,
+        vertiba: m.value,
+        skaits: logDateTimeRiga,
+        pedeja_vertiba: existingMarkValue,
+        pedeja_laiks: logDateTimeRiga,
+        darbinieks_pedejais: m.employeeId,
+        action_id: m.actionId || ''
+      };
+      const logRow = buildLogRow(logHeaders, logColMap, logRowData);
       
       // Apply all updates at once
       updates.forEach(u => u.sheet.getRange(u.row, u.col).setValue(u.value));
@@ -529,23 +558,29 @@ function handleMark(data) {
       else if (nk === 'kategorija') markRow[i] = m.category;
       else if (nk === 'lauka_nosaukums') markRow[i] = m.field;
       else if (nk === 'vertiba') markRow[i] = m.value;
+      else if (nk === 'pedeja_laiks') markRow[i] = lastModifiedRiga;
+      else if (nk === 'darbinieks_pedejais') markRow[i] = m.employeeId;
       else if (nk === 'action_id') markRow[i] = m.actionId || '';
     });
 
     const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
-    const logRow = [
-      logId,
-      id,
-      m.clientId,
-      m.employeeId,
-      formatDate(new Date()),
-      lastModifiedRiga,
-      m.shift || 'R',
-      m.category,
-      m.field,
-      m.value,
-      logDateTimeRiga
-    ];
+    const logRowData = {
+      id: logId,
+      atzimes_id: id,
+      klients_id: m.clientId,
+      darbinieks_id: m.employeeId,
+      datums: formatDate(new Date()),
+      laiks: lastModifiedRiga,
+      periods: m.shift || 'R',
+      kategorija: m.category,
+      lauka_nosaukums: m.field,
+      vertiba: m.value,
+      skaits: logDateTimeRiga,
+      pedeja_laiks: logDateTimeRiga,
+      darbinieks_pedejais: m.employeeId,
+      action_id: m.actionId || ''
+    };
+    const logRow = buildLogRow(logHeaders, logColMap, logRowData);
 
     // Write both rows at once
     atzimesSheet.getRange(atzimesLastRow + 1, 1, 1, atzimesHeaders.length).setValues([markRow]);
