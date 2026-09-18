@@ -10,6 +10,7 @@ class CareFormController {
     this.history = [];
     this.adminMode = false;
     this._processing = new Map();
+    this._initialLoadDone = false;
     this.init();
   }
 
@@ -120,20 +121,20 @@ class CareFormController {
     }
 
     window.addEventListener('syncComplete', async () => {
-      await this.loadClient();
-      await this.loadMarks();
-      await this.loadHistory();
-      await this.loadAllClientMarks();
-      this.renderForm();
-      this.renderHistory();
-      this.renderSignature();
-      this.updateTeamSummary();
-      this.renderQuickTotals();
-    });
-
-    // Force full sync on page load to ensure we have latest data from all caregivers
-    this.sync.forceFullSync().catch(e => {
-      console.warn('[care_form] initial forceFullSync failed:', e);
+      if (this._initialLoadDone) {
+        // Reload data after background/manual sync
+        await Promise.all([
+          this.loadClient(),
+          this.loadMarks(),
+          this.loadHistory(),
+          this.loadAllClientMarks()
+        ]);
+        this.renderForm();
+        this.renderHistory();
+        this.renderSignature();
+        this.updateTeamSummary();
+        this.renderQuickTotals();
+      }
     });
 
     this.setupLanguageSwitcher();
@@ -195,15 +196,16 @@ class CareFormController {
         this.renderQuickTotals();
         this.toast(t('dataSynced'));
       }
-    } catch (e) {
-      console.error(e);
-      this.toast(t('partialData') + (e.message || 'Nezināma kļūda'), 4000);
-      if (retryBtn) {
-        retryBtn.style.display = 'block';
+} catch (e) {
+        console.error(e);
+        this.toast(t('partialData') + (e.message || 'Nezināma kļūda'), 4000);
+        if (retryBtn) {
+          retryBtn.style.display = 'block';
+        }
+      } finally {
+        if (overlay) overlay.style.display = 'none';
+        this._initialLoadDone = true;
       }
-    } finally {
-      if (overlay) overlay.style.display = 'none';
-    }
 
     this.setupEventListeners();
   }
@@ -288,18 +290,7 @@ class CareFormController {
           if (result.offline) {
             this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
           } else {
-            // Reload all data from refreshed local DB (authoritative source)
-            await Promise.all([
-              this.loadClient(),
-              this.loadMarks(),
-              this.loadHistory(),
-              this.loadAllClientMarks()
-            ]);
-            this.renderForm();
-            this.renderHistory();
-            this.renderSignature();
-            this.updateTeamSummary();
-            this.renderQuickTotals();
+            // Rendering is handled by syncComplete event listener
             this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
@@ -428,7 +419,7 @@ class CareFormController {
   }
 
   getMarkTime(m) {
-    return m.time || m.laiks || m.created || m.izveidots || m.lastModified || m.pedeja_laiks || m.pēdējais_laiks || '';
+    return m.created || m.izveidots || m.lastModified || m.pedeja_laiks || m.pēdējais_laiks || m.time || m.laiks || '';
   }
 
   getMarkTimeLocal(m) {
@@ -468,34 +459,25 @@ class CareFormController {
   }
 
   isToday(m, today) {
-    const date = this.extractDate(m.pedeja_laiks) ||
-                 this.extractDate(m.lastModified) ||
-                 this.extractDate(m.created) ||
+    const date = this.extractDate(m.created) ||
                  this.extractDate(m.izveidots) ||
                  this.extractDate(m.date) ||
-                 this.extractDate(m.datums);
+                 this.extractDate(m.datums) ||
+                 this.extractDate(m.pedeja_laiks) ||
+                 this.extractDate(m.lastModified);
     return date === today;
   }
 
   isRecent(m, today) {
     const primary = [
-      this.extractDate(m.pedeja_laiks),
-      this.extractDate(m.lastModified),
       this.extractDate(m.created),
-      this.extractDate(m.izveidots)
+      this.extractDate(m.izveidots),
+      this.extractDate(m.date),
+      this.extractDate(m.datums),
+      this.extractDate(m.pedeja_laiks),
+      this.extractDate(m.lastModified)
     ].filter(Boolean);
-    if (primary.length === 0) {
-      const fallback = [
-        this.extractDate(m.date),
-        this.extractDate(m.datums)
-      ].filter(Boolean);
-      if (fallback.length === 0) return true;
-      if (fallback.includes(today)) return true;
-      for (let i = 1; i <= 7; i++) {
-        if (fallback.includes(TimezoneUtils.offsetDaysRiga(-i))) return true;
-      }
-      return false;
-    }
+    if (primary.length === 0) return true;
     if (primary.includes(today)) return true;
     for (let i = 1; i <= 7; i++) {
       if (primary.includes(TimezoneUtils.offsetDaysRiga(-i))) return true;
@@ -1201,7 +1183,6 @@ class CareFormController {
       this.renderQuickTotals();
       this.renderHistory();
       await this.loadAllClientMarks();
-      this.renderHistory();
       this.closeCategoryModal();
       this.toast(t('fluidSaved'));
     } finally {
@@ -1578,12 +1559,8 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         }
       });
 
-      // Piespiedu sinhronizācija pēc katra ieraksta
-      try {
-        await this.sync.processQueue();
-      } catch (e) {
-        console.warn('[care_form] saveMark: sync failed:', e);
-      }
+      // Sinhronizācija notiek fonā pēc 500ms (debounced), nevis pēc katra ieraksta
+      // this.sync.processQueue() tiek izsaukts automātiski no enqueueChange
 
       if (this.allClientMarks) {
         const idx = this.allClientMarks.findIndex(m => m.shift === mark.shift && m.category === mark.category && m.field === mark.field);
@@ -1869,12 +1846,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         }
       });
 
-      // Piespiedu sinhronizācija pēc parakstīšanas
-      try {
-        await this.sync.processQueue();
-      } catch (e) {
-        console.warn('[care_form] handleSign: sync failed:', e);
-      }
+      // Sinhronizācija notiek fonā pēc 500ms (debounced), nevis pēc katra ieraksta
 
       this.renderSignature();
       this.updateCategoryStatuses();

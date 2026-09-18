@@ -30,7 +30,7 @@ async function fetchWithTimeout(url, timeout = 8000, options = {}) {
 // JSONP request — primary transport for Google Apps Script
 // GAS does not send CORS headers, so fetch with mode:'cors' always fails.
 // JSONP works without CORS since <script> tags bypass the same-origin policy.
-function jsonpRequest(url, timeout = 10000) {
+function jsonpRequest(url, timeout = 30000) {
   return new Promise((resolve, reject) => {
     const callbackName = 'jsonp_cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     let script;
@@ -66,41 +66,20 @@ function jsonpRequest(url, timeout = 10000) {
     script.onerror = function () {
       done(reject, new Error('Savienojuma kļūda'));
     };
-    script.onload = function () {
-      setTimeout(() => {
-        done(reject, new Error('Callback neizsaukts (JSONP atbilde)'));
-      }, 2000);
-    };
-    document.head.appendChild(script);
+    // Use document.head or fallback to document.documentElement for early initialization
+    const target = document.head || document.documentElement;
+    target.appendChild(script);
   });
 }
 
-// Primary request function — tries fetch with CORS first (GAS sends Access-Control-Allow-Origin: *),
-// falls back to JSONP for older browsers or non-CORS configurations
-// GAS can be slow (cold start 5-10s), so timeouts are generous
+// Primary request function — uses JSONP for Google Apps Script
+// GAS web apps don't send CORS headers for the exec endpoint, so fetch with mode:'cors' always fails.
+// JSONP works reliably without CORS since <script> tags bypass the same-origin policy.
 async function requestData(url, timeout = 30000) {
-  if (typeof fetch !== 'undefined') {
-    try {
-      const response = await fetchWithTimeout(url, timeout, { mode: 'cors' });
-      if (response.ok) {
-        return await response.json();
-      }
-      throw new Error('HTTP ' + response.status);
-    } catch (e) {
-      console.warn('[sync] fetch CORS failed, falling back to JSONP:', e.message);
-    }
-  }
-  let lastError;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      return await jsonpRequest(url, timeout);
-    } catch (e) {
-      lastError = e;
-      console.warn('[sync] requestData attempt ' + (attempt + 1) + ' failed:', e.message);
-      if (attempt < 1) await new Promise(r => setTimeout(r, 500));
-    }
-  }
-  throw lastError;
+  // Add cache buster to prevent stale redirect URLs from GAS
+  const separator = url.includes('?') ? '&' : '?';
+  const urlWithCacheBuster = url + separator + '_t=' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  return jsonpRequest(urlWithCacheBuster, timeout);
 }
 
 // Request deduplication — prevent parallel identical requests
@@ -230,9 +209,11 @@ function normalizeRow(raw) {
     izveidots: 'created',
     time: 'time',
     laiks: 'time',
+    skaits: 'created',
     reason: 'reason',
     papilgsInfo: 'reason',
     papilgs_info: 'reason',
+    action_id: 'actionId',
     pieskirtDarbiniekamId: 'pieskirtDarbiniekamId',
     pieskirt_darbiniekam_id: 'pieskirtDarbiniekamId',
     irPabeigts: 'irPabeigts',
@@ -429,57 +410,74 @@ class CareSync {
     this._loading = true;
     this._updateSyncStatus('Sinhronizē...');
     onProgress = onProgress || function() {};
+    
+    // Retry initial load up to 2 times (3 attempts total) since it's critical
+    const maxLoadAttempts = 3;
+    let lastError;
+    let result;
+    
     try {
-      if (processQueueFirst) {
-        await this._processQueueUnlocked();
+      for (let attempt = 1; attempt <= maxLoadAttempts; attempt++) {
+        try {
+          if (processQueueFirst && attempt === 1) {
+            await this._processQueueUnlocked();
+          }
+
+          onProgress('Ielādēju datus no servera... (mēģinājums ' + attempt + '/' + maxLoadAttempts + ')');
+          const url = SYNC_URL + '?action=load&t=' + Date.now();
+          const data = await requestData(url, 30000);
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          onProgress('Atjaunoju lokālos datus...');
+          const lastSync = Date.now();
+          await this.db.replaceStores({
+            darbinieki: (data.darbinieki || []).map(normalizeRow),
+            klienti: (data.klienti || []).map(normalizeRow),
+            atzimes: (data.atzimes || []).map(normalizeRow),
+            atzimes_log: (data.atzimes_log || []).map(normalizeRow),
+            uzdevomi: (data.uzdevomi || []).map(normalizeRow),
+            meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
+          });
+
+          this.loaded = true;
+          this.revision = (this.revision || 0) + 1;
+          const remaining = await this.getUnsyncedCount();
+          const status = remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts';
+          this._updateSyncStatus(status);
+          result = {
+            offline: false,
+            connected: true,
+            count: {
+              darbinieki: (data.darbinieki || []).length,
+              klienti: (data.klienti || []).length,
+              atzimes: (data.atzimes || []).length,
+              atzimes_log: (data.atzimes_log || []).length,
+              uzdevomi: (data.uzdevomi || []).length
+            },
+            pending: remaining,
+            revision: this.revision
+          };
+          try {
+            window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
+          } catch (e) {}
+          onProgress('✓ Dati veiksmīgi ielādēti no Google Sheets');
+          return result;
+        } catch (err) {
+          lastError = err;
+          console.warn('[sync] loadInitialData attempt ' + attempt + ' failed:', err.message);
+          if (attempt < maxLoadAttempts) {
+            await new Promise(r => setTimeout(r, 1000 * attempt)); // 1s, 2s delay
+          }
+        }
       }
-
-      onProgress('Ielādēju datus no servera...');
-      const url = SYNC_URL + '?action=load&t=' + Date.now();
-      const data = await requestData(url, 30000);
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      onProgress('Atjaunoju lokālos datus...');
-      const lastSync = Date.now();
-      await this.db.replaceStores({
-        darbinieki: (data.darbinieki || []).map(normalizeRow),
-        klienti: (data.klienti || []).map(normalizeRow),
-        atzimes: (data.atzimes || []).map(normalizeRow),
-        atzimes_log: (data.atzimes_log || []).map(normalizeRow),
-        uzdevomi: (data.uzdevomi || []).map(normalizeRow),
-        meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
-      });
-
-      this.loaded = true;
-      this.revision = (this.revision || 0) + 1;
-      const remaining = await this.getUnsyncedCount();
-      const status = remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts';
-      this._updateSyncStatus(status);
-      const result = {
-        offline: false,
-        connected: true,
-        count: {
-          darbinieki: (data.darbinieki || []).length,
-          klienti: (data.klienti || []).length,
-          atzimes: (data.atzimes || []).length,
-          atzimes_log: (data.atzimes_log || []).length,
-          uzdevomi: (data.uzdevomi || []).length
-        },
-        pending: remaining,
-        revision: this.revision
-      };
-      try {
-        window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
-      } catch (e) {}
-      onProgress('✓ Dati veiksmīgi ielādēti no Google Sheets');
-      return result;
-    } catch (err) {
+      
+      // All attempts failed
       this._updateSyncStatus(navigator.onLine ? 'Sinhronizācijas kļūda' : 'Nav savienojuma');
-      onProgress('⚠️ Neizdevās ielādēt datus no Google Sheets: ' + err.message);
-      return { offline: true, error: err.message, count: {}, pending: await this.getUnsyncedCount().catch(() => 0) };
+      onProgress('⚠️ Neizdevās ielādēt datus no Google Sheets: ' + lastError.message);
+      return { offline: true, error: lastError.message, count: {}, pending: await this.getUnsyncedCount().catch(() => 0) };
     } finally {
       this._loading = false;
     }
@@ -524,7 +522,7 @@ class CareSync {
   }
 
   async _processQueueUnlocked() {
-    const summary = { synced: 0, failed: 0, remaining: 0 };
+    const summary = { synced: 0, failed: 0, remaining: 0, permanentlyFailed: 0 };
     if (!SYNC_URL) {
       this._updateSyncStatus('Nav savienojuma');
       return summary;
@@ -538,8 +536,14 @@ class CareSync {
         return summary;
       }
 
+      const MAX_RETRIES = 3;
       const sorted = items.slice().sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
+        // Skip permanently failed items (exceeded max retries)
+        if ((item.retries || 0) >= MAX_RETRIES) {
+          summary.permanentlyFailed++;
+          continue;
+        }
         try {
           const action = item.change.action || item.change.type || 'mark';
           const data = item.change.data || item.change;
@@ -558,8 +562,14 @@ class CareSync {
             summary.synced++;
           }
         } catch (e) {
+          // Don't retry on permanent errors (network errors that won't resolve)
+          const errorMsg = e.message || String(e);
+          const isPermanent = errorMsg.includes('Savienojuma kļūda') || errorMsg.includes('Callback neizsaukts');
           item.retries = (item.retries || 0) + 1;
-          item.lastError = e.message;
+          item.lastError = errorMsg;
+          if (isPermanent || (item.retries || 0) >= MAX_RETRIES) {
+            summary.permanentlyFailed++;
+          }
           await this.db.put('sync_queue', item);
           summary.failed++;
         }
