@@ -20,18 +20,10 @@ class CareFormController {
     return 'V';
   }
 
+  // No complex time logic needed - R = nododu, V = pieņemu
+  // Date is always TODAY when clicked
   getSignatureShift() {
-    const hour = TimezoneUtils.getHourRiga();
-    const mainaTips = String(this.currentUser?.mainaTips || '').toLowerCase();
-    const isDiennakts = mainaTips === 'diennakts';
-    
-    if (!isDiennakts) return this.currentShift;
-    
-    // Diennakts (24h) maiņas loģika:
-    // 00:00-06:59 -> R (beidzot iepriekšējās nakts 24h maiņu)
-    // 07:00-23:59 -> V (sāk šodienas 24h maiņu, var parakstīt visu dienu)
-    if (hour < 7) return 'R';
-    return 'V'; // 07:00-23:59 -> V (šodienas 24h maiņa)
+    return this.currentShift; // Use selected tab (R or V)
   }
 
   // Check if a shift is already signed for today (immutable for non-admins)
@@ -1673,12 +1665,15 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     const mainaTips = String(this.currentUser.mainaTips || '').toLowerCase();
     const isDiennakts = mainaTips === 'diennakts';
     const isAdmin = userRole === 'administrators' || this.adminMode;
-    // Tikai diennakts aprūpētāji paraksta (24h maiņa), dienas aprūpētāji NEparaksta
+    // Tikai diennakts (24h) aprūpētāji var parakstīt
     const canSign = isDiennakts || isAdmin;
-    // Diennakts: getSignatureShift() nosaka R/V pēc 24h maiņas loģikas (R = nākamā diena, V = šodien)
-    // Diena: nevar parakstīt
-    const signatureShift = isDiennakts ? this.getSignatureShift() : this.currentShift;
+    // R/V no izvēlētās cilnes (currentShift)
+    const signatureShift = this.currentShift;
     const today = this.getToday();
+
+    // Button text based on shift
+    const btnText = signatureShift === 'R' ? 'Maiņu nododu!' : 'Maiņu pieņemu!';
+    const shiftLabel = signatureShift === 'V' ? 'Vakars' : 'Rīts';
 
     const sectionField = 'aprupetaja_paraksts';
     const signatureForShift = this.history.find(h => {
@@ -1705,36 +1700,34 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     }
 
     const signature = signatureForShift || anySignature;
-    const shiftLabel = signatureShift === 'V' ? 'Vakars' : 'Rīts';
 
-    // Check if another caregiver already signed (any shift, any day)
-    const otherSignedId = anySignature ? (anySignature.employeeId || anySignature.darbinieks_id) : null;
+    // Check if another caregiver already signed this shift today
+    const otherSignedId = signatureForShift ? (signatureForShift.employeeId || signatureForShift.darbinieks_id) : null;
     const otherEmployeeSigned = otherSignedId && !isAdmin && String(otherSignedId) !== String(this.currentUser.id || '');
 
-    if (signature) {
-      const actor = this.empMap[signature.employeeId || signature.darbinieks_id] || 'Nezināms';
+    if (signatureForShift) {
+      // Already signed this shift today
+      const actor = this.empMap[signatureForShift.employeeId || signatureForShift.darbinieks_id] || 'Nezināms';
       const who = actor === this.empMap[this.currentUser.id] ? 'Tu' : actor;
-      const time = this.extractTimeDisplay(this.getMarkTime(signature)) || '';
+      const time = this.extractTimeDisplay(this.getMarkTime(signatureForShift)) || '';
       const adminNote = this.currentUser._adminOverride ? ' (ADMIN: ' + (this.currentUser._adminName || 'Administrators') + ')' : '';
 
-      if (signatureForShift && isAdmin) {
-        signBtn.textContent = t('signAdminRewriteBtn');
-      } else if (signatureForShift) {
-        signBtn.textContent = t('signSignedBtn') + shiftLabel;
-      } else if (otherEmployeeSigned) {
-        signBtn.textContent = t('signLockedByOther') + actor;
-      } else if (isAdmin) {
-        signBtn.textContent = t('signAdminOtherBtn');
-      } else {
-        signBtn.textContent = t('signOtherBtn');
-      }
-
+      signBtn.textContent = btnText + ' ✓';
       signBtn.classList.add('signed');
-      signBtn.disabled = !isAdmin && (signatureForShift || otherEmployeeSigned);
-      signedBy.textContent = (signatureForShift ? shiftLabel + ' ' + t('signature') + ': ' : t('signOtherShift') + ': ') + who + adminNote + ' (' + time + ')';
+      signBtn.disabled = !isAdmin;
+      signedBy.textContent = shiftLabel + ' paraksts: ' + who + adminNote + ' (' + time + ')';
+      signedBy.style.display = 'block';
+    } else if (otherEmployeeSigned) {
+      // Another caregiver signed this shift today
+      const actor = this.empMap[otherSignedId] || 'Cits darbinieks';
+      signBtn.textContent = btnText;
+      signBtn.classList.add('signed');
+      signBtn.disabled = true;
+      signedBy.textContent = shiftLabel + ' paraksts: ' + actor + ' (jau parakstījis šodien)';
       signedBy.style.display = 'block';
     } else {
-      signBtn.textContent = isAdmin ? t('signAdminRewriteBtn') : t('signSignedBtn') + shiftLabel;
+      // Not signed yet
+      signBtn.textContent = btnText;
       signBtn.classList.remove('signed');
       signBtn.disabled = !canSign;
       signedBy.style.display = 'none';
@@ -1756,8 +1749,7 @@ async handleSign() {
         this.toast(t('onlyCaregiversCanSign'));
         return;
       }
-      // Diennakts: paraksta pēc 24h maiņas loģikas (R = nākamā diena R, V = šodien V)
-      // Dienas: nevar parakstīt
+      // Tikai diennakts (24h) aprūpētāji var parakstīt
       if (!isDiennakts && !isAdmin) {
         this.toast('Jūs esat dienas maiņas darbinieks. Jums nav jāparakstās — to darīs diennakts darbinieks!');
         return;
@@ -1767,7 +1759,7 @@ async handleSign() {
       const nowRiga = TimezoneUtils.getNowRiga();
       const timeStr = TimezoneUtils.getTimeRiga();
       const nowUTC = nowRiga.toISOString();
-      const signatureShift = this.getSignatureShift();
+      const signatureShift = this.currentShift; // R/V from selected tab
       const shiftLabel = signatureShift === 'R' ? 'Rīts' : 'Vakars';
 
       const sectionField = 'aprupetaja_paraksts';
@@ -1778,49 +1770,21 @@ async handleSign() {
           this.extractDateFromAnyField(h) === today;
       });
 
-      // Check if this specific section (R/V) already has a signature (any day)
-      let existingForSection = this.history.find(h =>
-        h.category === 'paraksts' &&
-        (h.field === sectionField || h.field === 'r_paraksts' || h.field === 'v_paraksts') &&
-        this.clientIdsMatch(h, this.clientId)
-      );
-
-      if (!existingForSection && this.db) {
-        try {
-          const allMarks = await this.db.getAll('atzimes');
-          existingForSection = allMarks.find(m =>
-            m.category === 'paraksts' &&
-            (m.field === sectionField || m.field === 'r_paraksts' || m.field === 'v_paraksts') &&
-            this.clientIdsMatch(m, this.clientId)
-          );
-        } catch (e) {
-          console.warn('[care_form] handleSign: DB query for section failed:', e);
-        }
-      }
-
-      // Block if another caregiver already signed this section (R/V), any day
-      if (existingForSection && !isAdmin) {
-        const signerId = existingForSection.employeeId || existingForSection.darbinieks_id;
+      // Check if another caregiver already signed this shift today
+      if (existingForShift && !isAdmin) {
+        const signerId = existingForShift.employeeId || existingForShift.darbinieks_id;
         if (signerId && String(signerId) !== String(this.currentUser.id || '')) {
           const signerName = this.empMap[signerId] || this.empMap[String(signerId)] || 'cits darbinieks';
-          this.toast(t('cantSignOthersSigned') + signerName);
+          this.toast(shiftLabel + ' sadaļu šodien jau parakstījis ' + signerName);
           return;
         }
-      }
-
-      const isResign = !!existingForSection;
-      const isDuplicate = !!existingForShift;
-
-      if (isDuplicate && !isAdmin) {
-        this.toast(shiftLabel + ': ' + t('alreadySigned'));
-        return;
       }
 
       const signatureValue = this.currentUser.uzvards || this.currentUser.vards || '';
       const adminNote = this.currentUser._adminOverride ? t('adminOverridePrefix') + (this.currentUser._adminName || t('admins')) + ']' : '';
       const displayValue = signatureValue + adminNote;
       const mark = {
-        id: existingForSection ? (existingForSection.id || existingForSection.markId) : this.db.generateId(),
+        id: existingForShift ? (existingForShift.id || existingForShift.markId) : this.db.generateId(),
         clientId: this.clientId,
         employeeId: this.currentUser.id,
         date: today,
