@@ -1252,12 +1252,14 @@ try {
   renderQuickTotals() {
     if (!this.allClientMarks) return;
 
+    const shift = this.currentShift;
+
     const fluidSum = this.allClientMarks
-      .filter(m => m.category === 'sikdrumi' && (m.field === 'uznemts_ml' || m.field === 'uzņemts_ml' || m.field === 'uznemts_h2o'))
+      .filter(m => m.category === 'sikdrumi' && m.shift === shift && (m.field === 'uznemts_ml' || m.field === 'uzņemts_ml' || m.field === 'uznemts_h2o'))
       .reduce((sum, m) => sum + (parseFloat(m.value) || 0), 0);
 
     const fluidLog = (this.allClientLog || [])
-      .filter(l => l.category === 'sikdrumi' && (l.field === 'uznemts_ml' || l.field === 'uzņemts_ml' || l.field === 'uznemts_h2o'))
+      .filter(l => l.category === 'sikdrumi' && l.shift === shift && (l.field === 'uznemts_ml' || l.field === 'uzņemts_ml' || l.field === 'uznemts_h2o'))
       .sort((a, b) => {
         const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.created || '';
         const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.created || '';
@@ -1279,7 +1281,7 @@ try {
     }
 
     const stoolLog = (this.allClientLog || [])
-      .filter(l => l.category === 'fiziologija' && l.field === 'vedera_izeja')
+      .filter(l => l.category === 'fiziologija' && l.shift === shift && l.field === 'vedera_izeja')
       .sort((a, b) => {
         const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.created || '';
         const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.created || '';
@@ -1304,9 +1306,9 @@ try {
     }
 
     const diaperMarks = this.allClientMarks
-      .filter(m => m.category === 'citsi_pasakomi' && (m.field === 'autins_biksitu_skaits' || m.field === 'autiņbiksīšu_skaits'));
+      .filter(m => m.category === 'citsi_pasakomi' && m.shift === shift && (m.field === 'autins_biksitu_skaits' || m.field === 'autiņbiksīšu_skaits'));
     const diaperLog = (this.allClientLog || [])
-      .filter(l => l.category === 'citsi_pasakomi' && (l.field === 'autins_biksitu_skaits' || l.field === 'autiņbiksīšu_skaits'))
+      .filter(l => l.category === 'citsi_pasakomi' && l.shift === shift && (l.field === 'autins_biksitu_skaits' || l.field === 'autiņbiksīšu_skaits'))
       .sort((a, b) => {
         const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.created || '';
         const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.created || '';

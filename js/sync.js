@@ -90,7 +90,10 @@ async function requestData(url, timeout = 60000) {
   // Add cache buster to prevent stale redirect URLs from GAS
   const separator = url.includes('?') ? '&' : '?';
   const urlWithCacheBuster = url + separator + '_t=' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-  return jsonpRequest(urlWithCacheBuster, timeout);
+  // Load action (action=load) goes through redirect URL, needs more time
+  const isLoadAction = url.includes('action=load');
+  const effectiveTimeout = isLoadAction ? 120000 : timeout;
+  return jsonpRequest(urlWithCacheBuster, effectiveTimeout);
 }
 
 // Request deduplication — prevent parallel identical requests
