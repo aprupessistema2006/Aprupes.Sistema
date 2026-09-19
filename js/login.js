@@ -102,6 +102,12 @@ class LoginController {
 
     hideLoading();
     await this.loadEmployees();
+
+    // Ja nav darbinieku (piem., Google Sheets lapā nav ierakstu), ieslēgt setup režīmu
+    if (this.employees.length === 0) {
+      this.enterSetupMode();
+      return;
+    }
   }
 
   enterSetupMode() {
