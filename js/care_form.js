@@ -1812,8 +1812,8 @@ async handleSign() {
         category: 'paraksts',
         field: 'aprupetaja_paraksts',
         value: displayValue,
-        prevValue: existingForSection ? existingForSection.value : null,
-        type: isResign ? t('rewritten') : 'Jauns',
+        prevValue: existingForShift ? existingForShift.value : null,
+        type: existingForShift ? t('rewritten') : 'Jauns',
         created: nowUTC
       };
       await this.db.add('atzimes_log', logEntry);
@@ -1834,7 +1834,7 @@ async handleSign() {
           category: 'paraksts',
           field: 'aprupetaja_paraksts',
           value: displayValue,
-          reason: isResign ? t('rewritten') : (this.currentUser._adminOverride ? t('adminSignatureReason') + (this.currentUser._adminName || t('admins')) : t('nightShiftSignatureReason')),
+          reason: existingForShift ? t('rewritten') : (this.currentUser._adminOverride ? t('adminSignatureReason') + (this.currentUser._adminName || t('admins')) : t('nightShiftSignatureReason')),
           // Sūtām UTC timestamp backendam
           lastModified: nowUTC,
           actionId: 'sign_' + (this.currentUser.id || '') + '_' + signatureShift + '_' + today
@@ -1845,7 +1845,7 @@ async handleSign() {
 
       this.renderSignature();
       this.updateCategoryStatuses();
-      this.toast(isResign ? t('resigned') : t('signed'));
+      this.toast(existingForShift ? t('resigned') : t('signed'));
     } finally {
       this._processing.delete('sign');
       setTimeout(() => {
