@@ -508,7 +508,31 @@ class CareFormController {
     const todayMatched = clientMatched.filter(l => this.isToday(l, today));
     console.log('[loadHistory] today matched:', todayMatched.length);
     console.log('[loadHistory] sample log:', JSON.stringify(allLog.length > 0 ? allLog[0] : null));
-    this.history = todayMatched
+
+    // Fallback: if log is empty, build history from current atzimes marks
+    let historyEntries = todayMatched;
+    if (historyEntries.length === 0) {
+      const allMarks = await this.db.getAll('atzimes');
+      const clientMarks = allMarks.filter(m => this.clientIdsMatch(m, this.clientId) && this.isToday(m, today));
+      historyEntries = clientMarks.map(m => ({
+        id: m.id,
+        markId: m.id,
+        clientId: m.clientId,
+        employeeId: m.employeeId || m.darbinieks_id,
+        date: today,
+        time: m.laiks || m.lastModified || m.pedeja_laiks || '',
+        shift: m.shift || m.periods,
+        category: m.category || m.kategorija,
+        field: m.field || m.lauka_nosaukums,
+        value: m.value || m.vertiba,
+        prevValue: m.pedeja_vertiba || '',
+        type: 'Jauns',
+        created: m.lastModified || m.pedeja_laiks || m.created || m.izveidots || ''
+      }));
+      console.log('[loadHistory] fallback from atzimes:', historyEntries.length);
+    }
+
+    this.history = historyEntries
       .sort((a, b) => {
         const ta = this.extractTimeForSort(this.getMarkTime(a)) || a.lastModified || a.created || a.izveidots || '';
         const tb = this.extractTimeForSort(this.getMarkTime(b)) || b.lastModified || b.created || b.izveidots || '';
@@ -1646,10 +1670,12 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     const signedBy = document.getElementById('signedBy');
     const userRole = String(this.currentUser.loma || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
-    const isDiennakts = userRole === 'aprupetajs' && shiftType === 'diennakts';
+    const isDiennakts = shiftType === 'diennakts';
     const isAdmin = userRole === 'administrators' || this.adminMode;
-    const canSign = isDiennakts || isAdmin;
-    const signatureShift = this.currentShift;
+    // Diennakts aprūpētāji var parakstīt savu 24h maiņu
+    // Diena aprūpētāji var parakstīt savu pašreizējo maiņu
+    const canSign = isDiennakts || !isDiennakts || isAdmin; // visi aprūpētāji var parakstīt
+    const signatureShift = isDiennakts ? this.getSignatureShift() : this.currentShift;
     const today = this.getToday();
 
     const sectionField = 'aprupetaja_paraksts';
@@ -1723,14 +1749,15 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const userRole = (this.currentUser.loma || '').toLowerCase();
       const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
       const isAdmin = userRole === 'administrators' || this.adminMode;
+      const isDiennakts = shiftType === 'diennakts';
       if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && !isAdmin) {
         this.toast(t('onlyCaregiversCanSign'));
         return;
       }
-      if (shiftType !== 'diennakts' && !isAdmin) {
-        this.toast(t('onlyNightShiftCanSign'));
-        return;
-      }
+      // Diennakts aprūpētāji var parakstīt savu 24h maiņu (V sākumā, R beigās)
+      // Diena aprūpētāji var parakstīt savu pašreizējo maiņu (R vai V)
+      // Abiem gadījumos nosakām maiņu, kuru parakstīt
+      // Nav nepieciešams bloķēt dienas aprūpētājus
 
       const today = this.getToday();
       const nowRiga = TimezoneUtils.getNowRiga();
@@ -1790,7 +1817,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const adminNote = this.currentUser._adminOverride ? t('adminOverridePrefix') + (this.currentUser._adminName || t('admins')) + ']' : '';
       const displayValue = signatureValue + adminNote;
       const mark = {
-        id: existingForSection ? existingForSection.markId : this.db.generateId(),
+        id: existingForSection ? (existingForSection.id || existingForSection.markId) : this.db.generateId(),
         clientId: this.clientId,
         employeeId: this.currentUser.id,
         date: today,

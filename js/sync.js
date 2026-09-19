@@ -30,7 +30,7 @@ async function fetchWithTimeout(url, timeout = 8000, options = {}) {
 // JSONP request — primary transport for Google Apps Script
 // GAS does not send CORS headers, so fetch with mode:'cors' always fails.
 // JSONP works without CORS since <script> tags bypass the same-origin policy.
-function jsonpRequest(url, timeout = 30000) {
+function jsonpRequest(url, timeout = 60000) {
   return new Promise((resolve, reject) => {
     const callbackName = 'jsonp_cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     let script;
@@ -48,22 +48,33 @@ function jsonpRequest(url, timeout = 30000) {
       if (script && script.parentNode) {
         script.parentNode.removeChild(script);
       }
-      delete window[callbackName];
+      // NEVER delete callback on timeout - GAS might still call it later
+      // Only delete on success (in the callback itself via done)
     };
 
     const timer = setTimeout(() => {
-      done(reject, new Error('Timeout'));
+      // On timeout, don't delete callback - GAS cold start can take 30-60s
+      // Just reject, leave callback registered
+      resolved = true;
+      clearTimeout(timer);
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      reject(new Error('Timeout'));
     }, timeout);
 
     window[callbackName] = function (data) {
+      // Success - now safe to delete callback
+      delete window[callbackName];
       done(resolve, data);
     };
 
     const separator = url.includes('?') ? '&' : '?';
-    const jsonpUrl = url + separator + 'callback=' + callbackName + '&_t=' + CACHE_BUSTER();
+    const jsonpUrl = url + separator + 'callback=' + callbackName;
     script = document.createElement('script');
     script.src = jsonpUrl;
     script.onerror = function () {
+      delete window[callbackName];
       done(reject, new Error('Savienojuma kļūda'));
     };
     // Use document.head or fallback to document.documentElement for early initialization
@@ -75,7 +86,7 @@ function jsonpRequest(url, timeout = 30000) {
 // Primary request function — uses JSONP for Google Apps Script
 // GAS web apps don't send CORS headers for the exec endpoint, so fetch with mode:'cors' always fails.
 // JSONP works reliably without CORS since <script> tags bypass the same-origin policy.
-async function requestData(url, timeout = 30000) {
+async function requestData(url, timeout = 60000) {
   // Add cache buster to prevent stale redirect URLs from GAS
   const separator = url.includes('?') ? '&' : '?';
   const urlWithCacheBuster = url + separator + '_t=' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -214,6 +225,11 @@ function normalizeRow(raw) {
     papilgsInfo: 'reason',
     papilgs_info: 'reason',
     action_id: 'actionId',
+    atzimes_id: 'markId',
+    pedeja_vertiba: 'lastValue',
+    pedeja_laiks: 'lastModified',
+    darbinieks_pedejais: 'lastBy',
+    skaits: 'created',
     pieskirtDarbiniekamId: 'pieskirtDarbiniekamId',
     pieskirt_darbiniekam_id: 'pieskirtDarbiniekamId',
     irPabeigts: 'irPabeigts',
@@ -425,7 +441,7 @@ class CareSync {
 
           onProgress('Ielādēju datus no servera... (mēģinājums ' + attempt + '/' + maxLoadAttempts + ')');
           const url = SYNC_URL + '?action=load&t=' + Date.now();
-          const data = await requestData(url, 30000);
+          const data = await requestData(url, 60000);
 
           if (data.error) {
             throw new Error(data.error);

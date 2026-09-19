@@ -223,6 +223,11 @@ function handleLoadData(params) {
     // Use cached spreadsheet reference to avoid repeated openById calls
     const ss = getSpreadsheet();
     
+    // Ensure all sheets have required columns (headers)
+    ensureColumns(getSheet('atzimes'), ['action_id']);
+    ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id']);
+    ensureColumns(getSheet('uzdevomi'), ['action_id']);
+    
     // Load reference data (small, rarely changes)
     const darbinieki = getSheetData(getSheet('darbinieki'));
     const klienti = getSheetData(getSheet('klienti'));
@@ -404,6 +409,7 @@ function handleMark(data) {
   m.field = mFieldNormalized;
 
   ensureColumns(atzimesSheet, ['action_id']);
+  ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id']);
 
   const lock = LockService.getScriptLock();
   try {
