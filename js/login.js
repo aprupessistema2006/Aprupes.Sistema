@@ -491,7 +491,7 @@ class LoginController {
     }
 
     const shiftTypeInput = document.querySelector('input[name="shiftType"]:checked');
-    const shiftType = shiftTypeInput ? shiftTypeInput.value : 'diennakts';
+    const mainaTips = shiftTypeInput ? shiftTypeInput.value : 'diennakts';
 
     const user = {
       id: employee.id || employee.ID,
@@ -501,7 +501,7 @@ class LoginController {
       pin: pin,
       pinVerified: true,
       loginTime: Date.now(),
-      shiftType: shiftType
+      mainaTips: mainaTips
     };
 
     sessionStorage.setItem('careUser', JSON.stringify(user));

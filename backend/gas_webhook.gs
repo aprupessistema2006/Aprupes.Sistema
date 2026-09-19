@@ -225,8 +225,8 @@ function handleLoadData(params) {
     
     // Ensure all sheets have required columns (headers)
     ensureColumns(getSheet('darbinieki'), ['maina_tips']);
-    ensureColumns(getSheet('atzimes'), ['action_id']);
-    ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id']);
+    ensureColumns(getSheet('atzimes'), ['action_id', 'maina_tips']);
+    ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
     ensureColumns(getSheet('uzdevomi'), ['action_id']);
     
     // Load reference data (small, rarely changes)
@@ -410,8 +410,8 @@ function handleMark(data) {
   const mFieldNormalized = signatureFieldAlias(m.field || '');
   m.field = mFieldNormalized;
 
-  ensureColumns(atzimesSheet, ['action_id']);
-  ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id']);
+  ensureColumns(atzimesSheet, ['action_id', 'maina_tips']);
+  ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
 
   const lock = LockService.getScriptLock();
   try {
@@ -507,6 +507,7 @@ function handleMark(data) {
       if (atzimesColMap['vertiba'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['vertiba'] + 1, value: m.value });
       if (atzimesColMap['pedeja_laiks'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['pedeja_laiks'] + 1, value: lastModifiedRiga });
       if (m.actionId && atzimesColMap['action_id'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['action_id'] + 1, value: m.actionId });
+      if (m.mainaTips && atzimesColMap['maina_tips'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['maina_tips'] + 1, value: m.mainaTips });
       
       const markId = atzimesData[existingMarkRow - 2][atzimesColMap['id']];
       
@@ -527,7 +528,8 @@ function handleMark(data) {
         pedeja_vertiba: existingMarkValue,
         pedeja_laiks: logDateTimeRiga,
         darbinieks_pedejais: m.employeeId,
-        action_id: m.actionId || ''
+        action_id: m.actionId || '',
+        maina_tips: m.mainaTips || m.maina_tips || 'diennakts'
       };
       const logRow = buildLogRow(logHeaders, logColMap, logRowData);
       
@@ -569,6 +571,7 @@ function handleMark(data) {
       else if (nk === 'pedeja_laiks') markRow[i] = lastModifiedRiga;
       else if (nk === 'darbinieks_pedejais') markRow[i] = m.employeeId;
       else if (nk === 'action_id') markRow[i] = m.actionId || '';
+      else if (nk === 'maina_tips') markRow[i] = m.mainaTips || m.maina_tips || 'diennakts';
     });
 
     const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
@@ -586,7 +589,8 @@ function handleMark(data) {
       skaits: logDateTimeRiga,
       pedeja_laiks: logDateTimeRiga,
       darbinieks_pedejais: m.employeeId,
-      action_id: m.actionId || ''
+      action_id: m.actionId || '',
+      maina_tips: m.mainaTips || m.maina_tips || 'diennakts'
     };
     const logRow = buildLogRow(logHeaders, logColMap, logRowData);
 

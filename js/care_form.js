@@ -22,18 +22,16 @@ class CareFormController {
 
   getSignatureShift() {
     const hour = TimezoneUtils.getHourRiga();
-    const shiftType = String(this.currentUser?.shiftType || '').toLowerCase();
-    const isDiennakts = shiftType === 'diennakts';
+    const mainaTips = String(this.currentUser?.mainaTips || '').toLowerCase();
+    const isDiennakts = mainaTips === 'diennakts';
     
     if (!isDiennakts) return this.currentShift;
     
-    // Night shift (diennakts) workers: 19:00-07:00
-    // 19:00-23:59 -> V (start of night shift)
-    // 00:00-06:59 -> R (end of night shift)
-    // 07:00-18:59 -> not night shift time, but could be R if signing late
-    if (hour >= 19) return 'V';
+    // Diennakts (24h) maiņas loģika:
+    // 00:00-06:59 -> R (beidzot iepriekšējās nakts 24h maiņu)
+    // 07:00-23:59 -> V (sāk šodienas 24h maiņu, var parakstīt visu dienu)
     if (hour < 7) return 'R';
-    return 'R'; // Default to R for 07:00-18:59
+    return 'V'; // 07:00-23:59 -> V (šodienas 24h maiņa)
   }
 
   // Check if a shift is already signed for today (immutable for non-admins)
@@ -107,7 +105,7 @@ class CareFormController {
             uzvards: caregiver.uzvards || caregiver.Uzvārds,
             loma: caregiver.loma || caregiver.Loma,
             pin: caregiver.pin || caregiver['PIN kods'],
-            shiftType: caregiver.shiftType || caregiver[' Maiņa tips'] || 'diennakts',
+            mainaTips: caregiver.maina_tips || caregiver.mainaTips || caregiver[' Maiņa tips'] || 'diennakts',
             _adminOverride: true,
             _adminName: (this.currentUser.vards || this.currentUser.Vārds || '') + ' ' + (this.currentUser.uzvards || this.currentUser.Uzvārds || '')
           };
@@ -1539,7 +1537,8 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         field: data.field,
         value: data.value,
         lastModified: nowUTC,
-        lastBy: this.currentUser.id
+        lastBy: this.currentUser.id,
+        mainaTips: this.currentUser.mainaTips || 'diennakts'
       };
 
       const key = data.shift + '|' + data.category + '|' + data.field;
@@ -1560,7 +1559,8 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         value: data.value,
         prevValue: data.prevValue,
         type: data.type,
-        created: nowUTC
+        created: nowUTC,
+        mainaTips: this.currentUser.mainaTips || 'diennakts'
       };
       await this.db.add('atzimes_log', logEntry);
 
@@ -1579,7 +1579,8 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
           reason: data.type === 'Labots' ? 'Labots' : null,
           // Sūtām UTC timestamp backendam
           lastModified: nowUTC,
-          actionId: 'mark_' + data.clientId + '_' + data.shift + '_' + data.category + '_' + data.field + '_' + today + '_' + (this.currentUser.id || '')
+          actionId: 'mark_' + data.clientId + '_' + data.shift + '_' + data.category + '_' + data.field + '_' + today + '_' + (this.currentUser.id || ''),
+          mainaTips: this.currentUser.mainaTips || 'diennakts'
         }
       });
 
@@ -1669,11 +1670,13 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     const signBtn = document.getElementById('signBtn');
     const signedBy = document.getElementById('signedBy');
     const userRole = String(this.currentUser.loma || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
-    const isDiennakts = shiftType === 'diennakts';
+    const mainaTips = String(this.currentUser.mainaTips || '').toLowerCase();
+    const isDiennakts = mainaTips === 'diennakts';
     const isAdmin = userRole === 'administrators' || this.adminMode;
     // Tikai diennakts aprūpētāji paraksta (24h maiņa), dienas aprūpētāji NEparaksta
     const canSign = isDiennakts || isAdmin;
+    // Diennakts: getSignatureShift() nosaka R/V pēc 24h maiņas loģikas (R = nākamā diena, V = šodien)
+    // Diena: nevar parakstīt
     const signatureShift = isDiennakts ? this.getSignatureShift() : this.currentShift;
     const today = this.getToday();
 
@@ -1746,28 +1749,25 @@ async handleSign() {
 
     try {
       const userRole = (this.currentUser.loma || '').toLowerCase();
-      const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
+      const mainaTips = String(this.currentUser.mainaTips || '').toLowerCase();
       const isAdmin = userRole === 'administrators' || this.adminMode;
-      const isDiennakts = shiftType === 'diennakts';
+      const isDiennakts = mainaTips === 'diennakts';
       if (userRole !== 'aprūpētājs' && userRole !== 'aprupetas' && !isAdmin) {
         this.toast(t('onlyCaregiversCanSign'));
         return;
       }
-      // Tikai diennakts aprūpētāji paraksta (to 24h maiņas sadaļu pēc laika)
-      // Dienas aprūpētāji NEparaksta
+      // Diennakts: paraksta pēc 24h maiņas loģikas (R = nākamā diena R, V = šodien V)
+      // Dienas: nevar parakstīt
       if (!isDiennakts && !isAdmin) {
-        this.toast(t('onlyNightShiftCanSign'));
+        this.toast('Jūs esat dienas maiņas darbinieks. Jums nav jāparakstās — to darīs diennakts darbinieks!');
         return;
       }
 
       const today = this.getToday();
       const nowRiga = TimezoneUtils.getNowRiga();
       const timeStr = TimezoneUtils.getTimeRiga();
-      // Use UTC ISO string for unambiguous timestamp
       const nowUTC = nowRiga.toISOString();
-      // Diennakts: getSignatureShift() nosaka R/V pēc 24h maiņas laika
-      // Diena: currentShift (izvēlētā cilne)
-      const signatureShift = isDiennakts ? this.getSignatureShift() : this.currentShift;
+      const signatureShift = this.getSignatureShift();
       const shiftLabel = signatureShift === 'R' ? 'Rīts' : 'Vakars';
 
       const sectionField = 'aprupetaja_paraksts';
@@ -1829,7 +1829,8 @@ async handleSign() {
         field: 'aprupetaja_paraksts',
         value: displayValue,
         lastModified: nowUTC,
-        lastBy: this.currentUser.id
+        lastBy: this.currentUser.id,
+        mainaTips: mainaTips
       };
 
       const key = signatureShift + '|paraksts|aprupetaja_paraksts';
