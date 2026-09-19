@@ -364,7 +364,11 @@ try {
     const uzvards = this.client.uzvards || this.client.Uzvārds || '';
     document.getElementById('clientName').textContent = vards + ' ' + uzvards;
     document.getElementById('clientName2').textContent = vards + ' ' + uzvards;
-    document.getElementById('clientDob').textContent = 'Dzimis: ' + this.formatDob(this.client.dzimis || this.client['Dzimšanas datums'] || this.client.dzimsans_datums || this.client.birth_date);
+    const dobRaw = this.client.dzimis || this.client['Dzimšanas datums'] || this.client.dzimsans_datums || this.client.birth_date || '';
+    const dobDisplay = this.formatDob(dobRaw);
+    const age = this.calculateAge(dobRaw);
+    const ageDisplay = age ? (age + ' gadi') : 'Vecums nav norādīts';
+    document.getElementById('clientDob').textContent = 'Dzimis: ' + dobDisplay + ' • ' + ageDisplay;
     const diet = this.client.dieta || this.client.Diēta || '';
     const saskarsme = this.client.saskarsmes || this.client['Saskarsmes īpatnības'] || '';
     document.getElementById('clientDiet').textContent = diet || 'Diēta nav norādīta';
@@ -378,6 +382,17 @@ try {
     const d = new Date(dob);
     if (isNaN(d.getTime())) return dob;
     return d.toLocaleDateString('lv-LV');
+  }
+
+  calculateAge(dob) {
+    if (!dob) return '';
+    const birth = new Date(dob);
+    if (isNaN(birth.getTime())) return '';
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age >= 0 ? age : '';
   }
 
   extractDate(v) {
