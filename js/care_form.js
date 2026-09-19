@@ -334,6 +334,7 @@ class CareFormController {
         e.currentTarget.classList.add('active');
         this.currentShift = e.currentTarget.dataset.shift;
         this.updateCategoryStatuses();
+        this.renderSignature();
       });
     });
 
@@ -1672,9 +1673,8 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
     const isDiennakts = shiftType === 'diennakts';
     const isAdmin = userRole === 'administrators' || this.adminMode;
-    // Diennakts aprūpētāji var parakstīt savu 24h maiņu
-    // Diena aprūpētāji var parakstīt savu pašreizējo maiņu
-    const canSign = isDiennakts || !isDiennakts || isAdmin; // visi aprūpētāji var parakstīt
+    // Diennakts: getSignatureShift(); Diena: currentShift (izvēlētā cilne)
+    const canSign = true; // visi aprūpētāji var parakstīt savu sadaļu
     const signatureShift = isDiennakts ? this.getSignatureShift() : this.currentShift;
     const today = this.getToday();
 
@@ -1754,17 +1754,16 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         this.toast(t('onlyCaregiversCanSign'));
         return;
       }
-      // Diennakts aprūpētāji var parakstīt savu 24h maiņu (V sākumā, R beigās)
-      // Diena aprūpētāji var parakstīt savu pašreizējo maiņu (R vai V)
-      // Abiem gadījumos nosakām maiņu, kuru parakstīt
-      // Nav nepieciešams bloķēt dienas aprūpētājus
-
+      // Diennakts aprūpētāji paraksta savu 24h maiņas sadaļu (nosaka pēc laika)
+      // Diena aprūpētāji paraksta izvēlēto maiņu (R/V cilni)
       const today = this.getToday();
       const nowRiga = TimezoneUtils.getNowRiga();
       const timeStr = TimezoneUtils.getTimeRiga();
       // Use UTC ISO string for unambiguous timestamp
       const nowUTC = nowRiga.toISOString();
-      const signatureShift = this.getSignatureShift();
+      // Diennakts: getSignatureShift() nosaka R/V pēc 24h maiņas laika
+      // Diena: currentShift (izvēlētā cilne)
+      const signatureShift = isDiennakts ? this.getSignatureShift() : this.currentShift;
       const shiftLabel = signatureShift === 'R' ? 'Rīts' : 'Vakars';
 
       const sectionField = 'aprupetaja_paraksts';
