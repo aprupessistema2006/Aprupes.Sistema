@@ -1175,6 +1175,27 @@ body {
   background: #e8f5e9;
 }
 
+.tasks-table tbody tr.task-row-clickable {
+  cursor: pointer;
+}
+
+.tasks-table tbody tr.task-row-clickable:hover {
+  background: #e8f0fe !important;
+}
+
+.tasks-table tbody tr.task-row-clickable:hover .task-click-cell {
+  color: var(--primary);
+}
+
+.tasks-table td.task-click-cell {
+  cursor: pointer;
+}
+
+.tasks-table td.task-buttons-cell {
+  cursor: default;
+  white-space: nowrap;
+}
+
 .tasks-table .task-priority {
   display: inline-flex;
   align-items: center;

@@ -295,14 +295,14 @@ class AprupeController {
       const taskClientId = String(task.klientsId || task.clientId || '');
       const clientName = taskClientId ? (clientMap[taskClientId] || 'ID: ' + taskClientId) : '—';
       return `
-        <tr class="${rowClass}">
-          <td class="task-description" title="${this.escapeHtml(taskText)}">${this.escapeHtml(taskText)}</td>
-          <td class="task-client">${this.escapeHtml(clientName)}</td>
-          <td class="task-deadline">${this.escapeHtml(deadlineDisplay)}${overdue ? ' ⏰' : (today ? ' 📅' : '')}</td>
-          <td><span class="task-priority ${priorityClass}">${this.escapeHtml(priorityLabel)}</span></td>
-          <td class="task-status">${this.escapeHtml(statusLabel)}</td>
-          <td class="task-created">${this.escapeHtml(formatDateTimeRiga(task.created || task.izveidots))}</td>
-          <td>
+        <tr class="task-row-clickable ${rowClass}" data-task-id="${task.id}">
+          <td class="task-description task-click-cell" title="${this.escapeHtml(taskText)}">${this.escapeHtml(taskText)}</td>
+          <td class="task-client task-click-cell">${this.escapeHtml(clientName)}</td>
+          <td class="task-deadline task-click-cell">${this.escapeHtml(deadlineDisplay)}${overdue ? ' ⏰' : (today ? ' 📅' : '')}</td>
+          <td class="task-click-cell"><span class="task-priority ${priorityClass}">${this.escapeHtml(priorityLabel)}</span></td>
+          <td class="task-status task-click-cell">${this.escapeHtml(statusLabel)}</td>
+          <td class="task-created task-click-cell">${this.escapeHtml(formatDateTimeRiga(task.created || task.izveidots))}</td>
+          <td class="task-buttons-cell">
             <button class="task-detail-btn" data-task-id="${task.id}" title="Detaļas">ℹ️</button>
             <button class="task-complete-btn ${btnClass}" data-task-id="${task.id}" ${btnDisabled}>${btnText}</button>
           </td>
@@ -310,8 +310,17 @@ class AprupeController {
       `;
     }).join('');
 
+    tbody.querySelectorAll('.task-row-clickable').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.task-complete-btn') || e.target.closest('.task-detail-btn')) return;
+        const taskId = row.dataset.taskId;
+        this.openTaskDetail(taskId);
+      });
+    });
+
     tbody.querySelectorAll('.task-detail-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         e.preventDefault();
         const taskId = btn.dataset.taskId;
         this.openTaskDetail(taskId);
@@ -320,6 +329,7 @@ class AprupeController {
 
     tbody.querySelectorAll('.task-complete-btn:not(.completed)').forEach(btn => {
       btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         e.preventDefault();
         const taskId = btn.dataset.taskId;
         btn.disabled = true;
