@@ -334,7 +334,6 @@ class CareFormController {
         e.currentTarget.classList.add('active');
         this.currentShift = e.currentTarget.dataset.shift;
         this.updateCategoryStatuses();
-        this.renderSignature();
       });
     });
 
@@ -1673,8 +1672,8 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     const shiftType = String(this.currentUser.shiftType || '').toLowerCase();
     const isDiennakts = shiftType === 'diennakts';
     const isAdmin = userRole === 'administrators' || this.adminMode;
-    // Diennakts: getSignatureShift(); Diena: currentShift (izvēlētā cilne)
-    const canSign = true; // visi aprūpētāji var parakstīt savu sadaļu
+    // Tikai diennakts aprūpētāji paraksta (24h maiņa), dienas aprūpētāji NEparaksta
+    const canSign = isDiennakts || isAdmin;
     const signatureShift = isDiennakts ? this.getSignatureShift() : this.currentShift;
     const today = this.getToday();
 
@@ -1739,7 +1738,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     }
   }
 
-  async handleSign() {
+async handleSign() {
     if (this._processing.has('sign')) return;
     this._processing.set('sign', true);
     const signBtn = document.getElementById('signBtn');
@@ -1754,8 +1753,13 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         this.toast(t('onlyCaregiversCanSign'));
         return;
       }
-      // Diennakts aprūpētāji paraksta savu 24h maiņas sadaļu (nosaka pēc laika)
-      // Diena aprūpētāji paraksta izvēlēto maiņu (R/V cilni)
+      // Tikai diennakts aprūpētāji paraksta (to 24h maiņas sadaļu pēc laika)
+      // Dienas aprūpētāji NEparaksta
+      if (!isDiennakts && !isAdmin) {
+        this.toast(t('onlyNightShiftCanSign'));
+        return;
+      }
+
       const today = this.getToday();
       const nowRiga = TimezoneUtils.getNowRiga();
       const timeStr = TimezoneUtils.getTimeRiga();
