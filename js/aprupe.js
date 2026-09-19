@@ -112,6 +112,25 @@ class AprupeController {
     this.setupSearch();
     this.setupLanguageSwitcher();
 
+    // Task detail modal close handlers
+    const taskDetailOverlay = document.getElementById('taskDetailOverlay');
+    const taskDetailClose = document.getElementById('taskDetailClose');
+    const taskDetailCloseBtn = document.getElementById('taskDetailCloseBtn');
+    if (taskDetailClose) {
+      taskDetailClose.addEventListener('click', () => this.closeTaskDetail());
+    }
+    if (taskDetailCloseBtn) {
+      taskDetailCloseBtn.addEventListener('click', () => this.closeTaskDetail());
+    }
+    if (taskDetailOverlay) {
+      taskDetailOverlay.addEventListener('click', (e) => {
+        if (e.target === taskDetailOverlay) this.closeTaskDetail();
+      });
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.closeTaskDetail();
+    });
+
     const clearFilterBtn = document.getElementById('clearFilterBtn');
     if (clearFilterBtn) {
       clearFilterBtn.addEventListener('click', () => {
@@ -212,6 +231,7 @@ class AprupeController {
       const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim();
       clientMap[String(id)] = name;
     });
+    this.clientMap = clientMap;
 
     const employees = await this.db.getAll('darbinieki');
     const employeeMap = {};
@@ -220,6 +240,7 @@ class AprupeController {
       const name = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim();
       employeeMap[String(id)] = name;
     });
+    this.employeeMap = employeeMap;
 
     const formatDateRiga = (isoString) => {
       if (!isoString) return '';
@@ -281,10 +302,21 @@ class AprupeController {
           <td><span class="task-priority ${priorityClass}">${this.escapeHtml(priorityLabel)}</span></td>
           <td class="task-status">${this.escapeHtml(statusLabel)}</td>
           <td class="task-created">${this.escapeHtml(formatDateTimeRiga(task.created || task.izveidots))}</td>
-          <td><button class="task-complete-btn ${btnClass}" data-task-id="${task.id}" ${btnDisabled}>${btnText}</button></td>
+          <td>
+            <button class="task-detail-btn" data-task-id="${task.id}" title="Detaļas">ℹ️</button>
+            <button class="task-complete-btn ${btnClass}" data-task-id="${task.id}" ${btnDisabled}>${btnText}</button>
+          </td>
         </tr>
       `;
     }).join('');
+
+    tbody.querySelectorAll('.task-detail-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const taskId = btn.dataset.taskId;
+        this.openTaskDetail(taskId);
+      });
+    });
 
     tbody.querySelectorAll('.task-complete-btn:not(.completed)').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -299,6 +331,96 @@ class AprupeController {
     });
 
     if (typeof applyLanguage === 'function') applyLanguage();
+  }
+
+  openTaskDetail(taskId) {
+    const allTasks = window.TaskManager && window.TaskManager.tasks ? window.TaskManager.tasks : [];
+    const task = allTasks.find(t => String(t.id) === String(taskId));
+    if (!task) {
+      this.toast && this.toast('Uzdevums nav atrasts');
+      return;
+    }
+
+    const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
+    const deadline = task.termins;
+    const deadlineDisplay = TimezoneUtils.formatDateRiga(deadline);
+    const priority = (task.prioritate || 'videja').toLowerCase();
+    const priorityLabels = { augsta: '🔴 Augsta', videja: '🟡 Vidēja', zema: '🟢 Zema', high: '🔴 High', medium: '🟡 Medium', low: '🟢 Low' };
+    const priorityLabel = priorityLabels[priority] || priority;
+    const overdue = TimezoneUtils.formatDateRiga(deadline) && TimezoneUtils.formatDateRiga(deadline) < TimezoneUtils.getTodayRiga() && !done;
+    const today = TimezoneUtils.formatDateRiga(deadline) === TimezoneUtils.getTodayRiga() && !done;
+
+    const statusLabel = done ? t('taskCompletedLabel') : ((task.statuss || 'jauns').toLowerCase() === 'jauns' ? t('statusNew') : ((task.statuss || '').toLowerCase() === 'procesā' ? t('statusInProgress') : (task.statuss || 'jauns')));
+
+    const taskClientId = String(task.klientsId || task.clientId || '');
+    const clientName = taskClientId ? (this.clientMap ? (this.clientMap[taskClientId] || 'ID: ' + taskClientId) : 'ID: ' + taskClientId) : '—';
+
+    const assigneeId = String(task.pieskirtDarbiniekamId || task.employeeId || '');
+    const employeeName = assigneeId ? (this.employeeMap ? (this.employeeMap[assigneeId] || 'ID: ' + assigneeId) : 'ID: ' + assigneeId) : '—';
+
+    const createdDisplay = TimezoneUtils.formatDateTimeRiga(task.created || task.izveidots);
+    const completedDisplay = task.pabeigtsLaiks ? TimezoneUtils.formatDateTimeRiga(task.pabeigtsLaiks) : '';
+
+    const overlay = document.getElementById('taskDetailOverlay');
+    const completeBtn = document.getElementById('taskDetailCompleteBtn');
+    if (!overlay) return;
+
+    document.getElementById('taskDetailText').textContent = task.teksts || '';
+    document.getElementById('taskDetailClient').textContent = clientName;
+    document.getElementById('taskDetailDeadline').innerHTML = this.escapeHtml(deadlineDisplay) + (overdue ? ' ⏰ Nokavēts' : (today ? ' 📅 Šodien' : ''));
+    document.getElementById('taskDetailPriority').innerHTML = this.escapeHtml(priorityLabel);
+    document.getElementById('taskDetailStatus').textContent = statusLabel;
+    document.getElementById('taskDetailCreated').textContent = createdDisplay;
+    document.getElementById('taskDetailAction').textContent = done ? '✅ Izpildīts' : '✓ Izpildīt';
+
+    const completedSection = document.getElementById('taskDetailCompletedSection');
+    if (completedSection) {
+      if (done && completedDisplay) {
+        completedSection.style.display = 'block';
+        document.getElementById('taskDetailCompleted').textContent = completedDisplay;
+      } else {
+        completedSection.style.display = 'none';
+      }
+    }
+
+    const assigneeSection = document.getElementById('taskDetailAssigneeSection');
+    if (assigneeSection) {
+      if (assigneeId) {
+        assigneeSection.style.display = 'block';
+        document.getElementById('taskDetailAssignee').textContent = employeeName;
+      } else {
+        assigneeSection.style.display = 'none';
+      }
+    }
+
+    if (completeBtn) {
+      if (done) {
+        completeBtn.textContent = t('taskMarkDoneDone');
+        completeBtn.classList.add('completed');
+        completeBtn.disabled = true;
+      } else {
+        completeBtn.textContent = t('taskMarkDone');
+        completeBtn.classList.remove('completed');
+        completeBtn.disabled = false;
+      }
+    }
+
+    completeBtn.onclick = async () => {
+      if (done) return;
+      completeBtn.disabled = true;
+      completeBtn.textContent = '⏳ Saglabā...';
+      await window.TaskManager.complete(taskId, this.currentUser.id);
+      this.toast && this.toast(t('taskMarkedDone'));
+      this.closeTaskDetail();
+      await this.renderTasksTable(this.selectedClientId);
+    };
+
+    overlay.style.display = 'flex';
+  }
+
+  closeTaskDetail() {
+    const overlay = document.getElementById('taskDetailOverlay');
+    if (overlay) overlay.style.display = 'none';
   }
   setupSearch() {
     const searchBox = document.getElementById('searchBox');

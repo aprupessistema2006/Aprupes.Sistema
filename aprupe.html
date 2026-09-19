@@ -87,6 +87,61 @@
     </div>
   </div>
 
+  <!-- Uzdevuma detaļu logs (atsevišķā logā pilna ainavu redzēšanai) -->
+  <div id="taskDetailOverlay" class="task-detail-overlay" style="display:none;">
+    <div class="task-detail-card">
+      <div class="task-detail-header">
+        <div class="task-detail-title">
+          <span class="task-detail-emoji">📋</span>
+          <h3 id="taskDetailTitle" data-i18n="taskDetailTitle">Uzdevuma detaļas</h3>
+        </div>
+        <button id="taskDetailClose" class="task-detail-close" title="Aizvērt" data-i18n-title="closeBtn">✕</button>
+      </div>
+      <div class="task-detail-body">
+        <div class="task-detail-section">
+          <div class="task-detail-label" data-i18n="taskColTaskText">Uzdevums</div>
+          <div id="taskDetailText" class="task-detail-value task-detail-text"></div>
+        </div>
+        <div class="task-detail-section">
+          <div class="task-detail-label" data-i18n="taskColClient">Klients</div>
+          <div id="taskDetailClient" class="task-detail-value"></div>
+        </div>
+        <div class="task-detail-section">
+          <div class="task-detail-label" data-i18n="taskColDeadline">Termiņš</div>
+          <div id="taskDetailDeadline" class="task-detail-value"></div>
+        </div>
+        <div class="task-detail-section">
+          <div class="task-detail-label" data-i18n="taskColPriority">Prioritāte</div>
+          <div id="taskDetailPriority" class="task-detail-value"></div>
+        </div>
+        <div class="task-detail-section">
+          <div class="task-detail-label" data-i18n="taskColStatus">Statuss</div>
+          <div id="taskDetailStatus" class="task-detail-value"></div>
+        </div>
+        <div class="task-detail-section">
+          <div class="task-detail-label" data-i18n="taskColCreated">Izveidots</div>
+          <div id="taskDetailCreated" class="task-detail-value"></div>
+        </div>
+        <div class="task-detail-section">
+          <div class="task-detail-label" data-i18n="taskColAction">Darbība</div>
+          <div id="taskDetailAction" class="task-detail-value"></div>
+        </div>
+        <div class="task-detail-section" id="taskDetailCompletedSection" style="display:none;">
+          <div class="task-detail-label" data-i18n="taskCompletedLabel">Pabeigts</div>
+          <div id="taskDetailCompleted" class="task-detail-value"></div>
+        </div>
+        <div class="task-detail-section" id="taskDetailAssigneeSection" style="display:none;">
+          <div class="task-detail-label" data-i18n="taskAssignee">Izpildītājs</div>
+          <div id="taskDetailAssignee" class="task-detail-value"></div>
+        </div>
+      </div>
+      <div class="task-detail-footer">
+        <button id="taskDetailCloseBtn" class="task-detail-close-btn" data-i18n="closeBtn">Aizvērt</button>
+        <button id="taskDetailCompleteBtn" class="task-detail-complete-btn" data-i18n="taskMarkDone">✓ Izpildīts</button>
+      </div>
+    </div>
+  </div>
+
 <script src="js/config.js?v=20260917-1950"></script>
 <script src="js/i18n.js?v=20260917-1950"></script>
 <script src="js/timezone.js?v=20260917-1950"></script>

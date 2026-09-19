@@ -1,0 +1,240 @@
+﻿<!DOCTYPE html>
+<html lang="lv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aprūpētāja Instrukcija</title>
+<link rel="icon" href="../favicon.ico">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif; background:#f1f3f5; color:#212529; line-height:1.65; font-size:16px; }
+header { background:#2c3e50; color:#fff; padding:20px 16px; text-align:center; position:sticky; top:0; z-index:100; }
+header h1 { font-size:20px; font-weight:600; letter-spacing:0.3px; }
+header p { font-size:13px; opacity:0.8; margin-top:4px; }
+.container { max-width:760px; margin:0 auto; padding:16px; }
+h2 { font-size:22px; color:#2c3e50; margin:24px 0 12px; padding-bottom:8px; border-bottom:3px solid #3498db; }
+h3 { font-size:18px; color:#2c3e50; margin:18px 0 8px; }
+.card { background:#fff; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+.step { background:#e8f4fd; border-left:4px solid #3498db; padding:14px 16px; margin:10px 0; border-radius:0 8px 8px 0; font-size:15px; }
+.step strong { color:#2c3e50; }
+.good { background:#e8f5e9; border-left:4px solid #27ae60; padding:14px 16px; margin:10px 0; border-radius:0 8px 8px 0; font-size:15px; }
+.warn { background:#fff3e0; border-left:4px solid #f39c12; padding:14px 16px; margin:10px 0; border-radius:0 8px 8px 0; font-size:15px; }
+.alert { background:#fdecea; border-left:4px solid #e74c3c; padding:14px 16px; margin:10px 0; border-radius:0 8px 8px 0; font-size:15px; }
+.badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:12px; font-weight:600; margin:2px; }
+.badge-green { background:#d4edda; color:#155724; }
+.badge-red { background:#f8d7da; color:#721c24; }
+.badge-yellow { background:#fff3cd; color:#856404; }
+ul { margin:8px 0 8px 24px; } li { margin:4px 0; }
+.flow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:10px 0; }
+.flow-box { background:#e8f4fd; padding:8px 14px; border-radius:8px; font-size:13px; font-weight:500; }
+.flow-arrow { color:#3498db; font-size:16px; }
+figure { margin:14px 0; background:#fff; border:1px solid #e3e8ee; border-radius:10px; padding:8px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+figure img { display:block; max-width:100%; height:auto; border-radius:6px; }
+figcaption { padding:6px 4px 4px; color:#6c757d; font-size:12px; text-align:center; font-style:italic; }
+footer { text-align:center; padding:24px 16px; color:#6c757d; font-size:13px; margin-top:20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Aprūpētāja Instrukcija</h1>
+  <p>Kā strādāt ar Aprūpes sistēmu — tikai Tavs darbs</p>
+</header>
+
+<div class="container">
+
+<!-- 1 -->
+<h2>1. Kā ieiet programmā</h2>
+<div class="card">
+<figure>
+  <img src="../docs/screenshots/02_login_employee_list.png" alt="Darbinieku saraksts">
+  <figcaption>Izvēliaties sevi no saraksta</figcaption>
+</figure>
+<figure>
+  <img src="../docs/screenshots/04_login_select_pin.png" alt="Izvēlēts darbinieks + PIN">
+  <figcaption>Darbinieks izvēlēts — ievadiet PIN kodu</figcaption>
+</figure>
+<figure>
+  <img src="../docs/screenshots/05_login_pin_entered.png" alt="PIN ievadīts">
+  <figcaption>PIN ievadīts — nospiediet "Ienākt"</figcaption>
+</figure>
+<div class="step"><strong>1.</strong> Atveriet programmu pārlūkprogrammā.</div>
+<div class="step"><strong>2.</strong> Izvēliaties savu vārdu no saraksta.</div>
+<div class="step"><strong>3.</strong> Ievadiet savu PIN kodu (4 cipari).</div>
+<div class="step"><strong>4.</strong> Nospiediet "Ienākt".</div>
+<div class="good">Pēc ielogošanās parādās Jūsu klientu lapa.</div>
+</div>
+
+<!-- 2 -->
+<h2>2. Ko es redzu pēc ielogošanās?</h2>
+<div class="card">
+<p>Augšgalā:</p>
+<ul>
+<li>Jūsu vārds un loma</li>
+<li>Šodienas datums</li>
+<li>Sistēmas statuss (vai dati ir saglabāti)</li>
+</ul>
+<p>Priekšgalbā ir:</p>
+<ul>
+<li><strong>Klientu kartiņas</strong> — vārds, vecums, saites. Klikšķiniet klienta vārdā, lai atvērtu aprūpes formu.</li>
+<li><strong>Uzdevumu saraksts</strong> — ko jādara un līdz kadam termiņam.</li>
+</ul>
+<figure>
+  <img src="../docs/screenshots/06_caregiver_clients.png" alt="Klientu saraksts">
+  <figcaption>Aprūpētāja sākumlapa — klienti ar statusa rindekļiem</figcaption>
+</figure>
+</div>
+
+<!-- 3 -->
+<h2>3. Kā izvēlēties klientu?</h2>
+<div class="card">
+<div class="step"><strong>1.</strong> Lietojiet meklēšanas laukumu (rakstiet vārdu vai uzvārdu).</div>
+<div class="step"><strong>2.</strong> Klikšķiniet klienta kartiņai.</div>
+<div class="step"><strong>3.</strong> Klikšķiniet klienta vārdā — atveras aprūpes forma.</div>
+</div>
+
+<!-- 4 -->
+<h2>4. Kā izvēlēties maiņu (Rīts vai Vakars)?</h2>
+<div class="card">
+<div class="flow">
+<div class="flow-box">☀️ Rīts (R)</div>
+<div class="flow-arrow">↔</div>
+<div class="flow-box">🌙 Vakars (V)</div>
+</div>
+<p>Klikšķiniet, lai pārslēgtu maiņu. Rīta un vakara ieraksti nesaskaras.</p>
+<div class="warn"><strong>Svarīgi:</strong> Sistema pati izvēlas jūsu aktīvo maiņu, bet jūs varat pārskatīt katru sevatkārt.</div>
+</div>
+
+<!-- 5 -->
+<h2>5. Kā veikt aprūpi?</h2>
+<div class="card">
+<p>Klikšķiniet jebkurai kategorijai, lai atvērtu ieraksta formu. Kad ieraksts ir saglabāts, kaste iekrās ir zaļā.</p>
+<figure>
+  <img src="../docs/screenshots/07_care_form_overview.png" alt="Aprūpes forma">
+  <figcaption>Aprūpes forma — visas kategorijas vienā skatā</figcaption>
+</figure>
+</div>
+
+<!-- 5.1 -->
+<h3>5.1 Temperatūra</h3>
+<div class="card">
+<figure><img src="../docs/screenshots/12_category_temperature.png" alt="Temperatūra"><figcaption>Ievadiet skaitli °C. 37°+ parādās sarkans (drudzis).</figcaption></figure>
+<div class="step">Klikšķiniet "🌡️ Temperatūra".</div>
+<div class="step">Ievadiet skaitli (piemēram, 36.6).</div>
+<div class="step">Nospiediet "Saglabāt".</div>
+<div class="alert"><strong>37°C+</strong> — parādās sarkans un "🔥" (drudzis).</div>
+</div>
+
+<!-- 5.2 -->
+<h3>5.2 Higiēna</h3>
+<div class="card">
+<p>7 punkti: mūtju kopsana, protēļu kopsana, vanas/duša, apmazgāšana, veļas maiņa, nagļu kopsana, matu kopsana, bārdu kopšana.</div>
+<p>Atzīmējiet tikai tos, ko veicāt (X). Statuss parāda "X / 7".</p>
+<figure><img src="../docs/screenshots/08_category_hygiene.png" alt="Higiēna"><figcaption>4 no 7 punktiem atzīmēti</figcaption></figure>
+</div>
+
+<!-- 5.3 -->
+<h3>5.3 Aktivitāte</h3>
+<div class="card">
+<figure><img src="../docs/screenshots/13_category_activity.png" alt="Aktivitāte"><figcaption>Pārvietošanās ar palīdzību — atzīmējiet, kas veikts</figcaption></figure>
+<ul><li>Pārvietojas ar palīdzekli</li><li>Stāv ar palīdzību</li><li>Sēž ar palīdzību</li></ul>
+</div>
+
+<!-- 5.4 -->
+<h3>5.4 Ēdīšana</h3>
+<div class="card">
+<p>Katrai ēdienrezei: <span class="badge badge-green">X</span> (pilna), <span class="badge badge-yellow">½</span> (puse), <span class="badge badge-red">A</span> (attiecās).</p>
+<figure><img src="../docs/screenshots/09_category_meals.png" alt="Ēdīšana"><figcaption>Visas ēdienrezes aizpildītas</figcaption></figure>
+</div>
+
+<!-- 5.5 + 5.6 -->
+<h3>5.5 Šķidrumi (ūdens + urīns)</h3>
+<div class="card">
+<figure><img src="../docs/screenshots/10_category_fluids.png" alt="Šķidrumi"><figcaption>Ievadiet daudzumu ml — tas pieskaitās kopsavilkumam.</figcaption></figure>
+<div class="step">Klikšķiniet "💧 H2O" vai "💧 Urīna daudzums".</div>
+<div class="step">Ievadiet daudzumu mililitros (piemēram, 200).</div>
+<div class="step">Nospiediet "Pievienot".</div>
+<div class="good">Skaitļi sakrājas visā dienā.</div>
+</div>
+
+<!-- 5.7 -->
+<h3>5.7 Vēdera izeja</h3>
+<div class="card">
+<figure><img src="../docs/screenshots/11_category_physiology.png" alt="Vēdera izeja"><figcaption>Izvelieties stāvokli pirms saglabāšanas.</figcaption></figure>
+<p>Izvelieties vienu: <strong>N</strong> (normāla), <strong>A</strong> (aizcietējums), <strong>S</strong> (svecīte), <strong>C</strong> (caureja), <strong>K</strong> (klizma), tad "Saglabāt izvēli".</p>
+<div class="warn">Līdz izvēlējoties vērtību, saglabātnes poga ir neaktīva.</div>
+</div>
+
+<!-- 5.8 -->
+<h3>5.8 Pārējās darbības</h3>
+<div class="card">
+<ul>
+<li>🧴 Ādas kopšana — atzīmējiet, ja veikta.</li>
+<li>🌳 Pastaiga — atzīmējiet, ja bijusi.</li>
+<li>👥 Ciemiņi — "Jā, bija" vai "Nē, nebija".</li>
+<li>🧻 Autiņbiksu maiņa — klikšķiniet "+1" katru reizi.</li>
+</ul>
+<figure><img src="../docs/screenshots/14_category_other.png" alt="Pārējās darbības"></figure>
+</div>
+
+<!-- 6 -->
+<h2>6. Vienkārši par saglabāšanu</h2>
+<div class="card">
+<ul>
+<li>Ieraksti saglabājas automātiski pussekundu pēc ievades.</li>
+<li>Saglabāts — kaste zaļa ar ✓.</li>
+<li>“📜 Šodienas vēsture” parāda katru ierakstu ar laiku un autora vārdu.</li>
+</ul>
+</div>
+
+<!-- 7 -->
+<h2>7. Paraksts</h2>
+<div class="card">
+<p>Pēc visas aprūpes — nospiediet paraksta pogu lapas apakšā.</p>
+<figure><img src="../docs/screenshots/15_signature_card.png" alt="Paraksts"><figcaption>Aktīvā maiņa nav parakstīta — poga ir aktīva.</figcaption></figure>
+<div class="good">Pēc parakstīšanas poga zaļa ar ✓.</div>
+</div>
+
+<h3>7.1 Kurš nevar parakstīt?</h3>
+<div class="alert">Ja kāds cits jau ir parakstījis šo Rītu vai Vakaru šim klientam, poga ir <strong>bloķēta</strong>. <strong>Nevar pārrakstīt</strong> — katram klientam vienā maiņā ir tikai viens paraksts.</div>
+<figure><img src="../docs/screenshots/16_client_already_signed.png" alt="Paraksts bloķēts"><figcaption>Kāds cits jau ir parakstījis — poga slēgta.</figcaption></figure>
+
+<!-- 8 -->
+<h2>8. Uzdevumi</h2>
+<div class="card">
+<p>Sākumlapas apakšā ir "Mani uzdevomi".</p>
+<ul>
+<li>Uzdevums, klients, termiņš, prioritāte (🟢/🟡/🔴), statuss.</li>
+</ul>
+<div class="step">Nospiediet "✓ Izpildīts", kad uzdevums ir izdarīts.</div>
+</div>
+
+<!-- 9 -->
+<h2>9. Kā iziet bez datu zaudējumiem?</h2>
+<div class="card">
+<div class="step"><strong>1.</strong> Pārbaudiet, ka visi ieraksti ir saglabāti (zaļas kartiņas).</div>
+<div class="step"><strong>2.</strong> Parakstīt maiņu, ja jūs diennakts darbinieks.</div>
+<div class="step"><strong>3.</strong> Nospiediet "Iziet" (augšējā barī, labajā pusē).</div>
+<div class="step"><strong>4.</strong> Ja ir nesaglabāti dati — izvēlieties "Sūtīt datus tagad", lai nosūtītu tos.</div>
+</div>
+
+<!-- 10 -->
+<h2>10. Īss kods</h2>
+<div class="card">
+<ol>
+<li>Ielogojos</li>
+<li>Izvēlējos klientu</li>
+<li>Atvēru maiņu (Rīts vai Vakars)</li>
+<li>Ierakstīju aprūpi katā sadaļā</li>
+<li>Saglabāju (automātiski)</li>
+<li>Parakstīju</li>
+<li>Izguļu</li>
+</ol>
+</div>
+
+<footer>
+Aprūpes sistēma · Aprūpētāja rokasgrāmatā
+</footer>
+
+</div>
+</body>
+</html>
