@@ -1188,7 +1188,7 @@ try {
         const existing = this.marks.get(this.currentShift + '|sikdrumi|urina_daudzums');
         const currentTotal = existing ? parseFloat(existing.value) || 0 : 0;
         const newTotal = currentTotal + enteredVal;
-        const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', String(newTotal), this.currentShift);
+        const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', String(newTotal), this.currentShift, existing?.id);
         if (!result) return;
         if (urinsInput) urinsInput.value = '0';
       } else if (field === 'uznemts_ml') {
@@ -1198,7 +1198,7 @@ try {
         const existing = this.marks.get(this.currentShift + '|sikdrumi|uznemts_ml');
         const currentTotal = existing ? parseFloat(existing.value) || 0 : 0;
         const newTotal = currentTotal + enteredVal;
-        const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', String(newTotal), this.currentShift);
+        const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', String(newTotal), this.currentShift, existing?.id);
         if (!result) return;
         if (uznemtsInput) uznemtsInput.value = '0';
       } else {
@@ -1209,14 +1209,18 @@ try {
       this.renderQuickTotals();
       this.renderHistory();
       await this.loadAllClientMarks();
+      await this.loadMarks();
       this.closeCategoryModal();
       this.toast(t('fluidSaved'));
+    } catch (err) {
+      console.error('[handleSikdrumiSubmit] Error:', err);
+      this.toast('Kļūda saglabājot: ' + err.message);
     } finally {
       this._processing.delete('sikdrumi_submit');
     }
   }
 
-  async saveMarkDirect(category, field, value, shift) {
+  async saveMarkDirect(category, field, value, shift, existingId) {
     return await this.saveMark({
       clientId: this.clientId,
       shift: shift,
@@ -1224,7 +1228,8 @@ try {
       field: field,
       value: value,
       prevValue: this.marks.get(shift + '|' + category + '|' + field) ? this.marks.get(shift + '|' + category + '|' + field).value : null,
-      type: this.marks.get(shift + '|' + category + '|' + field) ? 'Labots' : 'Jauns'
+      type: this.marks.get(shift + '|' + category + '|' + field) ? 'Labots' : 'Jauns',
+      existingId: existingId
     });
   }
 
@@ -1528,10 +1533,10 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const today = this.getToday();
       const nowRiga = TimezoneUtils.getNowRiga();
       const timeStr = TimezoneUtils.getTimeRiga();
-      // Use UTC ISO string for unambiguous timestamp
       const nowUTC = nowRiga.toISOString();
 
-      const id = this.db.generateId();
+      const existingMark = this.marks.get(actionKey);
+      const id = data.existingId || existingMark?.id || this.db.generateId();
 
       const mark = {
         id: id,
@@ -1570,7 +1575,6 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       };
       await this.db.add('atzimes_log', logEntry);
 
-      // Pievienojam actionId sinhronizācijai — novērš duplikātus pēc retry
       this.sync.enqueueChange({
         action: 'mark',
         table: 'atzimes',
@@ -1583,15 +1587,11 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
           field: data.field,
           value: data.value,
           reason: data.type === 'Labots' ? 'Labots' : null,
-          // Sūtām UTC timestamp backendam
           lastModified: nowUTC,
           actionId: 'mark_' + data.clientId + '_' + data.shift + '_' + data.category + '_' + data.field + '_' + today + '_' + (this.currentUser.id || ''),
           mainaTips: this.currentUser.mainaTips || 'diennakts'
         }
       });
-
-      // Sinhronizācija notiek fonā pēc 500ms (debounced), nevis pēc katra ieraksta
-      // this.sync.processQueue() tiek izsaukts automātiski no enqueueChange
 
       if (this.allClientMarks) {
         const idx = this.allClientMarks.findIndex(m => m.shift === mark.shift && m.category === mark.category && m.field === mark.field);
