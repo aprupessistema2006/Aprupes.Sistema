@@ -320,6 +320,7 @@ try {
         e.currentTarget.classList.add('active');
         this.currentShift = e.currentTarget.dataset.shift;
         this.updateCategoryStatuses();
+        this.renderSignature();
       });
     });
 
