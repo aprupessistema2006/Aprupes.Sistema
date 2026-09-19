@@ -155,47 +155,43 @@ class CareFormController {
       };
     }
 
-    try {
+try {
       const syncResult = await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
       });
       if (syncResult && syncResult.offline) {
-        await Promise.all([
-          this.loadClient(),
-          this.loadMarks(),
-          this.loadHistory(),
-          this.loadAllClientMarks()
-        ]);
-        this.renderForm();
-        this.renderHistory();
-        this.renderSignature();
-        this.updateTeamSummary();
-        this.renderQuickTotals();
-        this.toast(t('dataLoadFailed'), 4000);
-      } else {
-        await Promise.all([
-          this.loadClient(),
-          this.loadMarks(),
-          this.loadHistory(),
-          this.loadAllClientMarks()
-        ]);
-        this.renderForm();
-        this.renderHistory();
-        this.renderSignature();
-        this.updateTeamSummary();
-        this.renderQuickTotals();
-        this.toast(t('dataSynced'));
-      }
-} catch (e) {
-        console.error(e);
-        this.toast(t('partialData') + (e.message || 'Nezināma kļūda'), 4000);
+        // NO FALLBACK - Google Sheets is ONLY source of truth
+        this.toast('⛔ NEIZDEVĀS ielādēt datus no Google Sheets: ' + (syncResult.error || 'Nav savienojuma'), 10000);
         if (retryBtn) {
           retryBtn.style.display = 'block';
         }
-      } finally {
-        if (overlay) overlay.style.display = 'none';
-        this._initialLoadDone = true;
+        if (overlay) overlay.style.display = 'flex';
+        return; // Don't render anything - no data loaded
       }
+      await Promise.all([
+        this.loadClient(),
+        this.loadMarks(),
+        this.loadHistory(),
+        this.loadAllClientMarks()
+      ]);
+      this.renderForm();
+      this.renderHistory();
+      this.renderSignature();
+      this.updateTeamSummary();
+      this.renderQuickTotals();
+      this.toast('✓ Dati ielādēti no Google Sheets');
+    } catch (e) {
+      console.error(e);
+      this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'), 10000);
+      if (retryBtn) {
+        retryBtn.style.display = 'block';
+      }
+      if (overlay) overlay.style.display = 'flex';
+      return; // Don't render
+    } finally {
+      if (overlay) overlay.style.display = 'none';
+      this._initialLoadDone = true;
+    }
 
     this.setupEventListeners();
   }

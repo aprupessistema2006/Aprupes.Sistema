@@ -439,7 +439,7 @@ class CareSync {
             await this._processQueueUnlocked();
           }
 
-          onProgress('Ielādēju datus no servera... (mēģinājums ' + attempt + '/' + maxLoadAttempts + ')');
+          onProgress('Ielādēju datus no Google Sheets... (mēģinājums ' + attempt + '/' + maxLoadAttempts + ')');
           const url = SYNC_URL + '?action=load&t=' + Date.now();
           const data = await requestData(url, 60000);
 
@@ -447,7 +447,7 @@ class CareSync {
             throw new Error(data.error);
           }
 
-          onProgress('Atjaunoju lokālos datus...');
+          onProgress('Atjaunoju lokālos datus no Google Sheets...');
           const lastSync = Date.now();
           await this.db.replaceStores({
             darbinieki: (data.darbinieki || []).map(normalizeRow),
@@ -490,10 +490,11 @@ class CareSync {
         }
       }
       
-      // All attempts failed
-      this._updateSyncStatus(navigator.onLine ? 'Sinhronizācijas kļūda' : 'Nav savienojuma');
-      onProgress('⚠️ Neizdevās ielādēt datus no Google Sheets: ' + lastError.message);
-      return { offline: true, error: lastError.message, count: {}, pending: await this.getUnsyncedCount().catch(() => 0) };
+      // All attempts failed - NO FALLBACK to local data
+      // Google Sheets is the ONLY source of truth
+      this._updateSyncStatus('Nav savienojuma ar Google Sheets');
+      onProgress('⚠️ NEIZDEVĀS ielādēt datus no Google Sheets. Programma nevar strādāt bez savienojuma.');
+      return { offline: true, error: lastError.message, count: {}, pending: 0 };
     } finally {
       this._loading = false;
     }
