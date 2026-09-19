@@ -224,6 +224,7 @@ function handleLoadData(params) {
     const ss = getSpreadsheet();
     
     // Ensure all sheets have required columns (headers)
+    ensureColumns(getSheet('darbinieki'), ['maina_tips']);
     ensureColumns(getSheet('atzimes'), ['action_id']);
     ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id']);
     ensureColumns(getSheet('uzdevomi'), ['action_id']);
@@ -354,7 +355,8 @@ function handleCreateEmployee(data) {
     loma: e.loma || 'aprūpētājs',
     pin_kods: String(e.pin || ''),
     aktivs: true,
-    parole: e.parole || ''
+    parole: e.parole || '',
+    maina_tips: e.shiftType || e.maina_tips || 'diennakts'
   });
   return { success: true, id: id };
 }
