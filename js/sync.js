@@ -249,7 +249,7 @@ function normalizeRow(raw) {
     pinKods: 'pin',
     pin_kods: 'pin',
     parole: 'parole',
-    dzimsans_datums: 'dzimis',
+    dzimsanas_datums: 'dzimis',
     dzimšans_datums: 'dzimis',
     dzimis: 'dzimis',
     birth_date: 'dzimis',
