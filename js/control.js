@@ -809,10 +809,18 @@ class ControlPanel {
       const overlay = document.getElementById('loadingOverlay');
       const loadingText = document.getElementById('loadingText');
       if (overlay) overlay.style.display = 'flex';
+      
+      // ALWAYS force full sync from Google Sheets before export
+      // Google Sheets is the ONLY source of truth
       if (window.careSync && navigator.onLine) {
-        window.careSync.sync().catch(() => {});
+        if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets pirms eksporta...';
+        await window.careSync.forceFullSync((msg) => {
+          if (loadingText) loadingText.textContent = msg;
+        });
       }
-      const allMarks = window.state && window.state.marks ? window.state.marks : await this.db.getAll('atzimes');
+      
+      // Reload fresh data from IndexedDB (now updated from Google Sheets)
+      const allMarks = await this.db.getAll('atzimes');
       const cid = client.id || client.ID;
       const clientMarks = allMarks.filter(m => {
         const mcid = m.clientId || m.klientsId;
@@ -860,9 +868,15 @@ class ControlPanel {
     const loadingText = document.getElementById('loadingText');
     if (overlay) overlay.style.display = 'flex';
     try {
+      // ALWAYS force full sync from Google Sheets before rendering
       if (window.careSync && navigator.onLine) {
-        window.careSync.sync().catch(() => {});
+        if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets...';
+        await window.careSync.forceFullSync((msg) => {
+          if (loadingText) loadingText.textContent = msg;
+        });
       }
+      
+      // Reload fresh data from IndexedDB (now updated from Google Sheets)
       const allMarks = await this.db.getAll('atzimes');
       const cid = client.id || client.ID;
       let clientMarks = allMarks.filter(m => {
