@@ -158,7 +158,7 @@ class CareFormController {
 try {
       const syncResult = await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
-      });
+      }, { clientId: this.clientId });
       if (syncResult && syncResult.offline) {
         // NO FALLBACK - Google Sheets is ONLY source of truth
         this.toast('⛔ NEIZDEVĀS ielādēt datus no Google Sheets: ' + (syncResult.error || 'Nav savienojuma'), 10000);
@@ -272,7 +272,7 @@ try {
         try {
           const result = await this.sync.forceFullSync((msg) => {
             if (typeof this.toast === 'function') this.toast(msg, 3000);
-          });
+          }, { clientId: this.clientId });
           if (result.offline) {
             this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
           } else {

@@ -421,11 +421,11 @@ class CareSync {
     });
   }
 
-  async loadInitialData(onProgress) {
-    return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true));
+  async loadInitialData(onProgress, filters = {}) {
+    return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
   }
 
-  async _loadInitialDataUnlocked(onProgress, processQueueFirst) {
+  async _loadInitialDataUnlocked(onProgress, processQueueFirst, filters = {}) {
     this._loading = true;
     this._updateSyncStatus('Sinhronizē...');
     onProgress = onProgress || function() {};
@@ -443,7 +443,12 @@ class CareSync {
           }
 
           onProgress('Ielādēju datus no Google Sheets... (mēģinājums ' + attempt + '/' + maxLoadAttempts + ')');
-          const url = SYNC_URL + '?action=load&t=' + Date.now();
+          const params = new URLSearchParams({ action: 'load', t: Date.now() });
+          if (filters.clientId) params.set('clientId', filters.clientId);
+          if (filters.employeeId) params.set('employeeId', filters.employeeId);
+          if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+          if (filters.dateTo) params.set('dateTo', filters.dateTo);
+          const url = SYNC_URL + '?' + params.toString();
           const data = await requestData(url, 60000);
 
           if (data.error) {
@@ -605,10 +610,10 @@ class CareSync {
     }
   }
 
-  async forceFullSync(onProgress) {
+  async forceFullSync(onProgress, filters = {}) {
     return this._runExclusive(async () => {
       const queue = await this._processQueueUnlocked();
-      const load = await this._loadInitialDataUnlocked(onProgress, false);
+      const load = await this._loadInitialDataUnlocked(onProgress, false, filters);
       const result = { ...load, queue };
       try {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
