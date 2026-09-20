@@ -67,10 +67,19 @@ const TimezoneUtils = {
   formatTimeRiga(date) {
     if (!date) return '';
     if (typeof date === 'string') {
+      // Ja string jau ir "HH:mm:ss" vai "HH:mm" formātā — atgriezt kā ir (nav jākonvertē)
       const timeOnly = date.match(/^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
       if (timeOnly) {
-        return String(parseInt(timeOnly[1], 10)).padStart(2, '0') + ':' +
-          timeOnly[2] + ':' + (timeOnly[3] || '00');
+        const h = String(parseInt(timeOnly[1], 10)).padStart(2, '0');
+        const m = timeOnly[2];
+        const s = timeOnly[3] || '00';
+        // Pārbaudīt, vai tas izskatās kā derīgs laiks (0-23h, 0-59m, 0-59s)
+        const hi = parseInt(h, 10);
+        const mi = parseInt(m, 10);
+        const si = parseInt(s, 10);
+        if (hi >= 0 && hi <= 23 && mi >= 0 && mi <= 59 && si >= 0 && si <= 59) {
+          return h + ':' + m + ':' + s;
+        }
       }
     }
     const parts = this._parts(date);
