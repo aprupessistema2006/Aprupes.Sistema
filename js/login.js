@@ -507,10 +507,27 @@ class LoginController {
     }
     this.refreshLoginButton();
 
-    // Ja vairākas lomas — rādīt izvēlni pirms PIN ievades
-    if (roles.length > 1) {
+    // Ja VIENS loma → uzreiz fokus uz PIN (scroll to bottom)
+    // Ja VAIRĀKAS lomas → rādīt modālu centrēti, pēc tam fokus uz PIN
+    const roles = emp.lomas || [];
+    if (roles.length === 1) {
+      this.focusPinInput();
+    } else if (roles.length > 1) {
       this.showRoleSelector(emp);
     }
+  }
+
+  focusPinInput() {
+    const pinInput = document.getElementById('pinInput');
+    if (pinInput) {
+      pinInput.disabled = false;
+      setTimeout(() => {
+        pinInput.focus();
+        pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    }
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) loginBtn.disabled = false;
   }
 
 showRoleSelector(emp) {
@@ -539,40 +556,40 @@ showRoleSelector(emp) {
 
     const preSelected = emp.chosenRole || roles[0];
 
-    const modal = document.createElement('div');
-    modal.className = 'role-select-modal';
-    modal.innerHTML = `
-      <div class="role-select-card">
-        <div class="role-select-header">
-          <div class="role-select-avatar" style="background:${roleColor(roles[0])};color:#fff">
-            ${((emp.vards || '?')[0] || '?') + ((emp.uzvards || '')[0] || '')}
-          </div>
-          <h3>${this.escapeHtml(emp.vards)} ${this.escapeHtml(emp.uzvards)}</h3>
-          <p>Izvēlies lomu, ar kuru ienāksist</p>
-        </div>
-        <div class="role-select-options">
+    // Rādīt role selector IEKŠ selected employee kartiņas
+    const selectedEl = document.getElementById('selectedEmployee');
+    const roleEl = document.getElementById('selectedRole');
+    if (!selectedEl || !roleEl) return;
+
+    // Saglabājam originalo saturu
+    this._originalRoleContent = roleEl.innerHTML;
+
+    // Izveidojam radio pogas IEKŠ kartiņas
+    roleEl.innerHTML = `
+      <div class="inline-role-selector">
+        <p class="inline-role-prompt">Izvēlies lomu:</p>
+        <div class="inline-role-options">
           ${roles.map(r => `
-            <label class="role-radio-option" data-role="${r}" style="--role-color:${roleColor(r)};--role-color-alpha:${roleColorAlpha(r)}">
-              <input type="radio" name="roleChoice" value="${r}" ${r === preSelected ? 'checked' : ''}>
-              <span class="role-radio-custom"></span>
-              <span class="role-radio-label">${roleLabel(r)}</span>
+            <label class="inline-role-option" style="--role-color:${roleColor(r)};--role-color-alpha:${roleColorAlpha(r)}">
+              <input type="radio" name="inlineRoleChoice" value="${r}" ${r === preSelected ? 'checked' : ''}>
+              <span class="inline-role-radio"></span>
+              <span class="inline-role-label">${roleLabel(r)}</span>
             </label>
           `).join('')}
         </div>
-        <div class="role-select-actions">
-          <button id="roleSelectConfirm" class="role-select-confirm" disabled>✓ Apstiprināt un ievadīt PIN</button>
-          <button id="roleSelectCancel" class="role-select-cancel">Atcelt</button>
+        <div class="inline-role-actions">
+          <button id="inlineRoleConfirm" class="inline-role-confirm" disabled>✓ Apstiprināt un ievadīt PIN</button>
+          <button id="inlineRoleCancel" class="inline-role-cancel">Atcelt</button>
         </div>
       </div>
     `;
-    document.body.appendChild(modal);
-    requestAnimationFrame(() => modal.classList.add('show'));
 
-    const radioInputs = modal.querySelectorAll('input[name="roleChoice"]');
-    const confirmBtn = modal.querySelector('#roleSelectConfirm');
+    const radioInputs = roleEl.querySelectorAll('input[name="inlineRoleChoice"]');
+    const confirmBtn = roleEl.querySelector('#inlineRoleConfirm');
+    const cancelBtn = roleEl.querySelector('#inlineRoleCancel');
 
     const updateConfirm = () => {
-      const checked = modal.querySelector('input[name="roleChoice"]:checked');
+      const checked = roleEl.querySelector('input[name="inlineRoleChoice"]:checked');
       confirmBtn.disabled = !checked;
     };
 
@@ -584,35 +601,28 @@ showRoleSelector(emp) {
       });
     });
 
-    const autoConfirm = () => {
-      const checked = modal.querySelector('input[name="roleChoice"]:checked');
-      if (checked && confirmBtn.disabled === false) {
-        confirmBtn.focus();
-      }
-    };
-    radioInputs.forEach(input => input.addEventListener('change', autoConfirm));
-
     confirmBtn.addEventListener('click', () => {
-      const checked = modal.querySelector('input[name="roleChoice"]:checked');
+      const checked = roleEl.querySelector('input[name="inlineRoleChoice"]:checked');
       if (!checked) return;
-      console.log('[login] role confirmed:', checked.value);
+      console.log('[login] inline role confirmed:', checked.value);
       this.selectedEmployee.chosenRole = checked.value;
-      modal.classList.remove('show');
-      setTimeout(() => modal.remove(), 200);
+      // Atjaunot role badge
+      roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(checked.value)}20;color:${roleColor(checked.value)};border:1px solid ${roleColor(checked.value)}">${roleLabel(checked.value)}</span>`;
+      // Fokus uz PIN
       if (pinInput) {
         pinInput.disabled = false;
-        pinInput.focus();
-        pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => {
+          pinInput.focus();
+          pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
       }
       if (loginBtn) loginBtn.disabled = false;
-      const roleEl = document.getElementById('selectedRole');
-      if (roleEl) {
-        roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(checked.value)}20;color:${roleColor(checked.value)};border:1px solid ${roleColor(checked.value)}">${roleLabel(checked.value)}</span>`;
-      }
     });
-    modal.querySelector('#roleSelectCancel').addEventListener('click', () => {
-      modal.classList.remove('show');
-      setTimeout(() => modal.remove(), 200);
+
+    cancelBtn.addEventListener('click', () => {
+      roleEl.innerHTML = this._originalRoleContent || '';
+      if (pinInput) pinInput.disabled = true;
+      if (loginBtn) loginBtn.disabled = true;
       this.clearSelection();
     });
   }

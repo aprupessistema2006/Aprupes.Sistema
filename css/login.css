@@ -595,6 +595,151 @@ body.online {
   padding: 4px 12px;
 }
 
+/* INLINE ROLE SELECTOR (iekš selected employee kartiņas) */
+.inline-role-selector {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 8px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.inline-role-prompt {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  text-align: center;
+}
+
+.inline-role-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.inline-role-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inline-role-option:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateX(2px);
+}
+
+.inline-role-option:has(input:checked) {
+  background: #fff;
+  border-color: var(--role-color);
+  box-shadow: 0 0 0 3px var(--role-color-alpha), 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.inline-role-radio {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  background: #fff;
+}
+
+.inline-role-option:has(input:checked) .inline-role-radio {
+  border-color: var(--role-color);
+  background: var(--role-color);
+}
+
+.inline-role-radio::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.inline-role-option:has(input:checked) .inline-role-radio::after {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.inline-role-label {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+  text-align: left;
+}
+
+.inline-role-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inline-role-confirm {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inline-role-confirm:hover:not(:disabled) {
+  background: var(--accent-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(39,174,96,0.3);
+}
+
+.inline-role-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.inline-role-cancel {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inline-role-cancel:hover {
+  background: #e2e8f0;
+  color: var(--primary);
+}
+
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .employee-card {
