@@ -644,7 +644,7 @@ function handleCreateTask(data) {
   const sheet = getSheet('uzdevomi');
   const t = data.data;
 
-  ensureColumns(sheet, ['action_id']);
+  ensureColumns(sheet, ['action_id', 'pabeigts_laiks', 'pabeigtajs_id']);
 
   const lock = LockService.getScriptLock();
   try {
@@ -725,6 +725,10 @@ function handleUpdateTask(data) {
   const t = data.data;
   const row = findRow(sheet, [['id', t.id]]);
   if (!row) return { error: 'Uzdevums nav atrasts' };
+
+  // Ensure completion columns exist before writing
+  ensureColumns(sheet, ['pabeigts_laiks', 'pabeigtajs_id', 'pabeigts']);
+
   if (t.statuss !== undefined) setCellValue(sheet, row.row, 'statuss', t.statuss);
   if (t.irPabeigts !== undefined) setCellValue(sheet, row.row, 'pabeigts', t.irPabeigts === true || t.irPabeigts === 'true');
   if (t.pabeigtsLaiks !== undefined) {

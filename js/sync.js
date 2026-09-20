@@ -378,7 +378,8 @@ class CareSync {
         const id = String(t.id || t.ID);
         if (!id) return;
         const done = t.irPabeigts === true || t.irPabeigts === 'TRUE' || t.irPabeigts === 'true' || t.irPabeigts === 1 || t.irPabeigts === '1';
-        if (done) {
+        const statusDone = String(t.statuss || '').toLowerCase() === 'pabeigts' || String(t.statuss || '').toLowerCase() === 'done' || String(t.statuss || '').toLowerCase() === 'completed';
+        if (done || statusDone) {
           map[id] = {
             irPabeigts: true,
             statuss: t.statuss || 'pabeigts',
@@ -404,7 +405,8 @@ class CareSync {
         const c = completions[id];
         if (!c) return;
         const remoteDone = t.irPabeigts === true || t.irPabeigts === 'TRUE' || t.irPabeigts === 'true' || t.irPabeigts === 1 || t.irPabeigts === '1';
-        if (!remoteDone) {
+        const remoteStatusDone = String(t.statuss || '').toLowerCase() === 'pabeigts' || String(t.statuss || '').toLowerCase() === 'done' || String(t.statuss || '').toLowerCase() === 'completed';
+        if (!remoteDone && !remoteStatusDone) {
           t.irPabeigts = true;
           t.statuss = c.statuss || 'pabeigts';
           if (c.pabeigtsLaiks) t.pabeigtsLaiks = c.pabeigtsLaiks;
@@ -457,6 +459,10 @@ class CareSync {
 
           onProgress('Atjaunoju lokālos datus no Google Sheets...');
           const lastSync = Date.now();
+
+          // Saglabāt vietējos pabeigšanas statusus pirms DB tīrīšanas
+          const localCompletions = await this._collectLocalCompletions();
+
           await this.db.replaceStores({
             darbinieki: (data.darbinieki || []).map(normalizeRow),
             klienti: (data.klienti || []).map(normalizeRow),
@@ -465,6 +471,9 @@ class CareSync {
             uzdevomi: (data.uzdevomi || []).map(normalizeRow),
             meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
           });
+
+          // Atjaunot vietējos pabeigšanas statusus, ja Google Sheets tos nav atgriezusi
+          await this._applyLocalCompletions(localCompletions);
 
           this.loaded = true;
           this.revision = (this.revision || 0) + 1;
