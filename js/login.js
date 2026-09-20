@@ -526,12 +526,17 @@ showRoleSelector(emp) {
       if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
       return 'var(--accent)';
     };
+    const roleColorAlpha = (l) => {
+      const r = (l || '').toLowerCase();
+      if (r === 'administrators' || r === 'admins' || r === 'admin') return 'rgba(231,76,60,0.25)';
+      if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'rgba(52,152,219,0.25)';
+      return 'rgba(39,174,96,0.25)';
+    };
     const pinInput = document.getElementById('pinInput');
     const loginBtn = document.getElementById('loginBtn');
     if (pinInput) pinInput.disabled = true;
     if (loginBtn) loginBtn.disabled = true;
 
-    // Ja jau ir izvēlēta loma — to izmantot kā default
     const preSelected = emp.chosenRole || roles[0];
 
     const modal = document.createElement('div');
@@ -543,19 +548,19 @@ showRoleSelector(emp) {
             ${((emp.vards || '?')[0] || '?') + ((emp.uzvards || '')[0] || '')}
           </div>
           <h3>${this.escapeHtml(emp.vards)} ${this.escapeHtml(emp.uzvards)}</h3>
-          <p>Izvēlies lomu, ar kuru ienākt</p>
+          <p>Izvēlies lomu, ar kuru ienāksist</p>
         </div>
         <div class="role-select-options">
           ${roles.map(r => `
-            <label class="role-radio-option">
-              <input type="radio" name="roleChoice" value="${r}" ${r === preSelected ? 'checked' : ''} style="display:none;">
-              <span class="role-radio-custom" style="border-color:${roleColor(r)};background:${roleColor(r)}20"></span>
-              <span class="role-radio-label" style="color:${roleColor(r)}">${roleLabel(r)}</span>
+            <label class="role-radio-option" data-role="${r}" style="--role-color:${roleColor(r)};--role-color-alpha:${roleColorAlpha(r)}">
+              <input type="radio" name="roleChoice" value="${r}" ${r === preSelected ? 'checked' : ''}>
+              <span class="role-radio-custom"></span>
+              <span class="role-radio-label">${roleLabel(r)}</span>
             </label>
           `).join('')}
         </div>
         <div class="role-select-actions">
-          <button id="roleSelectConfirm" class="role-select-confirm" disabled>✓ Apstiprināt</button>
+          <button id="roleSelectConfirm" class="role-select-confirm" disabled>✓ Apstiprināt un ievadīt PIN</button>
           <button id="roleSelectCancel" class="role-select-cancel">Atcelt</button>
         </div>
       </div>
@@ -566,7 +571,6 @@ showRoleSelector(emp) {
     const radioInputs = modal.querySelectorAll('input[name="roleChoice"]');
     const confirmBtn = modal.querySelector('#roleSelectConfirm');
 
-    // Atjaunot confirm pogu stāvokli
     const updateConfirm = () => {
       const checked = modal.querySelector('input[name="roleChoice"]:checked');
       confirmBtn.disabled = !checked;
@@ -574,12 +578,19 @@ showRoleSelector(emp) {
 
     radioInputs.forEach(input => {
       input.addEventListener('change', updateConfirm);
-      // Klikšķis uz label arī atzīmē radio
       input.parentElement.addEventListener('click', (e) => {
         if (e.target !== input) input.checked = true;
         updateConfirm();
       });
     });
+
+    const autoConfirm = () => {
+      const checked = modal.querySelector('input[name="roleChoice"]:checked');
+      if (checked && confirmBtn.disabled === false) {
+        confirmBtn.focus();
+      }
+    };
+    radioInputs.forEach(input => input.addEventListener('change', autoConfirm));
 
     confirmBtn.addEventListener('click', () => {
       const checked = modal.querySelector('input[name="roleChoice"]:checked');
@@ -588,13 +599,23 @@ showRoleSelector(emp) {
       this.selectedEmployee.chosenRole = checked.value;
       modal.classList.remove('show');
       setTimeout(() => modal.remove(), 200);
-      if (pinInput) pinInput.disabled = false;
+      if (pinInput) {
+        pinInput.disabled = false;
+        pinInput.focus();
+        pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       if (loginBtn) loginBtn.disabled = false;
-      setTimeout(() => pinInput?.focus(), 100);
       const roleEl = document.getElementById('selectedRole');
       if (roleEl) {
         roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(checked.value)}20;color:${roleColor(checked.value)};border:1px solid ${roleColor(checked.value)}">${roleLabel(checked.value)}</span>`;
       }
+    });
+    modal.querySelector('#roleSelectCancel').addEventListener('click', () => {
+      modal.classList.remove('show');
+      setTimeout(() => modal.remove(), 200);
+      this.clearSelection();
+    });
+  }
     });
     modal.querySelector('#roleSelectCancel').addEventListener('click', () => {
       modal.classList.remove('show');
