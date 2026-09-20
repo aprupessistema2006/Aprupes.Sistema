@@ -514,6 +514,7 @@ class LoginController {
   }
 
   showRoleSelector(emp) {
+    console.log('[login] showRoleSelector called for', emp.vards, emp.uzvards, 'roles:', emp.lomas);
     const roles = emp.lomas || [];
     const roleLabel = (l) => {
       const m = { 'administrators': 'Administrators', 'kontroliere': 'Kontrolieris', 'aprūpētājs': 'Aprūpētājs' };
@@ -556,13 +557,13 @@ class LoginController {
 
     modal.querySelectorAll('.role-option-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        console.log('[login] role selected:', btn.dataset.role);
         this.selectedEmployee.chosenRole = btn.dataset.role;
         modal.classList.remove('show');
         setTimeout(() => modal.remove(), 200);
         if (pinInput) pinInput.disabled = false;
         if (loginBtn) loginBtn.disabled = false;
         setTimeout(() => pinInput?.focus(), 100);
-        // Atjaunot rādīto lomu
         const roleEl = document.getElementById('selectedRole');
         if (roleEl) {
           roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(btn.dataset.role)}20;color:${roleColor(btn.dataset.role)};border:1px solid ${roleColor(btn.dataset.role)}">${roleLabel(btn.dataset.role)}</span>`;
