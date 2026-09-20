@@ -101,9 +101,27 @@ class LoginController {
     }
 
     hideLoading();
+
+    if (!hasRemote) {
+      const statusMsg = document.getElementById('statusMessage');
+      if (statusMsg) {
+        statusMsg.textContent = '⚠️ Nav savienojuma ar Google Sheets. Dati nevar tikt atjaunoti. Lūdzu, pārbaudiet interneta savienojumu un atkārtoti atveriet lapu.';
+        statusMsg.style.color = '#e74c3c';
+      }
+      document.body.classList.remove('online');
+      const loginBtn = document.getElementById('loginBtn');
+      if (loginBtn) loginBtn.disabled = true;
+      const pinInput = document.getElementById('pinInput');
+      if (pinInput) pinInput.disabled = true;
+      const employeeSearch = document.getElementById('employeeSearch');
+      if (employeeSearch) employeeSearch.disabled = true;
+      const list = document.getElementById('employeeList');
+      if (list) list.innerHTML = '<div class="no-results" style="color:#e74c3c;text-align:center;padding:20px;">🔴 Nav savienojuma ar serveri. Nevar rādīt darbinieku sarakstu, jo dati var būt novecojuši vai nekorekti.</div>';
+      return;
+    }
+
     await this.loadEmployees();
 
-    // Ja nav darbinieku (piem., Google Sheets lapā nav ierakstu), ieslēgt setup režīmu
     if (this.employees.length === 0) {
       this.enterSetupMode();
       return;
@@ -303,16 +321,38 @@ class LoginController {
   }
 
   async loadEmployees() {
-    this.employees = await this.db.getAll('darbinieki');
-    this.employees = this.employees.filter(e => {
+    const raw = await this.db.getAll('darbinieki');
+    const active = raw.filter(e => {
       const a = e.aktivs;
       return a === true || a === 'true' || a === 'TRUE' || a === 1 || a === '1' || a === undefined;
     });
-    this.employees.sort((a, b) => {
-      const aN = ((a.uzvards || a.Uzvārds || '') + ' ' + (a.vards || a.Vārds || '')).toLowerCase();
-      const bN = ((b.uzvards || b.Uzvārds || '') + ' ' + (b.vards || b.Vārds || '')).toLowerCase();
+
+    // Gruppē pa vārdu/uzvārdu — viena persona var būt ar vairākām lomām
+    const grouped = new Map();
+    for (const e of active) {
+      const key = ((e.vards || e.Vārds || '') + '|' + (e.uzvards || e.Uzvārds || '')).toLowerCase().trim();
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          id: e.id || e.ID,
+          vards: e.vards || e.Vārds,
+          uzvards: e.uzvards || e.Uzvārds,
+          lomas: [],
+          pins: new Set(),
+          mainaTips: e.maina_tips || e.mainaTips || 'diennakts'
+        });
+      }
+      const g = grouped.get(key);
+      const role = (e.loma || e.Loma || '').toLowerCase();
+      if (role && !g.lomas.includes(role)) g.lomas.push(role);
+      if (e.pin) g.pins.add(String(e.pin));
+    }
+
+    this.employees = Array.from(grouped.values()).sort((a, b) => {
+      const aN = (a.uzvards + ' ' + a.vards).toLowerCase();
+      const bN = (b.uzvards + ' ' + b.vards).toLowerCase();
       return aN.localeCompare(bN);
     });
+
     this.filteredEmployees = [...this.employees];
     this.renderEmployeeList();
     const total = this.employees.length;
@@ -334,17 +374,21 @@ class LoginController {
     let result = this.employees;
     if (role !== 'all') {
       result = result.filter(e => {
-        const l = (e.loma || e.Loma || '').toLowerCase();
-        return l === role || l === (CONFIG.ROLES[role] || role);
+        const roles = e.lomas || [];
+        return roles.some(r => {
+          const l = r.toLowerCase();
+          return l === role || l === (CONFIG.ROLES[role] || role);
+        });
       });
     }
     if (searchTerm) {
       const term = this._normalizeForSearch(searchTerm);
       result = result.filter(e => {
-        const v = this._normalizeForSearch(e.vards || e.Vārds || '');
-        const u = this._normalizeForSearch(e.uzvards || e.Uzvārds || '');
-        const l = this._normalizeForSearch(e.loma || e.Loma || '');
-        return v.includes(term) || u.includes(term) || l.includes(term);
+        const v = this._normalizeForSearch(e.vards || '');
+        const u = this._normalizeForSearch(e.uzvards || '');
+        const roles = e.lomas || [];
+        const roleMatch = roles.some(r => this._normalizeForSearch(r).includes(term));
+        return v.includes(term) || u.includes(term) || roleMatch;
       });
     }
     this.filteredEmployees = [...result];
@@ -375,12 +419,12 @@ class LoginController {
       return;
     }
     const roleLabel = (l) => {
-      const m = { 'administrators': '👑 Administrators/e', 'kontroliere': '📊 Kontrolieris/e', 'aprūpētājs': '🤝 Aprūpētājs/a' };
-      return m[(l || '').toLowerCase()] || ('👤 ' + l);
+      const m = { 'administrators': '👑 Admin', 'kontroliere': '📊 Kontrole', 'aprūpētājs': '🤝 Aprūpe' };
+      return m[(l || '').toLowerCase()] || l;
     };
     const initials = (e) => {
-      const v = (e.vards || e.Vārds || '').trim();
-      const u = (e.uzvards || e.Uzvārds || '').trim();
+      const v = (e.vards || '').trim();
+      const u = (e.uzvards || '').trim();
       return ((v[0] || '?') + (u[0] || '')).toUpperCase();
     };
     const roleColor = (l) => {
@@ -390,25 +434,26 @@ class LoginController {
       return 'var(--accent)';
     };
     list.innerHTML = this.filteredEmployees.map(e => {
-      const id = e.id || e.ID;
-      const v = e.vards || e.Vārds || '';
-      const u = e.uzvards || e.Uzvārds || '';
-      const l = e.loma || e.Loma || '';
-      const sel = this.selectedEmployee && String(this.selectedEmployee.id || this.selectedEmployee.ID) === String(id) ? 'selected' : '';
+      const id = e.id;
+      const v = e.vards || '';
+      const u = e.uzvards || '';
+      const roles = e.lomas || [];
+      const sel = this.selectedEmployee && String(this.selectedEmployee.id) === String(id) ? 'selected' : '';
+      const roleBadges = roles.map(r => `<span class="role-badge" style="background:${roleColor(r)}20;color:${roleColor(r)};border:1px solid ${roleColor(r)}">${roleLabel(r)}</span>`).join(' ');
       return `
         <div class="employee-card ${sel}" data-id="${id}">
           <div class="emp-card-header">
-            <div class="emp-avatar" style="background:${roleColor(l)}20;color:${roleColor(l)}">${initials(e)}</div>
+            <div class="emp-avatar" style="background:${roleColor(roles[0])}20;color:${roleColor(roles[0])}">${initials(e)}</div>
             <div class="emp-card-title">${this.escapeHtml(v)} ${this.escapeHtml(u)}</div>
           </div>
-          <div class="emp-card-role" style="color:${roleColor(l)}">${roleLabel(l)}</div>
+          <div class="emp-card-roles">${roleBadges}</div>
         </div>
       `;
     }).join('');
     list.querySelectorAll('.employee-card').forEach(el => {
       el.addEventListener('click', () => {
         const id = el.dataset.id;
-        const emp = this.employees.find(x => String(x.id || x.ID) === String(id));
+        const emp = this.employees.find(x => String(x.id) === String(id));
         if (emp) this.selectEmployee(emp);
       });
     });
@@ -430,19 +475,37 @@ class LoginController {
     const role = document.getElementById('selectedRole');
     const shiftSelector = document.getElementById('shiftTypeSelector');
     if (sel) sel.style.display = 'flex';
-    if (avatar) avatar.textContent = ((emp.vards || emp.Vārds || '?')[0] || '?') + ((emp.uzvards || emp.Uzvārds || '')[0] || '');
-    if (name) name.textContent = (emp.vards || emp.Vārds || '') + ' ' + (emp.uzvards || emp.Uzvārds || '');
-    const roleLbl = { 'administrators': '👑 Administrators/e', 'kontroliere': '📊 Kontrolieris/e', 'aprūpētājs': '🤝 Aprūpētājs/a' };
-    if (role) role.textContent = roleLbl[(emp.loma || emp.Loma || '').toLowerCase()] || emp.loma;
+    if (avatar) avatar.textContent = ((emp.vards || '?')[0] || '?') + ((emp.uzvards || '')[0] || '');
+    if (name) name.textContent = (emp.vards || '') + ' ' + (emp.uzvards || '');
+    // Ja vairākas lomas — rādīt kā badge'us
+    const roleLabel = (l) => {
+      const m = { 'administrators': '👑 Admin', 'kontroliere': '📊 Kontrole', 'aprūpētājs': '🤝 Aprūpe' };
+      return m[(l || '').toLowerCase()] || l;
+    };
+    const roleColor = (l) => {
+      const r = (l || '').toLowerCase();
+      if (r === 'administrators' || r === 'admins' || r === 'admin') return 'var(--danger)';
+      if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
+      return 'var(--accent)';
+    };
+    const roles = emp.lomas || [];
+    if (role) {
+      if (roles.length === 1) {
+        role.textContent = roleLabel(roles[0]);
+        role.style.color = roleColor(roles[0]);
+      } else {
+        role.innerHTML = roles.map(r => `<span class="role-badge" style="background:${roleColor(r)}20;color:${roleColor(r)};border:1px solid ${roleColor(r)}">${roleLabel(r)}</span>`).join(' ');
+      }
+    }
     if (shiftSelector) shiftSelector.style.display = 'block';
     const sub = document.getElementById('loginSubtitle');
     if (sub) sub.textContent = 'Izvēlies maiņas tipu un ievadi PIN kodu:';
-     const search = document.getElementById('employeeSearch');
-     if (search) {
-       search.value = '';
-       this.applyFilters('');
-       this.renderEmployeeList();
-     }
+    const search = document.getElementById('employeeSearch');
+    if (search) {
+      search.value = '';
+      this.applyFilters('');
+      this.renderEmployeeList();
+    }
     this.refreshLoginButton();
   }
 
@@ -482,12 +545,17 @@ class LoginController {
     const errorMsg = document.getElementById('errorMessage');
     const statusMsg = document.getElementById('statusMessage');
 
-    if (String(employee.pin) !== String(pin)) {
+    // Pārbaudam PIN pret visiem PIN kodi, kas ir šim darbiniekam (gruppētajam)
+    const pins = employee.pins || new Set([String(employee.pin)]);
+    let pinMatch = false;
+    for (const p of pins) {
+      if (String(p) === String(pin)) { pinMatch = true; break; }
+    }
+    if (!pinMatch) {
       errorMsg.textContent = 'Nepareizs PIN kods';
       errorMsg.style.display = 'block';
       statusMsg.textContent = '';
       this.pin = '';
-      const pinInput = document.getElementById('pinInput');
       if (pinInput) {
         pinInput.value = '';
         setTimeout(() => pinInput.focus(), 50);
@@ -499,11 +567,16 @@ class LoginController {
     const shiftTypeInput = document.querySelector('input[name="shiftType"]:checked');
     const mainaTips = shiftTypeInput ? shiftTypeInput.value : 'diennakts';
 
+    // Ja vairākas lomas — ļauj izvēlēties ar kuru ienākt (tagad ņem pirmo, bet var paplašināt)
+    const roles = employee.lomas || [];
+    const chosenRole = roles[0]; // var pievienot izvēlni, ja nepieciešams
+
     const user = {
-      id: employee.id || employee.ID,
-      vards: employee.vards || employee.Vārds,
-      uzvards: employee.uzvards || employee.Uzvārds,
-      loma: employee.loma || employee.Loma,
+      id: employee.id,
+      vards: employee.vards,
+      uzvards: employee.uzvards,
+      loma: chosenRole,
+      visulasLomas: roles,
       pin: pin,
       pinVerified: true,
       loginTime: Date.now(),
