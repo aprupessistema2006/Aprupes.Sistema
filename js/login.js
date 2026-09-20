@@ -509,7 +509,6 @@ class LoginController {
 
     // Ja VIENS loma → uzreiz fokus uz PIN (scroll to bottom)
     // Ja VAIRĀKAS lomas → rādīt modālu centrēti, pēc tam fokus uz PIN
-    const roles = emp.lomas || [];
     if (roles.length === 1) {
       this.focusPinInput();
     } else if (roles.length > 1) {
