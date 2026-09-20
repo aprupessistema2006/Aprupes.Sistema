@@ -94,7 +94,6 @@ class AdminPanel {
       await this.populateExportDropdowns();
       this.setExportDateDefaults();
     } catch (e) {
-      console.error(e);
     } finally {
       if (overlay) overlay.style.display = 'none';
     }
@@ -262,7 +261,6 @@ class AdminPanel {
     if (!client) { this.toast('Klients nav atrasts'); return; }
 
     try {
-      console.log('[exportSingle] Starting: clientId=' + clientId + ' month=' + monthVal);
       await this.populateExportDropdowns();
       const exporter = new ExcelExporter();
       const overlay = document.getElementById('loadingOverlay');
@@ -276,9 +274,7 @@ class AdminPanel {
 
       const allMarks = await this.db.getAll('atzimes');
       const cid = client.id || client.ID;
-      console.log('[exportSingle] allMarks=' + allMarks.length);
       const clientMarks = allMarks.filter(m => String(m.clientId || m.klientsId || '') === String(cid));
-      console.log('[exportSingle] clientMarks=' + clientMarks.length);
       clientMarks.sort((a, b) => {
         const da = this.extractDateFromAnyField(a) || '';
         const db = this.extractDateFromAnyField(b) || '';
@@ -292,7 +288,6 @@ class AdminPanel {
       if (overlay) overlay.style.display = 'none';
     } catch (err) {
       this.toast('Eksporta kļūda: ' + err.message);
-      console.error(err);
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) overlay.style.display = 'none';
     }
@@ -327,14 +322,12 @@ class AdminPanel {
       const year = parseInt(y);
       const month = parseInt(m);
 
-      console.log('[exportAll] Starting export: year=' + year + ' month=' + month + ' activeClients=' + activeClients.length + ' allMarks=' + allMarks.length);
 
       let successCount = 0;
       let errorCount = 0;
       for (const client of activeClients) {
         const cid = client.id || client.ID;
         const clientMarks = allMarks.filter(mark => String(mark.clientId || mark.klientsId || '') === String(cid));
-        console.log('[exportAll] Client: ' + client.vards + ' ' + client.uzvards + ' (id=' + cid + ') marks=' + clientMarks.length);
         clientMarks.sort((a, b) => {
           const da = this.extractDateFromAnyField(a) || '';
           const db = this.extractDateFromAnyField(b) || '';
@@ -346,20 +339,16 @@ class AdminPanel {
         try {
           const filename = await exporter.generateMonth(client, year, month, clientMarks);
           successCount++;
-          console.log('[exportAll] SUCCESS: ' + filename);
           if (loadingText) loadingText.textContent = 'Eksportēts: ' + filename + ' (' + successCount + '/' + activeClients.length + ')';
         } catch (err) {
           errorCount++;
-          console.error('[exportAll] FAILED for client ' + cid + ':', err);
         }
         await new Promise(r => setTimeout(r, 500));
       }
       this.toast('✓ Lejupielādēti ' + successCount + '/' + activeClients.length + ' klienti' + (errorCount > 0 ? ' | Kļūdas: ' + errorCount : ''));
-      console.log('[exportAll] Done: success=' + successCount + ' errors=' + errorCount);
       if (overlay) overlay.style.display = 'none';
     } catch (err) {
       this.toast('Eksporta kļūda: ' + err.message);
-      console.error(err);
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) overlay.style.display = 'none';
     }
@@ -400,7 +389,6 @@ class AdminPanel {
         this.clients.find(c => String(c.id || c.ID) === String(cid))
       ).filter(Boolean);
 
-      console.log('[exportMulti] Selected clients: ' + selectedClients.length + ' from ' + fromVal + ' to ' + toVal);
       selectedClients.forEach(c => console.log('[exportMulti]   - ' + c.vards + ' ' + c.uzvards + ' (id=' + (c.id || c.ID) + ')'));
 
       let successCount = 0;
@@ -413,7 +401,6 @@ class AdminPanel {
           const markDate = this.extractDateFromAnyField(mark) || '';
           return markDate >= dateFrom && markDate <= dateTo;
         });
-        console.log('[exportMulti] Client: ' + client.vards + ' ' + client.uzvards + ' (id=' + cid + ') marks in range=' + clientMarks.length);
 
         const monthsInRange = [];
         const cur = new Date(parseInt(fromVal.split('-')[0]), parseInt(fromVal.split('-')[1]) - 1, 1);
@@ -422,7 +409,6 @@ class AdminPanel {
           monthsInRange.push({ year: cur.getFullYear(), month: cur.getMonth() + 1 });
           cur.setMonth(cur.getMonth() + 1);
         }
-        console.log('[exportMulti]   Months in range: ' + monthsInRange.length);
 
         for (const { year, month } of monthsInRange) {
           const monthMarks = clientMarks.filter(m => {
@@ -430,25 +416,20 @@ class AdminPanel {
             return d.getFullYear() === year && (d.getMonth() + 1) === month;
           });
           totalFiles++;
-          console.log('[exportMulti]   Exporting ' + client.vards + ' ' + year + '-' + String(month).padStart(2, '0') + ' marks=' + monthMarks.length);
           try {
             const filename = await exporter.generateMonth(client, year, month, monthMarks);
             successCount++;
-            console.log('[exportMulti]   SUCCESS: ' + filename);
             if (loadingText) loadingText.textContent = 'Eksportēts: ' + filename + ' (' + successCount + '/' + totalFiles + ')';
           } catch (err) {
             errorCount++;
-            console.error('[exportMulti]   FAILED ' + client.vards + ' ' + year + '-' + month + ':', err);
           }
           await new Promise(r => setTimeout(r, 500));
         }
       }
-      console.log('[exportMulti] Done: success=' + successCount + ' errors=' + errorCount + ' totalFiles=' + totalFiles);
       this.toast('✓ Lejupielādēti ' + successCount + ' faili' + (errorCount > 0 ? ' | Kļūdas: ' + errorCount : ''));
       if (overlay) overlay.style.display = 'none';
     } catch (err) {
       this.toast('Eksporta kļūda: ' + err.message);
-      console.error(err);
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) overlay.style.display = 'none';
     }

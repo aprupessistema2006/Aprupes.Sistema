@@ -10,10 +10,8 @@ class ExcelExporter {
       const dir = path.dirname(__dirname || __filename);
       return fs.readFileSync(path.join(dir, this.templateUrl));
     }
-    console.log('[generateMonth] Loading template: ' + this.templateUrl);
     const response = await fetch(this.templateUrl);
     if (!response.ok) throw new Error('Neizdevās ielādēt MK veidni: ' + this.templateUrl);
-    console.log('[generateMonth] Template loaded, status=' + response.status + ', size=' + response.headers.get('content-length'));
     return await response.arrayBuffer();
   }
 
@@ -33,7 +31,6 @@ class ExcelExporter {
   }
 
   async generateMonth(client, year, month, marks) {
-    console.log('[generateMonth] ENTER client=' + (client.vards || '') + ' ' + (client.uzvards || '') + ' year=' + year + ' month=' + month + ' marks=' + marks.length);
     if (typeof ExcelJS === 'undefined' && typeof require !== 'undefined') {
       globalThis.ExcelJS = require('exceljs');
     }
@@ -86,17 +83,13 @@ class ExcelExporter {
     const filename = `${fullName}_${year}_${String(month).padStart(2, '0')}.xlsx`;
 
     if (typeof window !== 'undefined') {
-      console.log('[generateMonth] Browser mode: generating ' + filename);
       const blob = await wb.xlsx.writeBuffer();
-      console.log('[generateMonth] Buffer ready, size=' + blob.byteLength);
       const url = URL.createObjectURL(new Blob([blob]));
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
-      console.log('[generateMonth] Triggering download for ' + filename);
       a.click();
       setTimeout(() => {
-        console.log('[generateMonth] Revoking URL for ' + filename);
         URL.revokeObjectURL(url);
       }, 5000);
       return filename;
