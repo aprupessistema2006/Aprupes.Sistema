@@ -601,6 +601,7 @@ showRoleSelector(emp) {
     });
 
     confirmBtn.addEventListener('click', () => {
+      console.log('[login] confirmBtn clicked');
       const checked = roleEl.querySelector('input[name="inlineRoleChoice"]:checked');
       if (!checked) return;
       console.log('[login] inline role confirmed:', checked.value);
@@ -608,9 +609,11 @@ showRoleSelector(emp) {
       roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(checked.value)}20;color:${roleColor(checked.value)};border:1px solid ${roleColor(checked.value)}">${roleLabel(checked.value)}</span>`;
       const pinInput = document.getElementById('pinInput');
       const loginBtn = document.getElementById('loginBtn');
+      console.log('[login] pinInput found:', !!pinInput, pinInput);
       if (pinInput) {
         pinInput.disabled = false;
         setTimeout(() => {
+          console.log('[login] focusing and scrolling to pinInput');
           pinInput.focus();
           pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
           window.scrollTo({ top: pinInput.offsetTop - 80, behavior: 'smooth' });
@@ -620,7 +623,10 @@ showRoleSelector(emp) {
     });
 
     cancelBtn.addEventListener('click', () => {
+      console.log('[login] cancelBtn clicked');
       roleEl.innerHTML = this._originalRoleContent || '';
+      const pinInput = document.getElementById('pinInput');
+      const loginBtn = document.getElementById('loginBtn');
       if (pinInput) pinInput.disabled = true;
       if (loginBtn) loginBtn.disabled = true;
       this.clearSelection();
