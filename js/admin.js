@@ -91,6 +91,8 @@ class AdminPanel {
       this.renderDashboard();
       this.renderClientList();
       this.renderEmployeeList();
+      await this.populateExportDropdowns();
+      this.setExportDateDefaults();
     } catch (e) {
       console.error(e);
     } finally {
@@ -194,6 +196,19 @@ class AdminPanel {
   formatTimeForDisplay(t) {
     if (!t) return '';
     return TimezoneUtils.formatTimeRiga(t);
+  }
+
+  setExportDateDefaults() {
+    const fromEl = document.getElementById('exportMultiFrom');
+    const toEl = document.getElementById('exportMultiTo');
+    if (fromEl && !fromEl.value) {
+      const d = new Date();
+      fromEl.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+    if (toEl && !toEl.value) {
+      const d = new Date();
+      toEl.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
   }
 
   setupExports() {
