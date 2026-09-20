@@ -435,29 +435,93 @@ body.online {
   margin-bottom: 20px;
 }
 
-.role-option-btn {
+.role-radio-option {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  gap: 14px;
   padding: 16px 20px;
-  border: 2px solid;
+  border: 2px solid transparent;
   border-radius: 14px;
   background: #fafbfc;
-  font-size: 15px;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.role-option-btn:hover {
+.role-radio-option:hover {
   background: #fff;
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0,0,0,0.1);
 }
 
-.role-option-btn:active {
-  transform: translateY(0);
+.role-radio-option:has(input:checked) {
+  background: #fff;
+  box-shadow: 0 0 0 3px currentColor;
+}
+
+.role-radio-custom {
+  width: 24px;
+  height: 24px;
+  border: 2px solid;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.role-radio-custom::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  transition: transform 0.15s ease;
+}
+
+.role-radio-option:has(input:checked) .role-radio-custom::after {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.role-radio-label {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.role-select-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.role-select-confirm {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.role-select-confirm:hover:not(:disabled) {
+  background: var(--accent-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(39,174,96,0.3);
+}
+
+.role-select-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .role-select-cancel {
