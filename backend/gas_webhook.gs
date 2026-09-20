@@ -519,6 +519,18 @@ function handleMark(data) {
       
       // Prepare log entry
       const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
+      // For sikdrumi category, show increment in log instead of running total
+      let logValue = m.value;
+      if (m.category === 'sikdrumi' && existingMarkValue !== '' && existingMarkValue !== null && existingMarkValue !== undefined) {
+        const prev = parseFloat(existingMarkValue);
+        const current = parseFloat(m.value);
+        if (!isNaN(prev) && !isNaN(current)) {
+          const diff = current - prev;
+          if (diff > 0) logValue = '+' + diff;
+          else if (diff < 0) logValue = String(diff);
+        }
+      }
+
       const logRowData = {
         id: logId,
         atzimes_id: markId,
@@ -529,7 +541,7 @@ function handleMark(data) {
         periods: m.shift || 'R',
         kategorija: m.category,
         lauka_nosaukums: m.field,
-        vertiba: m.value,
+        vertiba: logValue,
         skaits: logDateTimeRiga,
         pedeja_vertiba: existingMarkValue,
         pedeja_laiks: logDateTimeRiga,

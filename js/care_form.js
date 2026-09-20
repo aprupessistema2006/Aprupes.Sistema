@@ -1557,6 +1557,18 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
 
       await this.db.put('atzimes', mark);
 
+      // For sikdrumi category, show the increment in history instead of running total
+      let logValue = data.value;
+      if (data.category === 'sikdrumi' && data.prevValue !== null && data.prevValue !== undefined && data.prevValue !== '') {
+        const prev = parseFloat(data.prevValue);
+        const current = parseFloat(data.value);
+        if (!isNaN(prev) && !isNaN(current)) {
+          const diff = current - prev;
+          if (diff > 0) logValue = '+' + diff;
+          else if (diff < 0) logValue = String(diff);
+        }
+      }
+
       const logEntry = {
         id: this.db.generateId(),
         markId: id,
@@ -1567,7 +1579,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         shift: data.shift,
         category: data.category,
         field: data.field,
-        value: data.value,
+        value: logValue,
         prevValue: data.prevValue,
         type: data.type,
         created: nowUTC,
