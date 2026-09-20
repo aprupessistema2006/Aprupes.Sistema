@@ -31,6 +31,7 @@
     <button class="tab-btn" data-tab="clients" data-i18n="clients">👥 Klienti</button>
     <button class="tab-btn" data-tab="employees" data-i18n="employees">👤 Darbinieki</button>
     <button class="tab-btn" data-tab="settings" data-i18n="settings">⚙️ Iestatījumi</button>
+    <button class="tab-btn" data-tab="exports" data-i18n="export">📊 Eksports</button>
   </nav>
 
   <main class="main">
@@ -110,6 +111,46 @@
         <button id="manualBackup" class="btn-secondary" data-i18n="backupCreate">Izveidot rezerves kopiju</button>
       </div>
     </section>
+
+    <section id="exports" class="tab-content">
+      <h2 data-i18n="export">📊 Eksports</h2>
+
+      <div class="export-section">
+        <h3>📊 Vienkāršais eksports</h3>
+        <p class="export-help" data-i18n="exportHelp">Izvēlies mēnesi un klientu, tad noklikšķini "Lejupielādēt Excel".</p>
+        <div class="export-row">
+          <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="exportMonth" required></label>
+          <label><span data-i18n="client">Klients</span>: <select id="exportClient" required><option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option></select></label>
+          <button id="exportBtn" class="btn-primary" data-i18n="exportExcel">📥 Lejupielādēt Excel</button>
+        </div>
+      </div>
+
+      <div class="export-section" style="background:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);border-left-color:#1976d2;">
+        <h3 style="color:#0d47a1;">📊 Visu klientu eksports mēnesī</h3>
+        <p class="export-help" style="color:#1565c0;">Izvēlies mēnesi — katrs aktīvs klients tiek eksportēts uz atsevišķu Excel failu.</p>
+        <div class="export-row">
+          <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="exportAllMonth" required></label>
+          <button id="exportAllBtn" class="btn-primary">📥 Lejupielādēt visus klientus</button>
+        </div>
+      </div>
+
+      <div class="export-section" style="background:linear-gradient(135deg,#fff3e0 0%,#ffe0b2 100%);border-left-color:#e65100;">
+        <h3 style="color:#bf360c;">📊 Izvēlēto klientu eksports vairākos mēnešos</h3>
+        <p class="export-help" style="color:#e65100;">Izvēlies vairākus klientus un datumu diapazonu — katrs klienta mēnesis tiek eksportēts uz atsevišķu Excel failu.</p>
+        <div class="export-row" style="align-items:flex-start;">
+          <label style="flex:1;min-width:200px;"><span>Izvēlētie klienti</span><br>
+            <select id="exportMultiClients" multiple size="5" style="width:100%;padding:8px;border:1px solid #e0e0e0;border-radius:6px;font-size:14px;min-height:100px;"></select>
+          </label>
+          <label><span>No</span>: <input type="month" id="exportMultiFrom" required></label>
+          <label><span>Līdz</span>: <input type="month" id="exportMultiTo" required></label>
+        </div>
+        <div style="margin-top:10px;">
+          <button id="exportMultiBtn" class="btn-primary">📥 Lejupielādēt izvēlētos klientus</button>
+        </div>
+      </div>
+
+      <div id="exportStatus" class="connection-result" style="display:none;margin-top:12px;"></div>
+    </section>
   </main>
 
   <div id="loadingOverlay" class="loading-overlay" style="display:none;">
@@ -156,7 +197,10 @@
 <script src="js/db.js?v=20260917-1950"></script>
 <script src="js/sync.js?v=20260920-1200"></script>
 <script src="js/logout.js?v=20260917-1950"></script>
-<script src="js/admin.js?v=20260917-1950"></script>
+<script src="js/admin.js?v=20260920-1300"></script>
+<script src="js/xlsx.full.min.js?v=20260917-1950"></script>
+<script src="js/exceljs.bare.min.js?v=20260917-1950"></script>
+<script src="js/excel_export.js?v=20260920-1200"></script>
 </body>
 </html>
 

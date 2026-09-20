@@ -177,6 +177,246 @@ class AdminPanel {
     document.getElementById('caregiverConfirmBtn').addEventListener('click', () => this.confirmEnterAsCaregiver());
 
     document.getElementById('gasUrl').textContent = CONFIG.GAS_URL;
+
+    this.setupExports();
+  }
+
+  extractDateFromAnyField(row) {
+    const candidates = [row.date, row.created, row.lastModified, row.izveidots, row.pedeja_laiks, row.pēdējais_laiks];
+    for (const c of candidates) {
+      if (c === null || c === undefined || c === '') continue;
+      const formatted = TimezoneUtils.formatDateRiga(c);
+      if (formatted) return formatted;
+    }
+    return '';
+  }
+
+  formatTimeForDisplay(t) {
+    if (!t) return '';
+    return TimezoneUtils.formatTimeRiga(t);
+  }
+
+  setupExports() {
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => this.exportSingleClient());
+    }
+    const exportAllBtn = document.getElementById('exportAllBtn');
+    if (exportAllBtn) {
+      exportAllBtn.addEventListener('click', () => this.exportAllClientsMonth());
+    }
+    const exportMultiBtn = document.getElementById('exportMultiBtn');
+    if (exportMultiBtn) {
+      exportMultiBtn.addEventListener('click', () => this.exportSelectedClients());
+    }
+  }
+
+  async populateExportDropdowns() {
+    const exportClient = document.getElementById('exportClient');
+    if (exportClient && exportClient.options.length <= 1) {
+      exportClient.innerHTML = '<option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option>' +
+        this.clients.map(c => {
+          const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
+          return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
+        }).join('');
+    }
+
+    const exportMultiClients = document.getElementById('exportMultiClients');
+    if (exportMultiClients && exportMultiClients.options.length === 0) {
+      const activeClients = this.clients.filter(c => c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1');
+      exportMultiClients.innerHTML = activeClients.map(c => {
+        const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
+        return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim())}</option>`;
+      }).join('');
+    }
+  }
+
+  async exportSingleClient() {
+    if (typeof ExcelExporter === 'undefined' && typeof ExcelJS === 'undefined') {
+      this.toast('Excel bibliotēka nav ielādēta');
+      return;
+    }
+    const monthEl = document.getElementById('exportMonth');
+    const clientEl = document.getElementById('exportClient');
+    const monthVal = monthEl ? monthEl.value : '';
+    const clientId = clientEl ? clientEl.value : '';
+    if (!monthVal) { this.toast('Izvēlieties mēnesi'); return; }
+    if (!clientId) { this.toast('Izvēlieties klientu'); return; }
+
+    const client = this.clients.find(c => String(c.id || c.ID) === String(clientId));
+    if (!client) { this.toast('Klients nav atrasts'); return; }
+
+    try {
+      await this.populateExportDropdowns();
+      const exporter = new ExcelExporter();
+      const overlay = document.getElementById('loadingOverlay');
+      const loadingText = document.getElementById('loadingText');
+      if (overlay) overlay.style.display = 'flex';
+
+      if (window.careSync && navigator.onLine) {
+        if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets pirms eksporta...';
+        await window.careSync.forceFullSync((msg) => { if (loadingText) loadingText.textContent = msg; });
+      }
+
+      const allMarks = await this.db.getAll('atzimes');
+      const cid = client.id || client.ID;
+      const clientMarks = allMarks.filter(m => String(m.clientId || m.klientsId || '') === String(cid));
+      clientMarks.sort((a, b) => {
+        const da = this.extractDateFromAnyField(a) || '';
+        const db = this.extractDateFromAnyField(b) || '';
+        if (da !== db) return db.localeCompare(da);
+        const ta = this.formatTimeForDisplay(a.time);
+        const tb = this.formatTimeForDisplay(b.time);
+        return tb.localeCompare(ta);
+      });
+      const filename = await exporter.generateMonth(client, parseInt(monthVal.split('-')[0]), parseInt(monthVal.split('-')[1]), clientMarks);
+      this.toast('✓ Lejupielādejts: ' + filename);
+      if (overlay) overlay.style.display = 'none';
+    } catch (err) {
+      this.toast('Eksporta kļūda: ' + err.message);
+      console.error(err);
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+  }
+
+  async exportAllClientsMonth() {
+    if (typeof ExcelExporter === 'undefined' && typeof ExcelJS === 'undefined') {
+      this.toast('Excel bibliotēka nav ielādēta');
+      return;
+    }
+    const monthEl = document.getElementById('exportAllMonth');
+    const monthVal = monthEl ? monthEl.value : '';
+    if (!monthVal) { this.toast('Izvēlieties mēnesi'); return; }
+
+    const activeClients = this.clients.filter(c => c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1');
+    if (activeClients.length === 0) { this.toast('Nav aktīvu klientu'); return; }
+
+    try {
+      await this.populateExportDropdowns();
+      const exporter = new ExcelExporter();
+      const overlay = document.getElementById('loadingOverlay');
+      const loadingText = document.getElementById('loadingText');
+      if (overlay) overlay.style.display = 'flex';
+
+      if (window.careSync && navigator.onLine) {
+        if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets pirms eksporta...';
+        await window.careSync.forceFullSync((msg) => { if (loadingText) loadingText.textContent = msg; });
+      }
+
+      const allMarks = await this.db.getAll('atzimes');
+      const [y, m] = monthVal.split('-');
+      const year = parseInt(y);
+      const month = parseInt(m);
+
+      let successCount = 0;
+      for (const client of activeClients) {
+        const cid = client.id || client.ID;
+        const clientMarks = allMarks.filter(mark => String(mark.clientId || mark.klientsId || '') === String(cid));
+        clientMarks.sort((a, b) => {
+          const da = this.extractDateFromAnyField(a) || '';
+          const db = this.extractDateFromAnyField(b) || '';
+          if (da !== db) return db.localeCompare(da);
+          const ta = this.formatTimeForDisplay(a.time);
+          const tb = this.formatTimeForDisplay(b.time);
+          return tb.localeCompare(ta);
+        });
+        try {
+          const filename = await exporter.generateMonth(client, year, month, clientMarks);
+          successCount++;
+          if (loadingText) loadingText.textContent = 'Eksportēts: ' + filename + ' (' + successCount + '/' + activeClients.length + ')';
+        } catch (err) {
+          console.error('Export failed for client ' + cid + ':', err);
+        }
+      }
+      this.toast('✓ Lejupielādēti ' + successCount + '/' + activeClients.length + ' klienti');
+      if (overlay) overlay.style.display = 'none';
+    } catch (err) {
+      this.toast('Eksporta kļūda: ' + err.message);
+      console.error(err);
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+  }
+
+  async exportSelectedClients() {
+    if (typeof ExcelExporter === 'undefined' && typeof ExcelJS === 'undefined') {
+      this.toast('Excel bibliotēka nav ielādēta');
+      return;
+    }
+    const fromEl = document.getElementById('exportMultiFrom');
+    const toEl = document.getElementById('exportMultiTo');
+    const clientsEl = document.getElementById('exportMultiClients');
+    const fromVal = fromEl ? fromEl.value : '';
+    const toVal = toEl ? toEl.value : '';
+    if (!fromVal || !toVal) { this.toast('Izvēlieties datumu diapazonu'); return; }
+
+    const selectedOptions = clientsEl ? Array.from(clientsEl.selectedOptions).map(o => o.value) : [];
+    if (selectedOptions.length === 0) { this.toast('Izvēlieties vismaz vienu klientu'); return; }
+
+    try {
+      await this.populateExportDropdowns();
+      const exporter = new ExcelExporter();
+      const overlay = document.getElementById('loadingOverlay');
+      const loadingText = document.getElementById('loadingText');
+      if (overlay) overlay.style.display = 'flex';
+
+      if (window.careSync && navigator.onLine) {
+        if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets pirms eksporta...';
+        await window.careSync.forceFullSync((msg) => { if (loadingText) loadingText.textContent = msg; });
+      }
+
+      const allMarks = await this.db.getAll('atzimes');
+      const dateFrom = fromVal;
+      const dateTo = toVal;
+
+      const selectedClients = selectedOptions.map(cid =>
+        this.clients.find(c => String(c.id || c.ID) === String(cid))
+      ).filter(Boolean);
+
+      let successCount = 0;
+      let totalFiles = 0;
+      for (const client of selectedClients) {
+        const cid = client.id || client.ID;
+        const clientMarks = allMarks.filter(mark => {
+          if (String(mark.clientId || mark.klientsId || '') !== String(cid)) return false;
+          const markDate = this.extractDateFromAnyField(mark) || '';
+          return markDate >= dateFrom && markDate <= dateTo;
+        });
+        if (clientMarks.length === 0) continue;
+
+        const monthsInRange = [];
+        const cur = new Date(parseInt(fromVal.split('-')[0]), parseInt(fromVal.split('-')[1]) - 1, 1);
+        const end = new Date(parseInt(toVal.split('-')[0]), parseInt(toVal.split('-')[1]) - 1, 1);
+        while (cur <= end) {
+          monthsInRange.push({ year: cur.getFullYear(), month: cur.getMonth() + 1 });
+          cur.setMonth(cur.getMonth() + 1);
+        }
+
+        for (const { year, month } of monthsInRange) {
+          const monthMarks = clientMarks.filter(m => {
+            const d = new Date(this.extractDateFromAnyField(m) || 0);
+            return d.getFullYear() === year && (d.getMonth() + 1) === month;
+          });
+          if (monthMarks.length === 0) continue;
+          totalFiles++;
+          try {
+            const filename = await exporter.generateMonth(client, year, month, monthMarks);
+            successCount++;
+            if (loadingText) loadingText.textContent = 'Eksportēts: ' + filename + ' (' + successCount + '/' + totalFiles + ')';
+          } catch (err) {
+            console.error('Export failed for client ' + cid + ' ' + year + '-' + month + ':', err);
+          }
+        }
+      }
+      this.toast('✓ Lejupielādēti ' + successCount + ' faili');
+      if (overlay) overlay.style.display = 'none';
+    } catch (err) {
+      this.toast('Eksporta kļūda: ' + err.message);
+      console.error(err);
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
   }
 
   setupLanguageSwitcher() {
