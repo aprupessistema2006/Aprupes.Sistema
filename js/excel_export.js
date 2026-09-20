@@ -222,19 +222,19 @@ class ExcelExporter {
 
     let summaryRow = dataRowEnd + 2;
     summaryFields.forEach(sf => {
-      let sumR = 0, sumV = 0;
+      let sumAll = 0;
       for (let day = startDay; day <= endDay; day++) {
         const dayData = dataByDay[day] || {};
         const valR = dayData['R|' + sf.category + '|' + sf.field];
         const valV = dayData['V|' + sf.category + '|' + sf.field];
-        if (valR && !isNaN(parseFloat(valR))) sumR += parseFloat(valR);
-        if (valV && !isNaN(parseFloat(valV))) sumV += parseFloat(valV);
+        if (valR && !isNaN(parseFloat(valR))) sumAll += parseFloat(valR);
+        if (valV && !isNaN(parseFloat(valV))) sumAll += parseFloat(valV);
       }
       const cellLabel = ws.getCell(`A${summaryRow}`);
       cellLabel.value = sf.label;
       cellLabel.font = { bold: true };
       const cellTotal = ws.getCell(`B${summaryRow}`);
-      cellTotal.value = `R: ${sumR} | V: ${sumV} | Σ: ${sumR + sumV}`;
+      cellTotal.value = sumAll;
       cellTotal.font = { bold: true };
       summaryRow++;
     });

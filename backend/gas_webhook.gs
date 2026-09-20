@@ -441,11 +441,17 @@ function handleMark(data) {
     if (m.actionId && atzimesColMap['action_id'] !== undefined) {
       for (let i = 0; i < atzimesData.length; i++) {
         if (String(atzimesData[i][atzimesColMap['action_id']]) === String(m.actionId)) {
-          return {
-            success: true,
-            id: atzimesData[i][atzimesColMap['id']],
-            already_processed: true
-          };
+          // Ja vērtība nav mainījusies — rakstīti nav ko
+          if (String(atzimesData[i][atzimesColMap['vertiba']]) === String(m.value)) {
+            return {
+              success: true,
+              id: atzimesData[i][atzimesColMap['id']],
+              already_processed: true,
+              logId: null
+            };
+          }
+          // Vērtība mainījusies — turpināt ar atjaunošanu (zemāk)
+          break;
         }
       }
     }
