@@ -293,6 +293,16 @@ function normalizeRow(raw) {
   if (normalizedRow.clientId && !normalizedRow.klientsId) normalizedRow.klientsId = normalizedRow.clientId;
   if (normalizedRow.employeeId && !normalizedRow.darbinieksId) normalizedRow.darbinieksId = normalizedRow.employeeId;
 
+  // Ja time ir trūkst vai nepareizs, bet created (no skaits) eksistē — izvilkt laiku no created
+  // created formāts: "2026-09-21T00:07:27" (Riga laiks)
+  const timeVal = normalizedRow.time;
+  const createdVal = normalizedRow.created;
+  const looksValidTime = timeVal && /^\d{2}:\d{2}:\d{2}$/.test(String(timeVal));
+  if ((!timeVal || !looksValidTime) && createdVal && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(String(createdVal))) {
+    const t = String(createdVal).match(/T(\d{2}:\d{2}:\d{2})/);
+    if (t) normalizedRow.time = t[1];
+  }
+
   return normalizedRow;
 }
 
