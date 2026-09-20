@@ -605,14 +605,15 @@ showRoleSelector(emp) {
       if (!checked) return;
       console.log('[login] inline role confirmed:', checked.value);
       this.selectedEmployee.chosenRole = checked.value;
-      // Atjaunot role badge
       roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(checked.value)}20;color:${roleColor(checked.value)};border:1px solid ${roleColor(checked.value)}">${roleLabel(checked.value)}</span>`;
-      // Fokus uz PIN
+      const pinInput = document.getElementById('pinInput');
+      const loginBtn = document.getElementById('loginBtn');
       if (pinInput) {
         pinInput.disabled = false;
         setTimeout(() => {
           pinInput.focus();
           pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          window.scrollTo({ top: pinInput.offsetTop - 80, behavior: 'smooth' });
         }, 50);
       }
       if (loginBtn) loginBtn.disabled = false;
