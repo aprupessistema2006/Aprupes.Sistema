@@ -398,7 +398,6 @@ class AdminPanel {
           const markDate = this.extractDateFromAnyField(mark) || '';
           return markDate >= dateFrom && markDate <= dateTo;
         });
-        if (clientMarks.length === 0) continue;
 
         const monthsInRange = [];
         const cur = new Date(parseInt(fromVal.split('-')[0]), parseInt(fromVal.split('-')[1]) - 1, 1);
@@ -413,7 +412,6 @@ class AdminPanel {
             const d = new Date(this.extractDateFromAnyField(m) || 0);
             return d.getFullYear() === year && (d.getMonth() + 1) === month;
           });
-          if (monthMarks.length === 0) continue;
           totalFiles++;
           try {
             const filename = await exporter.generateMonth(client, year, month, monthMarks);
