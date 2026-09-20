@@ -508,11 +508,18 @@ class LoginController {
     this.refreshLoginButton();
 
     // Ja VIENS loma → uzreiz fokus uz PIN (scroll to bottom)
-    // Ja VAIRĀKAS lomas → rādīt modālu centrēti, pēc tam fokus uz PIN
+    // Ja VAIRĀKAS lomas → rādīt role selector iekš kartiņas UN scroll uz to
     if (roles.length === 1) {
       this.focusPinInput();
     } else if (roles.length > 1) {
       this.showRoleSelector(emp);
+      // Scroll uz selected employee kartiņu, lai lietotājs redzētu role selector
+      const selectedEl = document.getElementById('selectedEmployee');
+      if (selectedEl) {
+        setTimeout(() => {
+          selectedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
     }
   }
 
