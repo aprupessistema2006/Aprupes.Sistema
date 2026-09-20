@@ -602,14 +602,6 @@ showRoleSelector(emp) {
       this.clearSelection();
     });
   }
-      });
-    });
-    modal.querySelector('#roleSelectCancel').addEventListener('click', () => {
-      modal.classList.remove('show');
-      setTimeout(() => modal.remove(), 200);
-      this.clearSelection();
-    });
-  }
 
   clearSelection() {
     this.selectedEmployee = null;
