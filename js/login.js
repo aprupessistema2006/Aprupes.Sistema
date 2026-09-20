@@ -419,7 +419,7 @@ class LoginController {
       return;
     }
     const roleLabel = (l) => {
-      const m = { 'administrators': '👑 Admin', 'kontroliere': '📊 Kontrole', 'aprūpētājs': '🤝 Aprūpe' };
+      const m = { 'administrators': 'Admin', 'kontroliere': 'Kontrole', 'aprūpētājs': 'Aprūpe' };
       return m[(l || '').toLowerCase()] || l;
     };
     const initials = (e) => {
@@ -439,14 +439,14 @@ class LoginController {
       const u = e.uzvards || '';
       const roles = e.lomas || [];
       const sel = this.selectedEmployee && String(this.selectedEmployee.id) === String(id) ? 'selected' : '';
-      const roleBadges = roles.map(r => `<span class="role-badge" style="background:${roleColor(r)}20;color:${roleColor(r)};border:1px solid ${roleColor(r)}">${roleLabel(r)}</span>`).join(' ');
+      const roleBadges = roles.map(r => `<span class="role-badge" style="background:${roleColor(r)}20;color:${roleColor(r)};border-color:${roleColor(r)}">${roleLabel(r)}</span>`).join('');
       return `
         <div class="employee-card ${sel}" data-id="${id}">
-          <div class="emp-card-header">
-            <div class="emp-avatar" style="background:${roleColor(roles[0])}20;color:${roleColor(roles[0])}">${initials(e)}</div>
-            <div class="emp-card-title">${this.escapeHtml(v)} ${this.escapeHtml(u)}</div>
+          <div class="emp-avatar" style="background:${roleColor(roles[0])};color:#fff">${initials(e)}</div>
+          <div class="emp-info">
+            <div class="emp-name">${this.escapeHtml(v)} ${this.escapeHtml(u)}</div>
+            <div class="emp-roles">${roleBadges}</div>
           </div>
-          <div class="emp-card-roles">${roleBadges}</div>
         </div>
       `;
     }).join('');
@@ -467,7 +467,6 @@ class LoginController {
       pinInput.value = '';
       pinInput.disabled = false;
       pinInput.placeholder = 'Ievadi PIN kodu';
-      setTimeout(() => pinInput.focus(), 50);
     }
     const sel = document.getElementById('selectedEmployee');
     const avatar = document.getElementById('selectedAvatar');
@@ -477,7 +476,6 @@ class LoginController {
     if (sel) sel.style.display = 'flex';
     if (avatar) avatar.textContent = ((emp.vards || '?')[0] || '?') + ((emp.uzvards || '')[0] || '');
     if (name) name.textContent = (emp.vards || '') + ' ' + (emp.uzvards || '');
-    // Ja vairākas lomas — rādīt kā badge'us
     const roleLabel = (l) => {
       const m = { 'administrators': '👑 Admin', 'kontroliere': '📊 Kontrole', 'aprūpētājs': '🤝 Aprūpe' };
       return m[(l || '').toLowerCase()] || l;
@@ -493,6 +491,7 @@ class LoginController {
       if (roles.length === 1) {
         role.textContent = roleLabel(roles[0]);
         role.style.color = roleColor(roles[0]);
+        role.innerHTML = '';
       } else {
         role.innerHTML = roles.map(r => `<span class="role-badge" style="background:${roleColor(r)}20;color:${roleColor(r)};border:1px solid ${roleColor(r)}">${roleLabel(r)}</span>`).join(' ');
       }
@@ -507,6 +506,74 @@ class LoginController {
       this.renderEmployeeList();
     }
     this.refreshLoginButton();
+
+    // Ja vairākas lomas — rādīt izvēlni pirms PIN ievades
+    if (roles.length > 1) {
+      this.showRoleSelector(emp);
+    }
+  }
+
+  showRoleSelector(emp) {
+    const roles = emp.lomas || [];
+    const roleLabel = (l) => {
+      const m = { 'administrators': 'Administrators', 'kontroliere': 'Kontrolieris', 'aprūpētājs': 'Aprūpētājs' };
+      return m[(l || '').toLowerCase()] || l;
+    };
+    const roleColor = (l) => {
+      const r = (l || '').toLowerCase();
+      if (r === 'administrators' || r === 'admins' || r === 'admin') return 'var(--danger)';
+      if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
+      return 'var(--accent)';
+    };
+    const pinInput = document.getElementById('pinInput');
+    const loginBtn = document.getElementById('loginBtn');
+    if (pinInput) pinInput.disabled = true;
+    if (loginBtn) loginBtn.disabled = true;
+
+    const modal = document.createElement('div');
+    modal.className = 'role-select-modal';
+    modal.innerHTML = `
+      <div class="role-select-card">
+        <div class="role-select-header">
+          <div class="role-select-avatar" style="background:${roleColor(roles[0])}20;color:${roleColor(roles[0])}">
+            ${((emp.vards || '?')[0] || '?') + ((emp.uzvards || '')[0] || '')}
+          </div>
+          <h3>${this.escapeHtml(emp.vards)} ${this.escapeHtml(emp.uzvards)}</h3>
+          <p>Izvēlies lomu, ar kuru ienākt</p>
+        </div>
+        <div class="role-select-options">
+          ${roles.map(r => `
+            <button class="role-option-btn" data-role="${r}" style="border-color:${roleColor(r)};color:${roleColor(r)}">
+              <span class="role-option-icon">${roleLabel(r)}</span>
+            </button>
+          `).join('')}
+        </div>
+        <button id="roleSelectCancel" class="role-select-cancel">Atcelt</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('show'));
+
+    modal.querySelectorAll('.role-option-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectedEmployee.chosenRole = btn.dataset.role;
+        modal.classList.remove('show');
+        setTimeout(() => modal.remove(), 200);
+        if (pinInput) pinInput.disabled = false;
+        if (loginBtn) loginBtn.disabled = false;
+        setTimeout(() => pinInput?.focus(), 100);
+        // Atjaunot rādīto lomu
+        const roleEl = document.getElementById('selectedRole');
+        if (roleEl) {
+          roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(btn.dataset.role)}20;color:${roleColor(btn.dataset.role)};border:1px solid ${roleColor(btn.dataset.role)}">${roleLabel(btn.dataset.role)}</span>`;
+        }
+      });
+    });
+    modal.querySelector('#roleSelectCancel').addEventListener('click', () => {
+      modal.classList.remove('show');
+      setTimeout(() => modal.remove(), 200);
+      this.clearSelection();
+    });
   }
 
   clearSelection() {
@@ -544,8 +611,8 @@ class LoginController {
   async authenticate(employee, pin) {
     const errorMsg = document.getElementById('errorMessage');
     const statusMsg = document.getElementById('statusMessage');
+    const pinInput = document.getElementById('pinInput');
 
-    // Pārbaudam PIN pret visiem PIN kodi, kas ir šim darbiniekam (gruppētajam)
     const pins = employee.pins || new Set([String(employee.pin)]);
     let pinMatch = false;
     for (const p of pins) {
@@ -567,16 +634,15 @@ class LoginController {
     const shiftTypeInput = document.querySelector('input[name="shiftType"]:checked');
     const mainaTips = shiftTypeInput ? shiftTypeInput.value : 'diennakts';
 
-    // Ja vairākas lomas — ļauj izvēlēties ar kuru ienākt (tagad ņem pirmo, bet var paplašināt)
-    const roles = employee.lomas || [];
-    const chosenRole = roles[0]; // var pievienot izvēlni, ja nepieciešams
+    // Ja izvēlējās lomu — izmantot to, citāk pirmo
+    const chosenRole = employee.chosenRole || (employee.lomas || [])[0];
 
     const user = {
       id: employee.id,
       vards: employee.vards,
       uzvards: employee.uzvards,
       loma: chosenRole,
-      visulasLomas: roles,
+      visulasLomas: employee.lomas || [],
       pin: pin,
       pinVerified: true,
       loginTime: Date.now(),
