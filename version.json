@@ -1,0 +1,33 @@
+{
+  "version": "20260920-2015",
+  "timestamp": 1726952235000,
+  "files": [
+    "index.html",
+    "admin.html",
+    "aprupe.html",
+    "control.html",
+    "aprupetajs.html",
+    "css/index.css",
+    "css/admin.css",
+    "css/aprupe.css",
+    "css/aprupetajs.css",
+    "css/login.css",
+    "js/config.js",
+    "js/i18n.js",
+    "js/timezone.js",
+    "js/db.js",
+    "js/sync.js",
+    "js/login.js",
+    "js/logout.js",
+    "js/admin.js",
+    "js/aprupe.js",
+    "js/control.js",
+    "js/care_form.js",
+    "js/tasks.js",
+    "js/excel_export.js",
+    "js/xlsx.full.min.js",
+    "js/exceljs.bare.min.js",
+    "logo/logoDS.png",
+    "logo/logo_admin.png"
+  ]
+}
