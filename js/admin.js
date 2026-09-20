@@ -343,6 +343,7 @@ class AdminPanel {
         } catch (err) {
           console.error('Export failed for client ' + cid + ':', err);
         }
+        await new Promise(r => setTimeout(r, 500));
       }
       this.toast('✓ Lejupielādēti ' + successCount + '/' + activeClients.length + ' klienti');
       if (overlay) overlay.style.display = 'none';
@@ -420,6 +421,7 @@ class AdminPanel {
           } catch (err) {
             console.error('Export failed for client ' + cid + ' ' + year + '-' + month + ':', err);
           }
+          await new Promise(r => setTimeout(r, 500));
         }
       }
       this.toast('✓ Lejupielādēti ' + successCount + ' faili');

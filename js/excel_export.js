@@ -89,7 +89,7 @@ class ExcelExporter {
       a.href = url;
       a.download = filename;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
       return filename;
     } else {
       const path = require('path');
