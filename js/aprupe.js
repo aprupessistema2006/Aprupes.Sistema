@@ -212,8 +212,8 @@ class AprupeController {
       const pa = window.TaskManager.priorityWeight(a.prioritate);
       const pb = window.TaskManager.priorityWeight(b.prioritate);
       if (pa !== pb) return pb - pa;
-      const ad = a.irPabeigts ? 1 : 0;
-      const bd = b.irPabeigts ? 1 : 0;
+      const ad = window.TaskManager._isTaskCompleted(a) ? 1 : 0;
+      const bd = window.TaskManager._isTaskCompleted(b) ? 1 : 0;
       if (ad !== bd) return ad - bd;
       return (a.termins || '').localeCompare(b.termins || '');
     });
@@ -267,8 +267,7 @@ class AprupeController {
     };
 
     const getStatusLabel = (task) => {
-      const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
-      if (done) return t('taskCompletedLabel');
+      if (window.TaskManager._isTaskCompleted(task)) return t('taskCompletedLabel');
       const status = (task.statuss || 'jauns').toLowerCase();
       if (status === 'jauns' || status === 'new') return t('statusNew');
       if (status === 'procesā' || status === 'in_progress') return t('statusInProgress');
@@ -278,7 +277,7 @@ class AprupeController {
     const priorityLabels = { augsta: '🔴 ' + t('priorityHigh'), videja: '🟡 ' + t('priorityMedium'), zema: '🟢 ' + t('priorityLow'), high: '🔴 ' + t('priorityHigh'), medium: '🟡 ' + t('priorityMedium'), low: '🟢 ' + t('priorityLow') };
 
     tbody.innerHTML = userTasks.map(task => {
-      const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
+      const done = window.TaskManager._isTaskCompleted(task);
       const deadline = task.termins;
       const deadlineDisplay = formatDateRiga(deadline);
       const priority = (task.prioritate || 'videja').toLowerCase();
@@ -353,7 +352,7 @@ class AprupeController {
       return;
     }
 
-    const done = task.irPabeigts === true || task.irPabeigts === 'true' || task.irPabeigts === 'TRUE';
+    const done = window.TaskManager._isTaskCompleted(task);
     const deadline = task.termins;
     const deadlineDisplay = TimezoneUtils.formatDateRiga(deadline);
     const priority = (task.prioritate || 'videja').toLowerCase();

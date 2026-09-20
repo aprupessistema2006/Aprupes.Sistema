@@ -691,8 +691,8 @@ class ControlPanel {
     if (!container || !window.TaskManager) return;
     await window.TaskManager.loadAll();
     const all = window.TaskManager.tasks || [];
-    const active = all.filter(t => !t.irPabeigts && t.irPabeigts !== 'true' && t.irPabeigts !== 'TRUE');
-    const completed = all.filter(t => t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE');
+    const active = all.filter(t => !window.TaskManager._isTaskCompleted(t));
+    const completed = all.filter(t => window.TaskManager._isTaskCompleted(t));
 
     if (countEl) countEl.textContent = active.length + ' ' + t('activeTasks') + ' / ' + completed.length + ' ' + t('completedTasks');
     const empMap = {};
@@ -710,8 +710,8 @@ class ControlPanel {
     }
 
     const sorted = [...all].sort((a, b) => {
-      const ad = a.irPabeigts ? 1 : 0;
-      const bd = b.irPabeigts ? 1 : 0;
+      const ad = window.TaskManager._isTaskCompleted(a) ? 1 : 0;
+      const bd = window.TaskManager._isTaskCompleted(b) ? 1 : 0;
       if (ad !== bd) return ad - bd;
       const pa = window.TaskManager.priorityWeight(a.prioritate);
       const pb = window.TaskManager.priorityWeight(b.prioritate);
@@ -724,18 +724,19 @@ class ControlPanel {
       const client = t.klientsId ? (clientMap[String(t.klientsId)] || 'ID: ' + t.klientsId) : '—';
       const pr = (t.prioritate || 'videja').toLowerCase();
       const prLabel = { augsta: '🔴 Augsta', videja: '🟡 Vidēja', zema: '🟢 Zema' }[pr] || pr;
-      const done = t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE';
+      const done = window.TaskManager._isTaskCompleted(t);
       const doneBy = t.pabeigtajsId ? empMap[String(t.pabeigtajsId)] || 'ID: ' + t.pabeigtajsId : '';
       const doneTime = t.pabeigtsLaiks ? TimezoneUtils.formatDateTimeRiga(t.pabeigtsLaiks) : '';
       const overdue = window.TaskManager.isOverdue(t.termins) && !done;
       const today = window.TaskManager.isToday(t.termins) && !done;
+      const taskStatus = done ? '✅ PABEIGTS' : (t.statuss === 'procesā' ? '⏳ Procesā' : '⏳ Aktīvs');
       return `
         <div class="task-row ${done ? 'done' : ''} ${overdue ? 'overdue' : ''} ${today ? 'today' : ''}">
           <div class="task-row-left">
             <div class="task-row-header">
               <span class="task-row-priority">${prLabel}</span>
               <span class="task-row-deadline">${overdue ? '⏰ ' : ''}${today ? '📅 ' : ''}${this.escapeHtml(t.termins || '')}</span>
-              <span class="task-row-status">${done ? '✅ PABEIGTS' : '⏳ aktīvs'}</span>
+              <span class="task-row-status">${taskStatus}</span>
             </div>
             <div class="task-row-text">${this.escapeHtml(t.teksts || '')}</div>
             <div class="task-row-meta">

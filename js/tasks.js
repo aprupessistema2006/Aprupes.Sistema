@@ -18,8 +18,12 @@ const TaskManager = {
   },
 
   _isTaskCompleted(t) {
+    if (!t) return false;
     const v = t.irPabeigts;
-    return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
+    if (v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1') return true;
+    const status = String(t.statuss || '').toLowerCase();
+    if (status === 'pabeigts' || status === 'done' || status === 'completed') return true;
+    return false;
   },
 
   getActiveForEmployee(employeeId, clientId) {
