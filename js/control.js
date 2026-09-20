@@ -726,6 +726,7 @@ class ControlPanel {
       const prLabel = { augsta: '🔴 Augsta', videja: '🟡 Vidēja', zema: '🟢 Zema' }[pr] || pr;
       const done = t.irPabeigts === true || t.irPabeigts === 'true' || t.irPabeigts === 'TRUE';
       const doneBy = t.pabeigtajsId ? empMap[String(t.pabeigtajsId)] || 'ID: ' + t.pabeigtajsId : '';
+      const doneTime = t.pabeigtsLaiks ? TimezoneUtils.formatDateTimeRiga(t.pabeigtsLaiks) : '';
       const overdue = window.TaskManager.isOverdue(t.termins) && !done;
       const today = window.TaskManager.isToday(t.termins) && !done;
       return `
@@ -741,6 +742,7 @@ class ControlPanel {
               <span>👤 ${this.escapeHtml(assignee.trim())}</span>
               <span>🏥 ${this.escapeHtml(client.trim())}</span>
               ${doneBy ? '<span>✓ Izpildīja: ' + this.escapeHtml(doneBy.trim()) + '</span>' : ''}
+              ${doneTime ? '<span>🕒 Pabeigts: ' + this.escapeHtml(doneTime) + '</span>' : ''}
             </div>
           </div>
           <div class="task-row-actions">

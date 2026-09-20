@@ -1268,6 +1268,12 @@ body {
   white-space: nowrap;
 }
 
+.tasks-table .task-completed {
+  font-size: 12px;
+  color: var(--success);
+  white-space: nowrap;
+}
+
 .tasks-table .task-complete-btn {
   background: linear-gradient(135deg, var(--accent) 0%, #55efc4 100%);
   color: white;

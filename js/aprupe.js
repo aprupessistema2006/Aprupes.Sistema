@@ -219,7 +219,7 @@ class AprupeController {
     });
 
     if (userTasks.length === 0) {
-      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="7" class="loading" data-i18n="noClientTasks">Jums pašlaik nav aktīvu uzdevumu.</td></tr>';
+      tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="8" class="loading" data-i18n="noClientTasks">Jums pašlaik nav aktīvu uzdevumu.</td></tr>';
       if (typeof applyLanguage === 'function') applyLanguage();
       return;
     }
@@ -294,6 +294,7 @@ class AprupeController {
       const taskText = task.teksts || '';
       const taskClientId = String(task.klientsId || task.clientId || '');
       const clientName = taskClientId ? (clientMap[taskClientId] || 'ID: ' + taskClientId) : '—';
+      const completedDisplay = task.pabeigtsLaiks ? formatDateTimeRiga(task.pabeigtsLaiks) : (done ? '—' : '');
       return `
         <tr class="task-row-clickable ${rowClass}" data-task-id="${task.id}">
           <td class="task-description task-click-cell" title="${this.escapeHtml(taskText)}">${this.escapeHtml(taskText)}</td>
@@ -302,6 +303,7 @@ class AprupeController {
           <td class="task-click-cell"><span class="task-priority ${priorityClass}">${this.escapeHtml(priorityLabel)}</span></td>
           <td class="task-status task-click-cell">${this.escapeHtml(statusLabel)}</td>
           <td class="task-created task-click-cell">${this.escapeHtml(formatDateTimeRiga(task.created || task.izveidots))}</td>
+          <td class="task-completed task-click-cell">${this.escapeHtml(completedDisplay)}</td>
           <td class="task-buttons-cell">
             <button class="task-detail-btn" data-task-id="${task.id}" title="Detaļas">ℹ️</button>
             <button class="task-complete-btn ${btnClass}" data-task-id="${task.id}" ${btnDisabled}>${btnText}</button>
