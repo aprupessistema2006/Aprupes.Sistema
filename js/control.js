@@ -497,13 +497,28 @@ class ControlPanel {
 
   formatTimeForDisplay(t) {
     if (!t) return '';
-    return TimezoneUtils.formatTimeRiga(t);
+    // Google Sheets jau saglabā Rīgas laikā — atgriezt tikai laika daļu
+    return this._extractTimePart(String(t));
+  }
+
+  _extractTimePart(s) {
+    if (!s) return '';
+    // Meklēt laika daļu: HH:mm:ss vai HH:mm
+    const m = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (m) {
+      const h = String(parseInt(m[1], 10)).padStart(2, '0');
+      const mi = m[2];
+      const si = m[3] || '00';
+      return h + ':' + mi + ':' + si;
+    }
+    return s;
   }
 
   formatTimeForDisplayFromRow(row) {
     const t = row.time || row.laiks || row.skaits;
     if (!t) return '';
-    return TimezoneUtils.formatTimeRiga(t);
+    // Google Sheets jau saglabā Rīgas laikā — atgriezt tikai laika daļu
+    return this._extractTimePart(String(t));
   }
 
   formatFieldLabel(category, field) {
