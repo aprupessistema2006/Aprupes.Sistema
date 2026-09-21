@@ -327,24 +327,58 @@ class LoginController {
       return a === true || a === 'true' || a === 'TRUE' || a === 1 || a === '1' || a === undefined;
     });
 
+    // Load tasks to determine which employee ID has tasks assigned
+    // When duplicate employee entries exist (same name, different ID),
+    // prefer the ID that actually has tasks assigned to it
+    let taskCounts = new Map();
+    try {
+      const allTasks = await this.db.getAll('uzdevomi');
+      allTasks.forEach(t => {
+        const empId = String(t.pieskirtDarbiniekamId || t.employeeId || '');
+        if (empId) taskCounts.set(empId, (taskCounts.get(empId) || 0) + 1);
+      });
+    } catch (e) {
+      console.warn('[login] Failed to load tasks for employee matching:', e);
+    }
+
     // Gruppē pa vārdu/uzvārdu — viena persona var būt ar vairākām lomām
     const grouped = new Map();
     for (const e of active) {
+      const empId = String(e.id || e.ID || '');
       const key = ((e.vards || e.Vārds || '') + '|' + (e.uzvards || e.Uzvārds || '')).toLowerCase().trim();
+      const taskCount = taskCounts.get(empId) || 0;
       if (!grouped.has(key)) {
         grouped.set(key, {
-          id: e.id || e.ID,
+          id: empId,
           vards: e.vards || e.Vārds,
           uzvards: e.uzvards || e.Uzvārds,
           lomas: [],
           pins: new Set(),
-          mainaTips: e.maina_tips || e.mainaTips || 'diennakts'
+          mainaTips: e.maina_tips || e.mainaTips || 'diennakts',
+          allIds: [empId],
+          taskCount: taskCount
         });
+      } else {
+        // Duplicate employee (same name, different ID) — prefer the one with tasks
+        const g = grouped.get(key);
+        g.allIds.push(empId);
+        if (taskCount > g.taskCount) {
+          console.log('[login] Duplicate darbinieks "' + key + '" — pārslēdzu ID no', g.id, 'uz', empId, '(' + taskCount + ' uzdevumi)');
+          g.id = empId;
+          g.taskCount = taskCount;
+        } else if (taskCount === 0 && g.taskCount === 0 && empId > g.id) {
+          // Neither has tasks — prefer the most recent (lexicographically larger timestamp)
+          g.id = empId;
+        }
       }
       const g = grouped.get(key);
       const role = (e.loma || e.Loma || '').toLowerCase();
       if (role && !g.lomas.includes(role)) g.lomas.push(role);
       if (e.pin) g.pins.add(String(e.pin));
+    }
+
+    if (grouped.size > active.length) {
+      console.warn('[login] Konstatēti duplikāti darbinieki (' + (active.length - grouped.size) + ' ieraksti grupēti vienā)');
     }
 
     this.employees = Array.from(grouped.values()).sort((a, b) => {
