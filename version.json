@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260921-2100",
-  "timestamp": 1789998000000,
-  "changes": "Atjaunota sinhronizācijas loģika: noņemti automātiskie renderēšanas listeneri, lai novērstu pārlādēšanos; labota tasks.js sintakses kļūda; pievienoti dataManager.js un syncGuard.js; loadInitialData tagad atgriežas ar offline statusu, neizdzēšot datus, ja neizdodas",
+  "version": "20260921-2110",
+  "timestamp": 1789998600000,
+  "changes": "Labota laiku atjaunošana control.js — formatTimeForDisplayFromRow atbalsta laiks/skaits/time laukus; pievienots processQueue izsaukums pec loadInitialData beigam; noņemti automātiskie reload listeneri",
   "files": [
     "index.html",
     "admin.html",
