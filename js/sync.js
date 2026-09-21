@@ -484,6 +484,13 @@ class CareSync {
       const remaining = await this.getUnsyncedCount();
       const status = remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts';
       this._updateSyncStatus(status);
+
+      // Pēc datu ielādes nosūtīt atlikušos sync_queue ierakstus uz Google Sheets
+      if (remaining > 0) {
+        console.log('[sync] Pēc ielādes atlikuši ' + remaining + ' neatlasīti ieraksti, sūtu uz GS');
+        // processQueue izsaukts fonā, lai nebloķētu UI
+        this.processQueue().catch(() => {});
+      }
       const result = {
         offline: false,
         connected: true,
@@ -526,6 +533,10 @@ class CareSync {
 
   async enqueueChange(change) {
     if (!SYNC_URL) return;
+    if (this._loading) {
+      // Saglabāt rindā, bet nekavējoties neprocesēt — processQueue tiks izsaukts pēc ielādes
+      console.log('[sync] enqueueChange: saglabāju rindā (ielāde notiek)');
+    }
     if (change.data && change.data.actionId) {
       const existing = await this.db.getAll('sync_queue');
       const duplicate = existing.find(item =>
