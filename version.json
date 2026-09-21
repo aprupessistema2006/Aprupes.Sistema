@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260921-2110",
-  "timestamp": 1789998600000,
-  "changes": "Labota laiku atjaunošana control.js — formatTimeForDisplayFromRow atbalsta laiks/skaits/time laukus; pievienots processQueue izsaukums pec loadInitialData beigam; noņemti automātiskie reload listeneri",
+  "version": "20260921-2120",
+  "timestamp": 1789999200000,
+  "changes": "Noņemts TimezoneUtils.formatTimeRiga izsaukums no control.js — Google Sheets jau saglabā Rīgas laikā; visi HTML faili atjaunoti, lai novērstu cache problēmas",
   "files": [
     "index.html",
     "admin.html",
