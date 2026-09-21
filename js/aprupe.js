@@ -7,6 +7,9 @@ class AprupeController {
     this.currentUser = null;
     this.todayMarks = new Map();
     this.selectedClientId = null;
+    this.visibleTasks = [];
+    this.newTaskCount = 0;
+    this.dismissedNewTaskIds = new Set();
     this.init();
   }
 
@@ -138,6 +141,23 @@ class AprupeController {
       });
     }
 
+    const newTaskAlertBtn = document.getElementById('newTaskAlertBtn');
+    const newTaskAlertClose = document.getElementById('newTaskAlertClose');
+    const newTaskAlert = document.getElementById('newTaskAlert');
+    if (newTaskAlertBtn) {
+      newTaskAlertBtn.addEventListener('click', () => {
+        this.dismissNewTaskAlert();
+        const tasksSection = document.getElementById('tasksSection');
+        if (tasksSection) tasksSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    if (newTaskAlertClose && newTaskAlert) {
+      newTaskAlertClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.dismissNewTaskAlert();
+      });
+    }
+
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
     const retryBtn = document.getElementById('retryLoadBtn');
@@ -217,6 +237,9 @@ class AprupeController {
       if (ad !== bd) return ad - bd;
       return (a.termins || '').localeCompare(b.termins || '');
     });
+
+    this.visibleTasks = userTasks;
+    this.updateNewTaskAlert(userTasks);
 
     if (userTasks.length === 0) {
       tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="8" class="loading" data-i18n="noClientTasks">Jums pašlaik nav aktīvu uzdevumu.</td></tr>';
@@ -341,7 +364,60 @@ class AprupeController {
       });
     });
 
-    if (typeof applyLanguage === 'function') applyLanguage();
+    if (typeof applyLanguage === 'function') {
+      applyLanguage();
+      this.updateNewTaskAlert(this.visibleTasks);
+    }
+  }
+
+  dismissNewTaskAlert() {
+    const newTasks = (this.visibleTasks || []).filter(task => {
+      if (!task) return false;
+      if (window.TaskManager && typeof window.TaskManager._isTaskCompleted === 'function' && window.TaskManager._isTaskCompleted(task)) return false;
+      const status = String(task.statuss || '').toLowerCase();
+      return status === 'jauns' || status === 'new';
+    });
+    newTasks.forEach(task => {
+      const taskId = this._getTaskId(task);
+      if (taskId) this.dismissedNewTaskIds.add(taskId);
+    });
+    const alert = document.getElementById('newTaskAlert');
+    if (alert) alert.hidden = true;
+    this.newTaskCount = 0;
+  }
+
+  _getTaskId(task) {
+    return task.id || task.ID || null;
+  }
+
+  updateNewTaskAlert(tasks) {
+    const alert = document.getElementById('newTaskAlert');
+    const text = document.getElementById('newTaskAlertText');
+    if (!alert || !text) return;
+
+    const allTasks = tasks || this.visibleTasks || [];
+    const newTasks = allTasks.filter(task => {
+      if (!task) return false;
+      if (window.TaskManager && typeof window.TaskManager._isTaskCompleted === 'function' && window.TaskManager._isTaskCompleted(task)) return false;
+      const status = String(task.statuss || '').toLowerCase();
+      return status === 'jauns' || status === 'new';
+    });
+
+    const unseenNewTasks = newTasks.filter(task => {
+      const taskId = this._getTaskId(task);
+      return taskId ? !this.dismissedNewTaskIds.has(taskId) : true;
+    });
+
+    const count = unseenNewTasks.length;
+    this.newTaskCount = count;
+
+    if (count === 0) {
+      alert.hidden = true;
+      return;
+    }
+
+    text.textContent = count === 1 ? t('newTaskAlert') : t('newTasksAlert').replace('{count}', String(count));
+    alert.hidden = false;
   }
 
   openTaskDetail(taskId) {
@@ -464,6 +540,7 @@ class AprupeController {
     });
     if (typeof applyLanguage === 'function') {
       applyLanguage();
+      this.updateNewTaskAlert(this.visibleTasks);
     }
   }
 

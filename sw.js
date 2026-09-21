@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v1';
+const CACHE_NAME = 'aprupes-sistema-v3';
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -63,7 +63,7 @@ async function checkForUpdate() {
     const storedVersion = await getStoredVersion();
     
     if (storedVersion && storedVersion !== currentVersion) {
-      console.log('[SW] New version detected:', currentVersion, '->', storedVersion);
+      console.log('[SW] New version detected:', storedVersion, '->', currentVersion);
       return true;
     }
     await setStoredVersion(currentVersion);
@@ -123,7 +123,7 @@ self.addEventListener('fetch', (event) => {
   
   if (isHTML) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-cache' })
         .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
@@ -163,7 +163,7 @@ setInterval(async () => {
     console.log('[SW] Notifying clients of update');
     await notifyClients({ type: 'UPDATE_AVAILABLE', action: 'reload' });
   }
-}, 5 * 60 * 1000);
+}, 60 * 1000);
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
