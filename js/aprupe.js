@@ -63,6 +63,9 @@ class AprupeController {
     // Manual sync button handler
     const manualSyncBtn = document.getElementById('manualSyncBtn');
     if (manualSyncBtn) {
+      manualSyncBtn.style.display = navigator.onLine ? 'inline-flex' : 'none';
+      window.addEventListener('online', () => manualSyncBtn.style.display = 'inline-flex');
+      window.addEventListener('offline', () => manualSyncBtn.style.display = 'none');
       manualSyncBtn.addEventListener('click', async () => {
         if (!navigator.onLine) {
           this.toast && this.toast(t('offline'));
