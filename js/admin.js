@@ -40,12 +40,6 @@ class AdminPanel {
           this.renderEmployeeList();
         }).catch(() => {});
       });
-      // Cross-tab: bridge localStorage broadcasts to local syncComplete
-      window.addEventListener('storage', (e) => {
-        if (e.key === '__dataChanged' && e.newValue) {
-          window.dispatchEvent(new CustomEvent('syncComplete', { detail: { source: 'crossTab' } }));
-        }
-      });
     }
     if (manualSyncBtn) {
       manualSyncBtn.style.display = navigator.onLine ? 'inline-flex' : 'none';

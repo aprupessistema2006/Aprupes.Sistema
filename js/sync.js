@@ -482,11 +482,7 @@ class CareSync {
             meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
           });
 
-          console.log('[sync] Google Sheets: uzdevumi saņemti =', (data.uzdevomi || []).length,
-            '| pieskirtDarbiniekamId:',
-            (data.uzdevomi || []).map(u => u.pieskirt_darbiniekam_id || u.employeeId || u.darbinieks_id || '?').join(', '));
-
-          // Atjaunot vietējos pabeigšanas statusus, ja Google Sheets tos nav atgriezusi
+          // Atjaunot vietējos pabeigšanas statusus, ja Google Sheets tos nav atgriezti
           await this._applyLocalCompletions(localCompletions);
 
           this.loaded = true;
@@ -660,14 +656,6 @@ class CareSync {
   _broadcastSyncComplete(result) {
     try {
       window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
-    } catch (e) {}
-    // Cross-tab broadcast: localStorage events fire in other tabs
-    try {
-      localStorage.setItem('__dataChanged', JSON.stringify({
-        source: 'sync',
-        timestamp: Date.now(),
-        revision: this.revision || 0
-      }));
     } catch (e) {}
   }
 

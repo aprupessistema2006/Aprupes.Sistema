@@ -5,14 +5,14 @@ const TaskManager = {
 
   async loadAll(force) {
     if (!force && this.tasks.length > 0 && (Date.now() - this.lastFetch) < this.CACHE_TTL) {
-      console.log('[TaskManager] loadAll: cache hit (' + this.tasks.length + ' tasks, age=' + Math.round((Date.now() - this.lastFetch) / 1000) + 's)');
+      console.debug('[TaskManager] loadAll: cache hit (' + this.tasks.length + ' tasks)
       return this.tasks;
     }
     try {
       const local = await window.careDB.getAll('uzdevomi');
       this.tasks = local || [];
       this.lastFetch = Date.now();
-      console.log('[TaskManager] loadAll: IndexedDB loaded — ' + this.tasks.length + (force ? ' (force)' : ' (cache expired)') + ' tasks');
+      console.debug('[TaskManager] loadAll: IndexedDB loaded — ' + this.tasks.length + ' tasks');
     } catch (e) {
       this.tasks = [];
       console.error('[TaskManager] loadAll failed:', e.message || e);
@@ -114,7 +114,6 @@ const TaskManager = {
       });
     }
     this._notifyListeners();
-    this._broadcastChange('createTask');
     return record;
     } finally {
       this._creating = false;
@@ -151,7 +150,6 @@ const TaskManager = {
       });
     }
     this._notifyListeners();
-    this._broadcastChange('completeTask');
     return task;
     } finally {
       this._completing = false;
@@ -181,7 +179,6 @@ const TaskManager = {
       });
     }
     this._notifyListeners();
-    this._broadcastChange('reopenTask');
     return task;
   },
 
@@ -196,16 +193,6 @@ const TaskManager = {
     this._listeners.forEach(fn => {
       try { fn(this.tasks); } catch (e) { console.error('[tasks] listener error', e); }
     });
-  },
-
-  _broadcastChange(action) {
-    try {
-      localStorage.setItem('__dataChanged', JSON.stringify({
-        source: 'task',
-        action: action,
-        timestamp: Date.now()
-      }));
-    } catch (e) {}
   },
 
   renderBadge(currentUser, options) {
@@ -290,18 +277,9 @@ const TaskManager = {
 if (typeof globalThis !== 'undefined') {
   globalThis.TaskManager = TaskManager;
 }
-
 if (typeof window !== 'undefined') {
   window.addEventListener('syncComplete', () => {
     TaskManager.invalidateCache();
-  });
-  // Cross-tab: when another tab broadcasts __dataChanged via localStorage,
-  // dispatch a local syncComplete so all page-level listeners re-render
-  window.addEventListener('storage', (e) => {
-    if (e.key === '__dataChanged' && e.newValue) {
-      TaskManager.invalidateCache();
-      window.dispatchEvent(new CustomEvent('syncComplete', { detail: { source: 'crossTab' } }));
-    }
   });
 }
 
