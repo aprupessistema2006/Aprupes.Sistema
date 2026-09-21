@@ -119,11 +119,11 @@ async function notifyClients(message) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const isHTML = event.request.headers.get('accept')?.includes('text/html');
-  const isStaticAsset = STATIC_ASSETS.some(asset => url.pathname.endsWith(asset));
-  
+
   if (isHTML) {
+    // For HTML, always fetch fresh but cache it
     event.respondWith(
-      fetch(event.request, { cache: 'no-cache' })
+      fetch(event.request)
         .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
@@ -134,34 +134,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (isStaticAsset || url.pathname.startsWith('/css/') || url.pathname.startsWith('/js/') || url.pathname.startsWith('/logo/')) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const fetchPromise = fetch(event.request)
-          .then((response) => {
-            if (response.ok) {
-              const clone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-            }
-            return response;
-          })
-          .catch(() => cached);
-        return cached || fetchPromise;
-      })
-    );
-    return;
-  }
-
+  // For static assets, use cache-first strategy
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => new Response('Offline', { status: 508 }));
+    })
   );
 });
 
 setInterval(async () => {
+  // Check for updates silently — don't auto-reload
   const hasUpdate = await checkForUpdate();
   if (hasUpdate) {
-    console.log('[SW] Notifying clients of update');
-    await notifyClients({ type: 'UPDATE_AVAILABLE', action: 'reload' });
+    console.log('[SW] New version available — user will be notified');
+    await notifyClients({ type: 'UPDATE_AVAILABLE', action: 'notify' });
   }
 }, 60 * 1000);
 

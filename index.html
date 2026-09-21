@@ -150,27 +150,8 @@
   </script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=20260921-2052', { updateViaCache: 'none' })
-        .then(reg => {
-          reg.update();
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[SW] New version available');
-                newWorker.postMessage({ type: 'SKIP_WAITING' });
-                window.location.reload();
-              }
-            });
-          });
-        })
+      navigator.serviceWorker.register('sw.js?v=20260921-2100', { updateViaCache: 'none' })
         .catch(err => console.warn('[SW] Registration failed:', err));
-      
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data?.type === 'UPDATE_AVAILABLE') {
-          window.location.reload();
-        }
-      });
     }
   </script>
 </body>
