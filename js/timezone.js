@@ -54,9 +54,10 @@ const TimezoneUtils = {
   formatDateRiga(date) {
     if (!date) return '';
     if (typeof date === 'string') {
-      if (/T\d{2}:\d{2}/.test(date)) {
-        const parts = this._parts(date);
-        if (parts) return parts.year + '-' + parts.month + '-' + parts.day;
+      // Atbalstīt gan "YYYY-MM-DD", gan "YYYY-MM-DDTHH:mm:ss" formātus
+      const dateMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateMatch) {
+        return dateMatch[1] + '-' + dateMatch[2] + '-' + dateMatch[3];
       }
     }
     const parts = this._parts(date);
@@ -67,13 +68,13 @@ const TimezoneUtils = {
   formatTimeRiga(date) {
     if (!date) return '';
     if (typeof date === 'string') {
-      // Ja string jau ir "HH:mm:ss" vai "HH:mm" formātā — atgriezt kā ir (nav jākonvertē)
-      const timeOnly = date.match(/^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-      if (timeOnly) {
-        const h = String(parseInt(timeOnly[1], 10)).padStart(2, '0');
-        const m = timeOnly[2];
-        const s = timeOnly[3] || '00';
-        // Pārbaudīt, vai tas izskatās kā derīgs laiks (0-23h, 0-59m, 0-59s)
+      // Atbalstīt gan "HH:mm:ss", gan "YYYY-MM-DDTHH:mm:ss" formātus
+      // Meklēt laika daļu pēc 'T' vai no sākuma
+      const timeMatch = date.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?/) || date.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (timeMatch) {
+        const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
+        const m = timeMatch[2];
+        const s = timeMatch[3] || '00';
         const hi = parseInt(h, 10);
         const mi = parseInt(m, 10);
         const si = parseInt(s, 10);
