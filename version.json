@@ -1,6 +1,7 @@
 ﻿{
-  "version": "20260921-2052",
-  "timestamp": 1789997907779,
+  "version": "20260921-2100",
+  "timestamp": 1789998000000,
+  "changes": "Atjaunota sinhronizācijas loģika: noņemti automātiskie renderēšanas listeneri, lai novērstu pārlādēšanos; labota tasks.js sintakses kļūda; pievienoti dataManager.js un syncGuard.js; loadInitialData tagad atgriežas ar offline statusu, neizdzēšot datus, ja neizdodas",
   "files": [
     "index.html",
     "admin.html",
@@ -27,6 +28,8 @@
     "js/excel_export.js",
     "js/xlsx.full.min.js",
     "js/exceljs.bare.min.js",
+    "js/dataManager.js",
+    "js/syncGuard.js",
     "sw.js",
     "logo/logoDS.png",
     "logo/logo_admin.png"

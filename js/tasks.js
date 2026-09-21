@@ -5,7 +5,7 @@ const TaskManager = {
 
   async loadAll(force) {
     if (!force && this.tasks.length > 0 && (Date.now() - this.lastFetch) < this.CACHE_TTL) {
-      console.debug('[TaskManager] loadAll: cache hit (' + this.tasks.length + ' tasks)
+      console.debug('[TaskManager] loadAll: cache hit (' + this.tasks.length + ' tasks)');
       return this.tasks;
     }
     try {

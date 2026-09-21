@@ -441,91 +441,87 @@ class CareSync {
     this._loading = true;
     this._updateSyncStatus('Sinhronizē...');
     onProgress = onProgress || function() {};
-    
-    // Retry initial load up to 2 times (3 attempts total) since it's critical
-    const maxLoadAttempts = 3;
-    let lastError;
-    let result;
-    
+
+    // Tikai viens mēģinājums — ātri, bez murgiem
     try {
-      for (let attempt = 1; attempt <= maxLoadAttempts; attempt++) {
-        try {
-          if (processQueueFirst && attempt === 1) {
-            await this._processQueueUnlocked();
-          }
+      if (processQueueFirst) {
+        await this._processQueueUnlocked();
+      }
 
-          onProgress('Ielādēju datus no Google Sheets... (mēģinājums ' + attempt + '/' + maxLoadAttempts + ')');
-          const params = new URLSearchParams({ action: 'load', t: Date.now() });
-          if (filters.clientId) params.set('clientId', filters.clientId);
-          if (filters.employeeId) params.set('employeeId', filters.employeeId);
-          if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
-          if (filters.dateTo) params.set('dateTo', filters.dateTo);
-          const url = SYNC_URL + '?' + params.toString();
-          const data = await requestData(url, 60000);
+      onProgress('Ielādēju datus no Google Sheets...');
+      const params = new URLSearchParams({ action: 'load', t: Date.now() });
+      if (filters.clientId) params.set('clientId', filters.clientId);
+      if (filters.employeeId) params.set('employeeId', filters.employeeId);
+      if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+      if (filters.dateTo) params.set('dateTo', filters.dateTo);
+      const url = SYNC_URL + '?' + params.toString();
+      const data = await requestData(url, 60000);
 
-          if (data.error) {
-            throw new Error(data.error);
-          }
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
-          onProgress('Atjaunoju lokālos datus no Google Sheets...');
-          const lastSync = Date.now();
+      onProgress('Atjaunoju lokālos datus no Google Sheets...');
+      const lastSync = Date.now();
 
-          // Saglabāt vietējos pabeigšanas statusus pirms DB tīrīšanas
-          const localCompletions = await this._collectLocalCompletions();
+      // Saglabāt vietējos pabeigšanas statusus pirms DB tīrīšanas
+      const localCompletions = await this._collectLocalCompletions();
 
-          await this.db.replaceStores({
-            darbinieki: (data.darbinieki || []).map(normalizeRow),
-            klienti: (data.klienti || []).map(normalizeRow),
-            atzimes: (data.atzimes || []).map(normalizeRow),
-            atzimes_log: (data.atzimes_log || []).map(normalizeRow),
-            uzdevomi: (data.uzdevomi || []).map(normalizeRow),
-            meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
-          });
+      await this.db.replaceStores({
+        darbinieki: (data.darbinieki || []).map(normalizeRow),
+        klienti: (data.klienti || []).map(normalizeRow),
+        atzimes: (data.atzimes || []).map(normalizeRow),
+        atzimes_log: (data.atzimes_log || []).map(normalizeRow),
+        uzdevomi: (data.uzdevomi || []).map(normalizeRow),
+        meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
+      });
 
-          // Atjaunot vietējos pabeigšanas statusus, ja Google Sheets tos nav atgriezti
-          await this._applyLocalCompletions(localCompletions);
+      // Atjaunot vietējos pabeigšanas statusus, ja Google Sheets tos nav atgriezti
+      await this._applyLocalCompletions(localCompletions);
 
-          this.loaded = true;
-          this.revision = (this.revision || 0) + 1;
-          const remaining = await this.getUnsyncedCount();
-          const status = remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts';
-          this._updateSyncStatus(status);
-          result = {
-            offline: false,
-            connected: true,
-            count: {
-              darbinieki: (data.darbinieki || []).length,
-              klienti: (data.klienti || []).length,
-              atzimes: (data.atzimes || []).length,
-              atzimes_log: (data.atzimes_log || []).length,
-              uzdevomi: (data.uzdevomi || []).length
-            },
-            pending: remaining,
-            revision: this.revision
-          };
+      this.loaded = true;
+      this.revision = (this.revision || 0) + 1;
+      const remaining = await this.getUnsyncedCount();
+      const status = remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts';
+      this._updateSyncStatus(status);
+      const result = {
+        offline: false,
+        connected: true,
+        count: {
+          darbinieki: (data.darbinieki || []).length,
+          klienti: (data.klienti || []).length,
+          atzimes: (data.atzimes || []).length,
+          atzimes_log: (data.atzimes_log || []).length,
+          uzdevomi: (data.uzdevomi || []).length
+        },
+        pending: remaining,
+        revision: this.revision
+      };
       try {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
       } catch (e) {}
       this._broadcastSyncComplete(result);
       onProgress('✓ Dati veiksmīgi ielādēti no Google Sheets');
-          return result;
-        } catch (err) {
-          lastError = err;
-          console.warn('[sync] loadInitialData attempt ' + attempt + ' failed:', err.message);
-          if (attempt < maxLoadAttempts) {
-            await new Promise(r => setTimeout(r, 1000 * attempt)); // 1s, 2s delay
-          }
-        }
-      }
-      
-      // All attempts failed - NO FALLBACK to local data
-      // Google Sheets is the ONLY source of truth
+      return result;
+    } catch (err) {
+      // JA NEIZDODAS — NEDZĒSIM DATUS!
+      // Saglabājam esošos datus lokālajā atmiņā, lai lietotājs nezaudētu darbu
+      console.warn('[sync] loadInitialData kļūda, saglabājam esošos datus:', err.message);
       this._updateSyncStatus('Nav savienojuma ar Google Sheets');
-      onProgress('⚠️ NEIZDEVĀS ielādēt datus no Google Sheets. Programma nevar strādāt bez savienojuma.');
-      return { offline: true, error: lastError.message, count: {}, pending: 0 };
+      onProgress('⚠️ Neizdevās sazināties ar Google Sheets. Darbojies ar lokālajiem datiem.');
+      return { offline: true, error: err.message, count: {}, pending: 0 };
     } finally {
       this._loading = false;
     }
+  }
+
+  // Atjauno datus no GS — izsaukt, kad lietotājs pāriet uz citu sadaļu
+  async reloadFromSheets(onProgress) {
+    if (this._loading) {
+      console.log('[sync] jau ielādē, nē dzēst');
+      return;
+    }
+    return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, false, {}));
   }
 
   async enqueueChange(change) {

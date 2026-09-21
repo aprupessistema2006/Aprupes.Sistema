@@ -117,22 +117,7 @@ class CareFormController {
       adminCaregiverName.textContent = (this.currentUser.vards || this.currentUser.Vārds || '') + ' ' + (this.currentUser.uzvards || this.currentUser.Uzvārds || '');
     }
 
-    window.addEventListener('syncComplete', async () => {
-      if (this._initialLoadDone) {
-        // Reload data after background/manual sync
-        await Promise.all([
-          this.loadClient(),
-          this.loadMarks(),
-          this.loadHistory(),
-          this.loadAllClientMarks()
-        ]);
-        this.renderForm();
-        this.renderHistory();
-        this.renderSignature();
-        this.updateTeamSummary();
-        this.renderQuickTotals();
-      }
-    });
+    // DZEST syncComplete listener — neauto renderēt, lai lietotājs nezaudētu fokusu
 
     this.setupLanguageSwitcher();
 

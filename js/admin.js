@@ -33,13 +33,7 @@ class AdminPanel {
         syncStatusEl.textContent = e.detail;
         syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
       });
-      window.addEventListener('syncComplete', () => {
-        this.loadData().then(() => {
-          this.renderDashboard();
-          this.renderClientList();
-          this.renderEmployeeList();
-        }).catch(() => {});
-      });
+      // DZEST syncComplete listener — neauto renderēt, lai lietotājs nezaudētu fokusu
     }
     if (manualSyncBtn) {
       manualSyncBtn.style.display = navigator.onLine ? 'inline-flex' : 'none';

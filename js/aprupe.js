@@ -54,11 +54,7 @@ class AprupeController {
       syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
     });
 
-    window.addEventListener('syncComplete', async () => {
-      this.filteredClients = [...this.clients];
-      this.renderCards();
-      await this.renderTasksTable(this.selectedClientId || null);
-    });
+    // DZEST syncComplete listener — neauto renderēt, lai lietotājs nezaudētu fokusu
 
     // Manual sync button handler
     const manualSyncBtn = document.getElementById('manualSyncBtn');
@@ -187,7 +183,7 @@ class AprupeController {
       };
     }
 
-      try {
+    try {
       await Promise.all([
         this.loadClients(),
         this.loadTodayMarks()
