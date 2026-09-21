@@ -35,6 +35,7 @@ class ControlPanel {
     window.addEventListener('syncComplete', () => {
       this.loadData().then(() => {
         this.renderAll();
+        this.renderTasksList();
       }).catch(() => {});
     });
     }

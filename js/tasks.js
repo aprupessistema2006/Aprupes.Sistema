@@ -110,8 +110,9 @@ const TaskManager = {
         }
       });
     }
-      this._notifyListeners();
-      return record;
+    this._notifyListeners();
+    this._broadcastChange('createTask');
+    return record;
     } finally {
       this._creating = false;
     }
@@ -147,6 +148,7 @@ const TaskManager = {
       });
     }
     this._notifyListeners();
+    this._broadcastChange('completeTask');
     return task;
     } finally {
       this._completing = false;
@@ -176,6 +178,7 @@ const TaskManager = {
       });
     }
     this._notifyListeners();
+    this._broadcastChange('reopenTask');
     return task;
   },
 
@@ -190,6 +193,16 @@ const TaskManager = {
     this._listeners.forEach(fn => {
       try { fn(this.tasks); } catch (e) { console.error('[tasks] listener error', e); }
     });
+  },
+
+  _broadcastChange(action) {
+    try {
+      localStorage.setItem('__dataChanged', JSON.stringify({
+        source: 'task',
+        action: action,
+        timestamp: Date.now()
+      }));
+    } catch (e) {}
   },
 
   renderBadge(currentUser, options) {
@@ -278,6 +291,14 @@ if (typeof globalThis !== 'undefined') {
 if (typeof window !== 'undefined') {
   window.addEventListener('syncComplete', () => {
     TaskManager.invalidateCache();
+  });
+  // Cross-tab: when another tab broadcasts __dataChanged via localStorage,
+  // dispatch a local syncComplete so all page-level listeners re-render
+  window.addEventListener('storage', (e) => {
+    if (e.key === '__dataChanged' && e.newValue) {
+      TaskManager.invalidateCache();
+      window.dispatchEvent(new CustomEvent('syncComplete', { detail: { source: 'crossTab' } }));
+    }
   });
 }
 

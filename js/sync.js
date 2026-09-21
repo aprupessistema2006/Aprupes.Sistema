@@ -503,10 +503,11 @@ class CareSync {
             pending: remaining,
             revision: this.revision
           };
-          try {
-            window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
-          } catch (e) {}
-          onProgress('✓ Dati veiksmīgi ielādēti no Google Sheets');
+      try {
+        window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
+      } catch (e) {}
+      this._broadcastSyncComplete(result);
+      onProgress('✓ Dati veiksmīgi ielādēti no Google Sheets');
           return result;
         } catch (err) {
           lastError = err;
@@ -637,6 +638,7 @@ class CareSync {
       try {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
       } catch (e) {}
+      this._broadcastSyncComplete(result);
       return result;
     });
   }
@@ -651,11 +653,23 @@ class CareSync {
     return items.length;
   }
 
+  _broadcastSyncComplete(result) {
+    try {
+      window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
+    } catch (e) {}
+    // Cross-tab broadcast: localStorage events fire in other tabs
+    try {
+      localStorage.setItem('__dataChanged', JSON.stringify({
+        source: 'sync',
+        timestamp: Date.now(),
+        revision: this.revision || 0
+      }));
+    } catch (e) {}
+  }
+
   async sync() {
     const summary = await this.processQueue();
-    try {
-      window.dispatchEvent(new CustomEvent('syncComplete', { detail: { queue: summary } }));
-    } catch (e) {}
+    this._broadcastSyncComplete({ queue: summary });
   }
 
   async hasLocalData() {
