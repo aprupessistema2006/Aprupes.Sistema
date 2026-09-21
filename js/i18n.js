@@ -512,7 +512,12 @@ walkNotDone: 'Nav bijis',
     exportError: 'Eksporta kļūda: ',
     selectMonthAndClient: 'Izvēlieties mēnesi un klientu',
     clientsFound: ' klienti atrasti',
-    clientsTotal: ' klienti'
+    clientsTotal: ' klienti',
+    mealAlreadyMarkedMorning: 'Jau atzīmēts rīta sadaļā',
+    mealAlreadyMarkedEvening: 'Jau atzīmēts vakera sadaļā',
+    mealSwitchToMorning: 'Lūdzu pārslēdzieties uz rīta sadaļu',
+    mealSwitchToEvening: 'Lūdzu pārslēdzieties uz vakera sadaļu',
+    visitorsMarkedByOther: 'Citā sadaļā jau ir atzīmēts — ciemiņi bija:'
   },
   ru: {
     appName: 'Система ухода',
@@ -1012,7 +1017,12 @@ walkNotDone: 'Nav bijis',
     exportError: 'Ошибка экспорта: ',
     selectMonthAndClient: 'Выберите месяц и клиента',
     clientsFound: ' клиентов найдено',
-    clientsTotal: ' клиентов'
+    clientsTotal: ' клиентов',
+    mealAlreadyMarkedMorning: 'Уже отмечено в утренней смене',
+    mealAlreadyMarkedEvening: 'Уже отмечено в вечерней смене',
+    mealSwitchToMorning: 'Пожалуйста, переключитесь на утреннюю смену',
+    mealSwitchToEvening: 'Пожалуйста, переключитесь на вечернюю смену',
+    visitorsMarkedByOther: 'В другой смене уже отмечено — посетители были:'
   },
   en: {
     appName: 'Care System',
@@ -1513,7 +1523,12 @@ walkNotDone: 'Nav bijis',
     exportError: 'Export error: ',
     selectMonthAndClient: 'Select month and client',
     clientsFound: ' clients found',
-    clientsTotal: ' clients'
+    clientsTotal: ' clients',
+    mealAlreadyMarkedMorning: 'Already marked in morning section',
+    mealAlreadyMarkedEvening: 'Already marked in evening section',
+    mealSwitchToMorning: 'Please switch to morning section',
+    mealSwitchToEvening: 'Please switch to evening section',
+    visitorsMarkedByOther: 'Already marked in another section — visitors came:'
   }
 };
 

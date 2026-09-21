@@ -1429,16 +1429,18 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
     }
   }
 
-  async handleOptionSelect(shift, category, field, value, btn) {
+async handleOptionSelect(shift, category, field, value, btn) {
     if (MEAL_SHIFT[field] && shift !== MEAL_SHIFT[field]) {
-      const req = MEAL_SHIFT[field] === 'R' ? 'rīta' : 'vakera';
-      const existing = this.marks.get(MEAL_SHIFT[field] + '|' + category + '|' + field);
+      const correctShift = MEAL_SHIFT[field];
+      const existing = this.marks.get(correctShift + '|' + category + '|' + field);
       if (existing && existing.value) {
-        const who = this.empMap[existing.lastBy] || 'darbinieks';
+        const who = this.empMap[existing.lastBy] || t('employee');
         const when = this.extractTimeDisplay(existing.lastModified) || '';
-        this.toast('Jau atzīmēts ' + req + ' sadaļā (' + who + (when ? ', ' + when : '') + ')');
+        const msg = correctShift === 'R' ? t('mealAlreadyMarkedMorning') : t('mealAlreadyMarkedEvening');
+        this.toast(msg + ' (' + who + (when ? ', ' + when : '') + ')');
       } else {
-        this.toast('Lūdzu pārslēdzieties uz ' + req + ' sadaļu');
+        const msg = correctShift === 'R' ? t('mealSwitchToMorning') : t('mealSwitchToEvening');
+        this.toast(msg);
       }
       return;
     }
@@ -1447,8 +1449,8 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const otherShift = shift === 'R' ? 'V' : 'R';
       const otherMark = this.marks.get(otherShift + '|' + category + '|' + field);
       if (otherMark && otherMark.value === 'X') {
-        const who = this.empMap[otherMark.lastBy] || 'darbinieks';
-        this.toast('Citā sadaļā jau atzīmēts: ciemiņi bija (' + who + ')');
+        const who = this.empMap[otherMark.lastBy] || t('employee');
+        this.toast(t('visitorsMarkedByOther') + ' ' + who);
         return;
       }
     }
