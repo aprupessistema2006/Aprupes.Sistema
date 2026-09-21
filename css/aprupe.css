@@ -295,8 +295,10 @@ body {
   width: 100%;
 }
 .client-container {
-  max-height: 420px;
+  max-height: calc(var(--card-height) + var(--card-height) + var(--card-height) + 24px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
   margin-bottom: 8px;
   border-bottom: 1px solid var(--border);
@@ -310,7 +312,7 @@ body {
     gap: 10px !important;
   }
   .client-container {
-    max-height: 380px;
+    max-height: calc(var(--card-height) + var(--card-height) + var(--card-height) + 20px);
   }
 }
 
@@ -636,6 +638,16 @@ body {
   .client-grid {
     grid-template-columns: repeat(2, 1fr);
     max-width: 100%;
+  }
+}
+
+@media (min-width: 1025px) {
+  .client-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: minmax(var(--card-height), auto);
+  }
+  .client-container {
+    max-height: calc(var(--card-height) + 28px);
   }
 }
 
