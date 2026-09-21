@@ -340,7 +340,7 @@ class ControlPanel {
   }
 
   extractDateFromAnyField(row) {
-    const candidates = [row.date, row.created, row.lastModified, row.izveidots, row.pedeja_laiks, row.pēdējais_laiks];
+    const candidates = [row.date, row.datums, row.created, row.lastModified, row.izveidots, row.pedeja_laiks, row.pēdējais_laiks, row.skaits, row.laiks];
     for (const c of candidates) {
       if (c === null || c === undefined || c === '') continue;
       const formatted = TimezoneUtils.formatDateRiga(c);
@@ -500,6 +500,12 @@ class ControlPanel {
     return TimezoneUtils.formatTimeRiga(t);
   }
 
+  formatTimeForDisplayFromRow(row) {
+    const t = row.time || row.laiks || row.skaits;
+    if (!t) return '';
+    return TimezoneUtils.formatTimeRiga(t);
+  }
+
   formatFieldLabel(category, field) {
     if (!field) return category || '';
     const map = {
@@ -575,14 +581,14 @@ class ControlPanel {
       const da = this.extractDateFromAnyField(a) || '';
       const db = this.extractDateFromAnyField(b) || '';
       if (da !== db) return db.localeCompare(da);
-      const ta = this.formatTimeForDisplay(a.time);
-      const tb = this.formatTimeForDisplay(b.time);
+      const ta = this.formatTimeForDisplayFromRow(a);
+      const tb = this.formatTimeForDisplayFromRow(b);
       return tb.localeCompare(ta);
     });
 
     body.innerHTML = sorted.slice(0, 500).filter(l => l).map(l => {
       const date = this.extractDateFromAnyField(l) || '-';
-      const time = this.formatTimeForDisplay(l.time);
+      const time = this.formatTimeForDisplayFromRow(l);
       const cid = String(l.clientId || '');
       const eid = String(l.employeeId || '');
       const clientName = clientMap[cid] || ('ID: ' + cid);
@@ -829,8 +835,8 @@ class ControlPanel {
         const da = this.extractDateFromAnyField(a) || '';
         const db = this.extractDateFromAnyField(b) || '';
         if (da !== db) return db.localeCompare(da);
-        const ta = this.formatTimeForDisplay(a.time);
-        const tb = this.formatTimeForDisplay(b.time);
+        const ta = this.formatTimeForDisplayFromRow(a);
+        const tb = this.formatTimeForDisplayFromRow(b);
         return tb.localeCompare(ta);
       });
       const filename = await exporter.generateMonth(client, year, month, clientMarks);
@@ -886,8 +892,8 @@ class ControlPanel {
         const da = this.extractDateFromAnyField(a) || '';
         const db = this.extractDateFromAnyField(b) || '';
         if (da !== db) return db.localeCompare(da);
-        const ta = this.formatTimeForDisplay(a.time);
-        const tb = this.formatTimeForDisplay(b.time);
+        const ta = this.formatTimeForDisplayFromRow(a);
+        const tb = this.formatTimeForDisplayFromRow(b);
         return tb.localeCompare(ta);
       });
 
