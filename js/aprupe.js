@@ -192,9 +192,11 @@ class AprupeController {
       this.filteredClients = [...this.clients];
       this.renderCards();
 
-      await this.sync.loadInitialData((msg) => {
+      const syncResult = await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
+        console.log('[aprupe] sync progress:', msg);
       });
+      console.log('[aprupe] loadInitialData pabeigts — uzdevumi no Google Sheets:', syncResult && syncResult.count ? syncResult.count.uzdevomi : 'nav datu');
       await Promise.all([
         this.loadClients(),
         this.loadTodayMarks()
@@ -214,11 +216,28 @@ class AprupeController {
 
   async renderTasksTable(clientId) {
     const tbody = document.getElementById('tasksTableBody');
-    if (!tbody || !window.TaskManager || !this.currentUser) return;
+    if (!tbody || !window.TaskManager || !this.currentUser) {
+      if (!window.TaskManager) console.warn('[aprupe] TaskManager nav pieejams');
+      if (!this.currentUser) console.warn('[aprupe] currentUser nav ielogījies');
+      return;
+    }
 
     await window.TaskManager.loadAll();
     const allTasks = window.TaskManager.tasks || [];
     const currentUserId = String(this.currentUser.id || this.currentUser.ID || '');
+
+    console.groupCollapsed('[aprupe] renderTasksTable – ' + new Date().toLocaleTimeString());
+    console.log('  kopā uzdevumu IndexedDB:', allTasks.length);
+    console.log('  pašreizejais lietotājs ID:', currentUserId);
+    if (allTasks.length > 0) {
+      console.log('  visi uzdevumi (pieskirtDarbiniekamId → id):');
+      allTasks.forEach(t => {
+        console.log('    -', t.id, '→ pieskirtDarbiniekamId:', JSON.stringify(t.pieskirtDarbiniekamId || t.employeeId), 'statuss:', t.statuss, 'irPabeigts:', JSON.stringify(t.irPabeigts));
+      });
+    }
+    if (allTasks.length === 0) {
+      console.warn('  ⚠️  IndexedDB uzdevumu tabulā ir tukša — loadInitialData var nebūt izpildījās vai neizdevās');
+    }
 
     const userTasks = allTasks.filter(t => {
       const assignee = String(t.pieskirtDarbiniekamId || t.employeeId || '');
@@ -240,6 +259,14 @@ class AprupeController {
 
     this.visibleTasks = userTasks;
     this.updateNewTaskAlert(userTasks);
+
+    console.log('  uzdevumi pēc filtrā (piešķirts lietotājam):', userTasks.length);
+    if (userTasks.length === 0 && allTasks.length > 0) {
+      console.warn('  ⚠️  Neviens uzdevums neatbilst lietotājam ID:', currentUserId);
+      console.log('  unikālie pieskirtDarbiniekamId vērtības:',
+        [...new Set(allTasks.map(t => String(t.pieskirtDarbiniekamId || t.employeeId || '')))]);
+    }
+    console.groupEnd();
 
     if (userTasks.length === 0) {
       tbody.innerHTML = '<tr class="tasks-empty-row"><td colspan="8" class="loading" data-i18n="noClientTasks">Jums pašlaik nav aktīvu uzdevumu.</td></tr>';

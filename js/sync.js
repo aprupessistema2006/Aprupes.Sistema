@@ -482,6 +482,10 @@ class CareSync {
             meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
           });
 
+          console.log('[sync] Google Sheets: uzdevumi saņemti =', (data.uzdevomi || []).length,
+            '| pieskirtDarbiniekamId:',
+            (data.uzdevomi || []).map(u => u.pieskirt_darbiniekam_id || u.employeeId || u.darbinieks_id || '?').join(', '));
+
           // Atjaunot vietējos pabeigšanas statusus, ja Google Sheets tos nav atgriezusi
           await this._applyLocalCompletions(localCompletions);
 

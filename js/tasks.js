@@ -5,14 +5,17 @@ const TaskManager = {
 
   async loadAll(force) {
     if (!force && this.tasks.length > 0 && (Date.now() - this.lastFetch) < this.CACHE_TTL) {
+      console.log('[TaskManager] loadAll: cache hit (' + this.tasks.length + ' tasks, age=' + Math.round((Date.now() - this.lastFetch) / 1000) + 's)');
       return this.tasks;
     }
     try {
       const local = await window.careDB.getAll('uzdevomi');
       this.tasks = local || [];
       this.lastFetch = Date.now();
+      console.log('[TaskManager] loadAll: IndexedDB loaded — ' + this.tasks.length + (force ? ' (force)' : ' (cache expired)') + ' tasks');
     } catch (e) {
       this.tasks = [];
+      console.error('[TaskManager] loadAll failed:', e.message || e);
     }
     return this.tasks;
   },
