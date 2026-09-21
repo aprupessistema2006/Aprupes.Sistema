@@ -1,3 +1,10 @@
+const MEAL_SHIFT = {
+  brokastis: 'R',
+  pusdienas: 'R',
+  launags: 'V',
+  vakariņi: 'V'
+};
+
 class CareFormController {
   constructor() {
     this.db = null;
@@ -1423,6 +1430,29 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
   }
 
   async handleOptionSelect(shift, category, field, value, btn) {
+    if (MEAL_SHIFT[field] && shift !== MEAL_SHIFT[field]) {
+      const req = MEAL_SHIFT[field] === 'R' ? 'rīta' : 'vakera';
+      const existing = this.marks.get(MEAL_SHIFT[field] + '|' + category + '|' + field);
+      if (existing && existing.value) {
+        const who = this.empMap[existing.lastBy] || 'darbinieks';
+        const when = this.extractTimeDisplay(existing.lastModified) || '';
+        this.toast('Jau atzīmēts ' + req + ' sadaļā (' + who + (when ? ', ' + when : '') + ')');
+      } else {
+        this.toast('Lūdzu pārslēdzieties uz ' + req + ' sadaļu');
+      }
+      return;
+    }
+
+    if (category === 'citsi_pasakomi' && field === 'ciemini' && value === 'Nē') {
+      const otherShift = shift === 'R' ? 'V' : 'R';
+      const otherMark = this.marks.get(otherShift + '|' + category + '|' + field);
+      if (otherMark && otherMark.value === 'X') {
+        const who = this.empMap[otherMark.lastBy] || 'darbinieks';
+        this.toast('Citā sadaļā jau atzīmēts: ciemiņi bija (' + who + ')');
+        return;
+      }
+    }
+
     const actionKey = 'opt_' + shift + '|' + category + '|' + field;
     if (this._processing.has(actionKey)) {
       return;
