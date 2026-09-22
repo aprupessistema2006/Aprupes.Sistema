@@ -1,11 +1,9 @@
 ﻿{
-  "version": "20260922-2230",
-  "timestamp": 1790154600000,
-  "changes": "Hospital status toggle button in care form header for caregivers; updates button UI on toggle; admin panel still has checkbox for admins",
+  "version": "20260922-2240",
+  "timestamp": 1790155200000,
+  "changes": "Hospital status toggle now logs to atzimes_log (existing history table) with category 'slimnica', field 'statuss' - full history in existing Control/Care history views",
   "files": [
     "version.json",
-    "js/care_form.js",
-    "aprupetajs.html",
-    "css/aprupetajs.css"
+    "js/care_form.js"
   ]
 }

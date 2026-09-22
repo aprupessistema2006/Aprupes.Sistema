@@ -457,6 +457,53 @@ try {
       data: { id: this.client.id, slimnica: newStatus }
     });
     
+    // Log to atzimes_log (same as other care actions)
+    const today = this.getToday();
+    const nowRiga = TimezoneUtils.getNowRiga();
+    const timeStr = TimezoneUtils.getTimeRiga();
+    const nowUTC = nowRiga.toISOString();
+    const shift = this.currentShift || 'V';
+    
+    const logValue = newStatus ? 'Iepazīdināts slimnīcā' : 'Atvadināts no slimnīcas';
+    const logEntry = {
+      id: this.db.generateId(),
+      markId: 'hosp_' + Date.now(),
+      clientId: this.clientId,
+      employeeId: this.currentUser.id,
+      date: today,
+      time: timeStr,
+      shift: shift,
+      category: 'slimnica',
+      field: 'statuss',
+      value: logValue,
+      prevValue: newStatus ? 'Atvadināts no slimnīcas' : 'Iepazīdināts slimnīcā',
+      type: 'Jauns',
+      created: nowUTC,
+      mainaTips: this.currentUser.mainaTips || 'diennakts'
+    };
+    await this.db.add('atzimes_log', logEntry);
+    
+    this.sync.enqueueChange({
+      action: 'mark',
+      table: 'atzimes_log',
+      data: {
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        shift: shift,
+        category: 'slimnica',
+        field: 'statuss',
+        value: logValue,
+        lastModified: nowUTC,
+        actionId: 'hospital_' + this.clientId + '_' + shift + '_' + today
+      }
+    });
+    
+    if (this.allClientLog) {
+      this.allClientLog.unshift(logEntry);
+    }
+    this.history.unshift(logEntry);
+    
     this.updateHospitalStatusUI();
     this.updateHospitalToggleButton(newStatus);
     this.toast(newStatus ? 'Klients pievienots slimnīcā' : 'Klients atgriezies no slimnīcas');
