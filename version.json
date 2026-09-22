@@ -1,10 +1,9 @@
 ﻿{
-  "version": "20260922-1950",
-  "timestamp": 1790147400000,
-  "changes": "Fix GAS handleMark lastModifiedRiga error; new GAS_URL deployed",
+  "version": "20260922-2005",
+  "timestamp": 1790148300000,
+  "changes": "Fix SW version persistence after update; sync working with new GAS",
   "files": [
     "version.json",
-    "backend/gas_webhook.gs",
-    "js/config.js"
+    "sw.js"
   ]
 }

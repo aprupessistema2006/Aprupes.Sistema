@@ -64,6 +64,8 @@ async function checkForUpdate() {
     
     if (storedVersion && storedVersion !== currentVersion) {
       console.log('[SW] New version detected:', storedVersion, '->', currentVersion);
+      // Store the new version immediately so we don't keep detecting it
+      await setStoredVersion(currentVersion);
       return true;
     }
     await setStoredVersion(currentVersion);
