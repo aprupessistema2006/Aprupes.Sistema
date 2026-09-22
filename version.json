@@ -1,9 +1,9 @@
 ﻿{
-  "version": "20260922-2005",
-  "timestamp": 1790148300000,
-  "changes": "Fix SW version persistence after update; sync working with new GAS",
+  "version": "20260922-2020",
+  "timestamp": 1790149200000,
+  "changes": "Fix timezone.js formatTimeRiga to properly convert UTC to Europe/Riga; GUI history now shows correct local time",
   "files": [
     "version.json",
-    "sw.js"
+    "js/timezone.js"
   ]
 }

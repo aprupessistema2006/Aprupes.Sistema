@@ -67,22 +67,6 @@ const TimezoneUtils = {
 
   formatTimeRiga(date) {
     if (!date) return '';
-    if (typeof date === 'string') {
-      // Atbalstīt gan "HH:mm:ss", gan "YYYY-MM-DDTHH:mm:ss" formātus
-      // Meklēt laika daļu pēc 'T' vai no sākuma
-      const timeMatch = date.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?/) || date.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-      if (timeMatch) {
-        const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
-        const m = timeMatch[2];
-        const s = timeMatch[3] || '00';
-        const hi = parseInt(h, 10);
-        const mi = parseInt(m, 10);
-        const si = parseInt(s, 10);
-        if (hi >= 0 && hi <= 23 && mi >= 0 && mi <= 59 && si >= 0 && si <= 59) {
-          return h + ':' + m + ':' + s;
-        }
-      }
-    }
     const parts = this._parts(date);
     if (!parts) return '';
     return parts.hour + ':' + parts.minute + ':' + parts.second;
