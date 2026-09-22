@@ -1,15 +1,14 @@
 ﻿{
-  "version": "20260922-1805",
-  "timestamp": 1790143500000,
-  "changes": "Laika josla Europe/Riga visās vēsturēs/statistikās/Excel; GAS backend dublikātu novēršana; paraksti/maišu nodešana-pieņemšana pareiza; Excel loģika nesākārtota",
+  "version": "20260922-1910",
+  "timestamp": 1790145000000,
+  "changes": "Force SW update for new GAS_URL; auto-update notification with button",
   "files": [
-    "backend/gas_webhook.gs",
-    "js/config.js",
-    "js/sync.js",
-    "js/control.js",
-    "js/care_form.js",
-    "test_e2e.js",
-    "test_verify_fixes.js",
-    "version.json"
+    "version.json",
+    "index.html",
+    "aprupe.html",
+    "aprupetajs.html",
+    "admin.html",
+    "control.html",
+    "js/config.js"
   ]
 }
