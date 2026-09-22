@@ -103,15 +103,26 @@ async function jsonpAction(action, data, timeout = 30000) {
   const actionKey = action + ':' + JSON.stringify(data);
 
   if (pendingActions.has(actionKey)) {
+    console.log('[sync] jsonpAction deduplicated:', actionKey);
     return pendingActions.get(actionKey);
   }
 
   const payload = encodeURIComponent(JSON.stringify({ action: action, data: data }));
   let url = SYNC_URL + '?data=' + payload;
+  console.log('[sync] jsonpAction SENDING:', action, JSON.stringify(data));
 
-  const promise = requestData(url, timeout).finally(() => {
-    pendingActions.delete(actionKey);
-  });
+  const promise = requestData(url, timeout)
+    .then(result => {
+      console.log('[sync] jsonpAction RESPONSE:', action, JSON.stringify(result));
+      return result;
+    })
+    .catch(err => {
+      console.error('[sync] jsonpAction ERROR:', action, err.message);
+      throw err;
+    })
+    .finally(() => {
+      pendingActions.delete(actionKey);
+    });
 
   pendingActions.set(actionKey, promise);
   return promise;
@@ -452,7 +463,9 @@ class CareSync {
       if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
       if (filters.dateTo) params.set('dateTo', filters.dateTo);
       const url = SYNC_URL + '?' + params.toString();
+      console.log('[sync] loadInitialData SENDING load request to:', url);
       const data = await requestData(url, 60000);
+      console.log('[sync] loadInitialData RECEIVED:', JSON.stringify(data).substring(0, 500));
 
       if (data.error) {
         throw new Error(data.error);
@@ -597,10 +610,12 @@ class CareSync {
           const action = item.change.action || item.change.type || 'mark';
           const data = item.change.data || item.change;
           const isWriteOp = ['mark', 'createTask', 'updateTask', 'createClient', 'createEmployee', 'updateClient', 'updateEmployee'].includes(action);
+          console.log('[sync] processQueue PROCESSING:', action, 'retries:', item.retries || 0, 'data:', JSON.stringify(data));
           const result = isWriteOp
             ? await postAction(action, data)
             : await jsonpAction(action, data);
 
+          console.log('[sync] processQueue RESULT:', action, 'success:', result?.success, 'error:', result?.error, 'already_processed:', result?.already_processed);
           if (!result || result.error || result.success === false) {
             item.retries = (item.retries || 0) + 1;
             item.lastError = result && result.error ? result.error : 'Nezināma sinhronizācijas kļūda';
