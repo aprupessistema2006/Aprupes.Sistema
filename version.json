@@ -1,11 +1,10 @@
 ﻿{
-  "version": "20260922-2155",
-  "timestamp": 1790152500000,
-  "changes": "Fluid tracking: individual records per entry (H2O, urine, diapers); Hospital status feature: client slimnica flag, UI banner, disables care actions, shows 'Slimnīcā' in temperature",
+  "version": "20260922-2230",
+  "timestamp": 1790154600000,
+  "changes": "Hospital status toggle button in care form header for caregivers; updates button UI on toggle; admin panel still has checkbox for admins",
   "files": [
     "version.json",
     "js/care_form.js",
-    "js/admin.js",
     "aprupetajs.html",
     "css/aprupetajs.css"
   ]

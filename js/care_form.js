@@ -441,6 +441,8 @@ try {
         signBtn.title = '';
       }
     }
+    // Update toggle button in client info header
+    this.updateHospitalToggleButton(isHospital);
   }
 
   async toggleHospitalStatus() {
@@ -456,7 +458,28 @@ try {
     });
     
     this.updateHospitalStatusUI();
+    this.updateHospitalToggleButton(newStatus);
     this.toast(newStatus ? 'Klients pievienots slimnīcā' : 'Klients atgriezies no slimnīcas');
+  }
+
+  updateHospitalToggleButton(isHospital) {
+    const toggleBtn = document.getElementById('hospitalToggleBtn');
+    const toggleIcon = document.getElementById('hospitalToggleIcon');
+    const toggleText = document.getElementById('hospitalToggleText');
+    
+    if (!toggleBtn) return;
+    
+    if (isHospital) {
+      toggleBtn.classList.add('active');
+      if (toggleIcon) toggleIcon.textContent = '🏥';
+      if (toggleText) toggleText.textContent = 'Slimnīcā';
+      toggleBtn.title = 'Nospied, lai atgrieztu klientu no slimnīcas';
+    } else {
+      toggleBtn.classList.remove('active');
+      if (toggleIcon) toggleIcon.textContent = '🏥';
+      if (toggleText) toggleText.textContent = 'Slimnīcā';
+      toggleBtn.title = 'Nospied, lai pievienotu klientu slimnīcā';
+    }
   }
 
   formatDob(dob) {
