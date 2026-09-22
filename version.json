@@ -1,14 +1,9 @@
 ﻿{
-  "version": "20260922-1910",
-  "timestamp": 1790145000000,
-  "changes": "Force SW update for new GAS_URL; auto-update notification with button",
+  "version": "20260922-1925",
+  "timestamp": 1790145900000,
+  "changes": "Add detailed sync logging for debugging; force SW update",
   "files": [
     "version.json",
-    "index.html",
-    "aprupe.html",
-    "aprupetajs.html",
-    "admin.html",
-    "control.html",
-    "js/config.js"
+    "js/sync.js"
   ]
 }
