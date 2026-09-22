@@ -570,15 +570,17 @@ function handleMark(data) {
       else if (nk === 'klients_id') markRow[i] = m.clientId;
       else if (nk === 'darbinieks_id') markRow[i] = m.employeeId;
       else if (nk === 'datums') markRow[i] = m.date || formatDate(new Date());
-      else if (nk === 'laiks') markRow[i] = lastModifiedRiga;
+      else if (nk === 'laiks') markRow[i] = eventTimeRiga;
       else if (nk === 'periods') markRow[i] = m.shift || 'R';
       else if (nk === 'kategorija') markRow[i] = m.category;
       else if (nk === 'lauka_nosaukums') markRow[i] = m.field;
       else if (nk === 'vertiba') markRow[i] = m.value;
-      else if (nk === 'pedeja_laiks') markRow[i] = lastModifiedRiga;
+      else if (nk === 'pedeja_laiks') markRow[i] = modificationDateTimeRiga;
+      else if (nk === 'pedejais_laiks') markRow[i] = modificationDateTimeRiga;
       else if (nk === 'darbinieks_pedejais') markRow[i] = m.employeeId;
       else if (nk === 'action_id') markRow[i] = m.actionId || '';
       else if (nk === 'maina_tips') markRow[i] = m.mainaTips || m.maina_tips || 'diennakts';
+      else if (nk === 'notikuma_laiks') markRow[i] = eventDateTimeRiga;
     });
 
     const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
@@ -587,14 +589,16 @@ function handleMark(data) {
       atzimes_id: id,
       klients_id: m.clientId,
       darbinieks_id: m.employeeId,
-      datums: formatDate(new Date()),
-      laiks: lastModifiedRiga,
+      datums: eventDateRiga,
+      laiks: eventTimeRiga,
       periods: m.shift || 'R',
       kategorija: m.category,
       lauka_nosaukums: m.field,
       vertiba: m.value,
-      skaits: logDateTimeRiga,
-      pedeja_laiks: logDateTimeRiga,
+      notikuma_laiks: eventDateTimeRiga,
+      skaits: eventDateTimeRiga,
+      pedeja_vertiba: '',
+      pedeja_laiks: modificationDateTimeRiga,
       darbinieks_pedejais: m.employeeId,
       action_id: m.actionId || '',
       maina_tips: m.mainaTips || m.maina_tips || 'diennakts'

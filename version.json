@@ -1,9 +1,10 @@
 ﻿{
-  "version": "20260922-1925",
-  "timestamp": 1790145900000,
-  "changes": "Add detailed sync logging for debugging; force SW update",
+  "version": "20260922-1950",
+  "timestamp": 1790147400000,
+  "changes": "Fix GAS handleMark lastModifiedRiga error; new GAS_URL deployed",
   "files": [
     "version.json",
-    "js/sync.js"
+    "backend/gas_webhook.gs",
+    "js/config.js"
   ]
 }
