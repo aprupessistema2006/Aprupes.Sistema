@@ -218,6 +218,66 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+.hospital-banner {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  animation: slideDown 0.3s ease;
+}
+
+.hospital-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.hospital-icon {
+  font-size: 20px;
+}
+
+.hospital-text {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.btn-hospital-return {
+  background: white;
+  color: #e74c3c;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.btn-hospital-return:hover {
+  background: #fff3f3;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.category-card.disabled {
+  opacity: 0.4 !important;
+  pointer-events: none !important;
+  background: #f5f5f5 !important;
+}
+
+.category-card.disabled .cat-emoji {
+  filter: grayscale(100%);
+}
+
+.category-card.disabled .cat-title {
+  color: var(--text-light);
+}
+
 .main {
   padding: 14px;
   max-width: 800px;

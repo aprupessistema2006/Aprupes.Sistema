@@ -367,6 +367,96 @@ try {
     document.getElementById('clientDiet').classList.toggle('empty', !diet);
     document.getElementById('clientSaskarsme').textContent = saskarsme || 'Saskarsme nav norādīta';
     document.getElementById('clientSaskarsme').classList.toggle('empty', !saskarsme);
+
+    // Check hospital status
+    this.updateHospitalStatusUI();
+  }
+
+  updateHospitalStatusUI() {
+    const isHospital = this.client && (this.client.slimnica || this.client['Slimnīcā'] || false);
+    const tempInput = document.querySelector('input[data-cat="temp"][data-field="temperatura"]');
+    const tempLabel = document.querySelector('label[data-cat="temp"][data-field="temperatura"]');
+    const hospitalBanner = document.getElementById('hospitalBanner');
+    const hospitalReturnBtn = document.getElementById('hospitalReturnBtn');
+    
+    if (isHospital) {
+      // Show hospital banner
+      if (hospitalBanner) hospitalBanner.style.display = 'block';
+      if (hospitalReturnBtn) hospitalReturnBtn.style.display = 'inline-flex';
+      
+      // Show "Slimnīcā" in temperature field
+      if (tempInput) {
+        tempInput.value = '';
+        tempInput.placeholder = 'Slimnīcā';
+        tempInput.disabled = true;
+        tempInput.style.background = '#fff3e0';
+        tempInput.style.color = '#e65100';
+        tempInput.style.fontWeight = 'bold';
+        tempInput.style.textAlign = 'center';
+      }
+      if (tempLabel) tempLabel.textContent = 'Slimnīcā';
+      
+      // Disable all category cards
+      document.querySelectorAll('.category-card').forEach(card => {
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+        card.style.background = '#f5f5f5';
+      });
+      
+      // Disable sign button
+      const signBtn = document.getElementById('signBtn');
+      if (signBtn) {
+        signBtn.disabled = true;
+        signBtn.style.opacity = '0.5';
+        signBtn.title = 'Nav iespējams parakstīt — klients ir slimnīcā';
+      }
+    } else {
+      // Hide hospital banner
+      if (hospitalBanner) hospitalBanner.style.display = 'none';
+      if (hospitalReturnBtn) hospitalReturnBtn.style.display = 'none';
+      
+      // Restore temperature field
+      if (tempInput) {
+        tempInput.placeholder = 'Ievadi temperatūru';
+        tempInput.disabled = false;
+        tempInput.style.background = '';
+        tempInput.style.color = '';
+        tempInput.style.fontWeight = '';
+        tempInput.style.textAlign = '';
+      }
+      if (tempLabel) tempLabel.textContent = 'Temperatūra';
+      
+      // Enable all category cards
+      document.querySelectorAll('.category-card').forEach(card => {
+        card.style.opacity = '';
+        card.style.pointerEvents = '';
+        card.style.background = '';
+      });
+      
+      // Enable sign button
+      const signBtn = document.getElementById('signBtn');
+      if (signBtn) {
+        signBtn.disabled = false;
+        signBtn.style.opacity = '';
+        signBtn.title = '';
+      }
+    }
+  }
+
+  async toggleHospitalStatus() {
+    const newStatus = !(this.client.slimnica || this.client['Slimnīcā'] || false);
+    this.client.slimnica = newStatus;
+    this.client['Slimnīcā'] = newStatus;
+    
+    await this.db.put('klienti', this.client);
+    this.sync.enqueueChange({
+      action: 'updateClient',
+      table: 'klienti',
+      data: { id: this.client.id, slimnica: newStatus }
+    });
+    
+    this.updateHospitalStatusUI();
+    this.toast(newStatus ? 'Klients pievienots slimnīcā' : 'Klients atgriezies no slimnīcas');
   }
 
   formatDob(dob) {
@@ -1056,13 +1146,12 @@ try {
   }
 
   renderDiapersSection(shift) {
-    const markAutins = this.getMark(shift, 'citsi_pasakomi', 'autins_biksitu_skaits');
-    const count = markAutins && markAutins.value ? markAutins.value : '0';
+    // Show placeholder, will be updated by renderQuickTotals
     const body = `
       <div class="section-row">
         <div class="section-row-label">
           <span>Maiņu skaits šodien</span>
-          <span class="current-value" id="diaperCountDisplay">${count}</span>
+          <span class="current-value" id="diaperCountDisplay">0</span>
         </div>
         <button class="opt-btn diaper-btn" data-cat="citsi_pasakomi" data-field="autins_biksitu_skaits" data-shift="${shift}">
           <span class="diaper-icon">🧻</span>
@@ -1177,22 +1266,18 @@ try {
         const val = urinsInput ? urinsInput.value : '';
         const enteredVal = parseFloat(val) || 0;
         if (enteredVal <= 0) { this.toast(t('enterUrineAmount')); return; }
-        const existing = this.marks.get(this.currentShift + '|sikdrumi|urina_daudzums');
-        const currentTotal = existing ? parseFloat(existing.value) || 0 : 0;
-        const newTotal = currentTotal + enteredVal;
-        const result = await this.saveMarkDirect('sikdrumi', 'urina_daudzums', String(newTotal), this.currentShift, existing?.id);
+        // Create NEW record with entered amount (not cumulative)
+        const result = await this.saveMarkDirectNew('sikdrumi', 'urina_daudzums', String(enteredVal), this.currentShift);
         if (!result) return;
-        if (urinsInput) urinsInput.value = '0';
+        if (urinsInput) urinsInput.value = '';
       } else if (field === 'uznemts_ml') {
         const val = uznemtsInput ? uznemtsInput.value : '';
         const enteredVal = parseFloat(val) || 0;
         if (enteredVal <= 0) { this.toast(t('enterFluidAmount')); return; }
-        const existing = this.marks.get(this.currentShift + '|sikdrumi|uznemts_ml');
-        const currentTotal = existing ? parseFloat(existing.value) || 0 : 0;
-        const newTotal = currentTotal + enteredVal;
-        const result = await this.saveMarkDirect('sikdrumi', 'uznemts_ml', String(newTotal), this.currentShift, existing?.id);
+        // Create NEW record with entered amount (not cumulative)
+        const result = await this.saveMarkDirectNew('sikdrumi', 'uznemts_ml', String(enteredVal), this.currentShift);
         if (!result) return;
-        if (uznemtsInput) uznemtsInput.value = '0';
+        if (uznemtsInput) uznemtsInput.value = '';
       } else {
         return;
       }
@@ -1222,6 +1307,20 @@ try {
       prevValue: this.marks.get(shift + '|' + category + '|' + field) ? this.marks.get(shift + '|' + category + '|' + field).value : null,
       type: this.marks.get(shift + '|' + category + '|' + field) ? 'Labots' : 'Jauns',
       existingId: existingId
+    });
+  }
+
+  async saveMarkDirectNew(category, field, value, shift) {
+    // Always create NEW record for individual tracking (sikdrumi, diapers)
+    return await this.saveMark({
+      clientId: this.clientId,
+      shift: shift,
+      category: category,
+      field: field,
+      value: value,
+      prevValue: null,
+      type: 'Jauns',
+      existingId: null
     });
   }
 
@@ -1344,6 +1443,15 @@ try {
         diaperMeta.textContent = 'Vēl neviens nav ievadījis';
       }
     }
+
+    // Update diaper count display in section
+    const diaperCountDisplay = document.getElementById('diaperCountDisplay');
+    if (diaperCountDisplay) {
+      const total = diaperMarks.length > 0
+        ? diaperMarks.reduce((sum, m) => sum + (parseInt(m.value) || 0), 0)
+        : diaperLog.length;
+      diaperCountDisplay.textContent = total;
+    }
   }
 
   async handleDiaperIncrement(shift, category, field, btn) {
@@ -1351,37 +1459,30 @@ try {
     this._processing.set('diaper_increment', true);
 
     try {
-      const key = shift + '|' + category + '|' + field;
-      const existing = this.marks.get(key);
-      const currentCount = existing ? parseInt(existing.value) || 0 : 0;
-      const newCount = currentCount + 1;
-
-      if (newCount > 99) {
-        this.toast(t('tooManyDiaperChanges'));
-        return;
-      }
-
-if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
-      const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
-      this.toast(t('recordModifiedBy') + otherName);
-    }
-
-      btn.classList.add('pulse');
-      setTimeout(() => btn.classList.remove('pulse'), 300);
-
-      const saveResult = await this.saveMark({
-        clientId: this.clientId,
-        shift: shift,
-        category: category,
-        field: field,
-        value: String(newCount),
-        prevValue: existing ? existing.value : null,
-        type: existing ? 'Labots' : 'Jauns'
-      });
+      // Create NEW record with value "1" for individual tracking
+      const saveResult = await this.saveMarkDirectNew(category, field, '1', shift);
 
       if (!saveResult) {
         return;
       }
+
+      // Update diaper count display
+      const key = shift + '|' + category + '|' + field;
+      const existing = this.marks.get(key);
+
+      btn.classList.add('pulse');
+      setTimeout(() => btn.classList.remove('pulse'), 300);
+
+      // Get current total for toast
+      const allMarks = await this.db.getAll('atzimes');
+      const today = this.getToday();
+      const clientMarks = allMarks.filter(m => 
+        this.clientIdsMatch(m, this.clientId) && 
+        this.isToday(m, today) &&
+        m.category === category && 
+        m.field === field
+      );
+      const totalCount = clientMarks.reduce((sum, m) => sum + (parseInt(m.value) || 0), 0);
 
       const logEntry = {
         id: this.db.generateId(),
@@ -1393,7 +1494,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
         shift: shift,
         category: category,
         field: field,
-        value: '+1 (kopā: ' + newCount + ')',
+        value: '+1 (kopā: ' + totalCount + ')',
         type: 'Jauns',
         created: TimezoneUtils.getDateTimeRiga() + '.000Z'
       };
@@ -1404,7 +1505,7 @@ if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       }
       this.history.unshift(logEntry);
 
-      this.toast(t('diaperChangeAdded') + newCount + ')');
+      this.toast(t('diaperChangeAdded') + totalCount + ')');
       this.updateCategoryStatuses();
       this.closeCategoryModal();
       this.renderQuickTotals();

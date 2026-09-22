@@ -1,11 +1,12 @@
 ﻿{
-  "version": "20260922-2020",
-  "timestamp": 1790149200000,
-  "changes": "STABLE BASELINE: Timezone correct (Europe/Riga), sync working with new GAS, data flows to Google Sheets, GUI history shows correct local time, offline-first architecture stable. TAG: stable-20260922-v20260922-2020",
+  "version": "20260922-2155",
+  "timestamp": 1790152500000,
+  "changes": "Fluid tracking: individual records per entry (H2O, urine, diapers); Hospital status feature: client slimnica flag, UI banner, disables care actions, shows 'Slimnīcā' in temperature",
   "files": [
     "version.json",
-    "js/timezone.js"
-  ],
-  "stable_baseline": true,
-  "tag": "stable-20260922-v20260922-2020"
+    "js/care_form.js",
+    "js/admin.js",
+    "aprupetajs.html",
+    "css/aprupetajs.css"
+  ]
 }

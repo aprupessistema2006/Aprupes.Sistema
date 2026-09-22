@@ -604,6 +604,7 @@ class AdminPanel {
     const dzimis = client ? (client.dzimis || client['Dzimšanas datums'] || client.dzimsans_datums || client.birth_date || '') : '';
     const dieta = client ? (client.dieta || client.Diēta || '') : '';
     const saskarsmes = client ? (client.saskarsmes || client['Saskarsmes īpatnības'] || '') : '';
+    const slimnica = client ? (client.slimnica || client['Slimnīcā'] || false) : false;
 
     const html = `
       <h2>${isEdit ? 'Labot klientu' : 'Pievienot klientu'}</h2>
@@ -628,6 +629,12 @@ class AdminPanel {
           <label>Saskarsmes īpatnības</label>
           <textarea name="saskarsmes" rows="2">${this.escapeHtml(saskarsmes)}</textarea>
         </div>
+        <div class="form-group form-checkbox">
+          <label class="checkbox-label">
+            <input type="checkbox" name="slimnica" ${slimnica ? 'checked' : ''}>
+            <span>Klients atrodas slimnīcā</span>
+          </label>
+        </div>
         <button type="submit" class="btn-primary">${isEdit ? 'Saglabāt' : 'Pievienot'}</button>
         <button type="button" class="btn-secondary" onclick="window.adminPanel.closeModal()">Atcelt</button>
       </form>
@@ -644,6 +651,7 @@ class AdminPanel {
         dzimis: formData.get('dzimis'),
         dieta: formData.get('dieta'),
         saskarsmes: formData.get('saskarsmes'),
+        slimnica: formData.get('slimnica') === 'on',
         aktivs: true
       };
       if (isEdit) {
