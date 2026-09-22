@@ -515,7 +515,10 @@ class ControlPanel {
   }
 
   formatTimeForDisplayFromRow(row) {
-    const t = row.time || row.laiks || row.skaits;
+    const historicalTime = row.skaits && /^(?:\d{4}-\d{2}-\d{2}[T\s])?\d{1,2}:\d{2}(?::\d{2})?/.test(String(row.skaits))
+      ? row.skaits
+      : null;
+    const t = historicalTime || row.time || row.laiks;
     if (!t) return '';
     // Google Sheets jau saglabā Rīgas laikā — atgriezt tikai laika daļu
     return this._extractTimePart(String(t));

@@ -145,39 +145,27 @@ function normalizeKey(h) {
 function normalizeRow(raw) {
   if (!raw) return raw;
   const row = { ...raw };
+  const datePart = (value) => {
+    if (!value) return '';
+    const match = String(value).match(/^\s*(\d{4})-(\d{2})-(\d{2})/);
+    return match ? match[1] + '-' + match[2] + '-' + match[3] : '';
+  };
+  const timePart = (value) => {
+    if (!value) return '';
+    const match = String(value).match(/(?:T|\s)?(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!match) return '';
+    const hour = String(parseInt(match[1], 10)).padStart(2, '0');
+    const minute = match[2];
+    const second = match[3] || '00';
+    return hour + ':' + minute + ':' + second;
+  };
 
-  if ((!row.datums || /T\d{2}:\d{2}/.test(String(row.datums))) && row.izveidots) {
-    const created = String(row.izveidots);
-    if (/^\d{4}-\d{2}-\d{2}/.test(created)) {
-      row.datums = created.substring(0, 10);
-    }
-  }
-
-  if ((!row.datums || /T\d{2}:\d{2}/.test(String(row.datums))) && row.pedeja_laiks) {
-    const lastMod = String(row.pedeja_laiks);
-    if (/^\d{4}-\d{2}-\d{2}/.test(lastMod)) {
-      row.datums = lastMod.substring(0, 10);
-    }
-  }
-
-  if ((!row.datums || /T\d{2}:\d{2}/.test(String(row.datums))) && row.pēdējais_laiks) {
-    const lastMod = String(row.pēdējais_laiks);
-    if (/^\d{4}-\d{2}-\d{2}/.test(lastMod)) {
-      row.datums = lastMod.substring(0, 10);
-    }
-  }
-
-  if (row.datums && row.izveidots && /^\d{4}-\d{2}-\d{2}/.test(String(row.izveidots)) && row.datums !== row.izveidots.substring(0, 10)) {
-    row.datums = row.izveidots.substring(0, 10);
-  }
-
-  if (row.datums && row.pedeja_laiks && /^\d{4}-\d{2}-\d{2}/.test(String(row.pedeja_laiks)) && row.datums !== row.pedeja_laiks.substring(0, 10)) {
-    row.datums = row.pedeja_laiks.substring(0, 10);
-  }
-
-  if (row.datums && row.pēdējais_laiks && /^\d{4}-\d{2}-\d{2}/.test(String(row.pēdējais_laiks)) && row.datums !== row.pēdējais_laiks.substring(0, 10)) {
-    row.datums = row.pēdējais_laiks.substring(0, 10);
-  }
+  const eventTime = row.eventTime || row.notikuma_laiks || row.skaits || '';
+  const eventDate = datePart(eventTime);
+  const explicitDate = row.date || row.datums || '';
+  const createdDate = datePart(row.created || row.izveidots);
+  const normalizedDate = eventDate || datePart(explicitDate) || createdDate || '';
+  if (normalizedDate) row.datums = normalizedDate;
 
   const map = {
     date: 'date',
@@ -203,10 +191,8 @@ function normalizeRow(raw) {
     value: 'value',
     vertiba: 'value',
     vertiba2: 'value',
-    lastValue: 'lastValue',
-    pedejaVertiba: 'lastValue',
-    pedeja_vertiba: 'lastValue',
     lastModified: 'lastModified',
+    lastmodified: 'lastModified',
     pedejaLaiks: 'lastModified',
     pedeja_laiks: 'lastModified',
     pedejaisLaiks: 'lastModified',
@@ -223,6 +209,10 @@ function normalizeRow(raw) {
     izveidots: 'created',
     time: 'time',
     laiks: 'time',
+    eventtime: 'eventTime',
+    event_time: 'eventTime',
+    notikumaLaiks: 'eventTime',
+    notikuma_laiks: 'eventTime',
     reason: 'reason',
     papilgsInfo: 'reason',
     papilgs_info: 'reason',
@@ -272,13 +262,17 @@ function normalizeRow(raw) {
   });
 
   if (row.id) normalizedRow.id = row.id;
+  if (eventTime) normalizedRow.eventTime = eventTime;
+  if (row.skaits !== undefined) normalizedRow.skaits = row.skaits;
+  if (row.notikuma_laiks !== undefined) normalizedRow.notikuma_laiks = row.notikuma_laiks;
+  if (normalizedDate) normalizedRow.date = normalizedDate;
 
   if (typeof normalizedRow.date === 'number') {
     console.warn('[normalizeRow] numeric date not converted (not Excel serial):', normalizedRow.date, 'for id:', normalizedRow.id);
   }
 
   const idTs = String(normalizedRow.id || '').match(/^[a-z]+_(\d{10,13})/);
-  if (idTs) {
+  if (idTs && !normalizedRow.date) {
     const d = new Date(parseInt(idTs[1], 10));
     const y = d.getFullYear();
     if (!isNaN(d.getTime()) && y >= 2000 && y <= 2100) {
@@ -291,14 +285,19 @@ function normalizeRow(raw) {
   if (normalizedRow.clientId && !normalizedRow.klientsId) normalizedRow.klientsId = normalizedRow.clientId;
   if (normalizedRow.employeeId && !normalizedRow.darbinieksId) normalizedRow.darbinieksId = normalizedRow.employeeId;
 
-  // Ja time ir trūkst vai nepareizs, bet created (no skaits) eksistē — izvilkt laiku no created
-  // created formāts: "2026-09-21T00:07:27" (Riga laiks)
   const timeVal = normalizedRow.time;
-  const createdVal = normalizedRow.created;
+  const eventTimeVal = normalizedRow.eventTime || normalizedRow.skaits;
   const looksValidTime = timeVal && /^\d{2}:\d{2}:\d{2}$/.test(String(timeVal));
-  if ((!timeVal || !looksValidTime) && createdVal && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(String(createdVal))) {
-    const t = String(createdVal).match(/T(\d{2}:\d{2}:\d{2})/);
-    if (t) normalizedRow.time = t[1];
+  if (!looksValidTime && eventTimeVal) {
+    const eventTimeOnly = timePart(eventTimeVal);
+    if (eventTimeOnly) normalizedRow.time = eventTimeOnly;
+  }
+  if (!normalizedRow.time) {
+    const createdVal = normalizedRow.created;
+    if (createdVal && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(String(createdVal))) {
+      const t = String(createdVal).match(/T(\d{2}:\d{2}:\d{2})/);
+      if (t) normalizedRow.time = t[1];
+    }
   }
 
   return normalizedRow;

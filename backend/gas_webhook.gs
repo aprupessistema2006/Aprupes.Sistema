@@ -1,6 +1,26 @@
 const SHEET_ID = '1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E';
 const TZ = 'Europe/Riga';
 
+function formatSheetDateValue(headerKey, value) {
+  if (!(value instanceof Date) || isNaN(value.getTime())) return value;
+  if (headerKey === 'laiks') {
+    return Utilities.formatDate(value, TZ, 'HH:mm:ss');
+  }
+  if ([
+    'notikuma_laiks',
+    'eventtime',
+    'event_time',
+    'skaits',
+    'pedeja_laiks',
+    'pedejais_laiks',
+    'izveidots',
+    'pabeigts_laiks'
+  ].includes(headerKey)) {
+    return Utilities.formatDate(value, TZ, "yyyy-MM-dd'T'HH:mm:ss");
+  }
+  return Utilities.formatDate(value, TZ, 'yyyy-MM-dd');
+}
+
 function getSpreadsheet() {
   return SpreadsheetApp.openById(SHEET_ID);
 }
@@ -28,11 +48,7 @@ function getSheetData(sheet) {
       }
       const headerKey = normalizeKey(headers[j]);
       if (v instanceof Date) {
-        if (headerKey === 'laiks') {
-          row[headerKey] = Utilities.formatDate(v, TZ, 'HH:mm:ss');
-        } else {
-          row[headerKey] = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
-        }
+        row[headerKey] = formatSheetDateValue(headerKey, v);
       } else {
         row[headerKey] = v;
       }
@@ -66,12 +82,7 @@ function appendRow(sheet, data) {
     if (idx !== undefined) {
       let v = data[k];
       if (v instanceof Date) {
-        const normalizedKey = normalizeKey(k);
-        if (normalizedKey === 'laiks') {
-          v = Utilities.formatDate(v, TZ, 'HH:mm:ss');
-        } else {
-          v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
-        }
+        v = formatSheetDateValue(normalizeKey(k), v);
       } else if (typeof v === 'boolean') {
         v = v ? 'TRUE' : 'FALSE';
       } else if (v === null || v === undefined) {
@@ -128,12 +139,7 @@ function setCellValue(sheet, rowNum, field, value) {
   if (idx !== undefined) {
     let v = value;
     if (v instanceof Date) {
-      const normalizedField = normalizeKey(field);
-      if (normalizedField === 'laiks') {
-        v = Utilities.formatDate(v, TZ, 'HH:mm:ss');
-      } else {
-        v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
-      }
+      v = formatSheetDateValue(normalizeKey(canonicalField), v);
     } else if (typeof v === 'boolean') {
       v = v ? 'TRUE' : 'FALSE';
     } else if (v === null || v === undefined) {
@@ -225,8 +231,8 @@ function handleLoadData(params) {
     
     // Ensure all sheets have required columns (headers)
     ensureColumns(getSheet('darbinieki'), ['maina_tips']);
-    ensureColumns(getSheet('atzimes'), ['action_id', 'maina_tips']);
-    ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
+    ensureColumns(getSheet('atzimes'), ['action_id', 'maina_tips', 'notikuma_laiks']);
+    ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
     ensureColumns(getSheet('uzdevomi'), ['action_id']);
     
     // Load reference data (small, rarely changes)
@@ -291,13 +297,9 @@ function handleLoadData(params) {
           hasData = true;
         }
         const headerKey = normalizeKey(headers[j]);
-        if (v instanceof Date) {
-          if (headerKey === 'laiks') {
-            row[headerKey] = Utilities.formatDate(v, TZ, 'HH:mm:ss');
-          } else {
-            row[headerKey] = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
-          }
-        } else {
+      if (v instanceof Date) {
+        row[headerKey] = formatSheetDateValue(headerKey, v);
+      } else {
           row[headerKey] = v;
         }
       }
@@ -384,11 +386,7 @@ function buildLogRow(headers, colMap, data) {
     if (idx !== undefined) {
       let v = data[k];
       if (v instanceof Date) {
-        if (nk === 'laiks') {
-          v = Utilities.formatDate(v, TZ, 'HH:mm:ss');
-        } else {
-          v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
-        }
+        v = formatSheetDateValue(nk, v);
       } else if (typeof v === 'boolean') {
         v = v ? 'TRUE' : 'FALSE';
       } else if (v === null || v === undefined) {
@@ -410,8 +408,8 @@ function handleMark(data) {
   const mFieldNormalized = signatureFieldAlias(m.field || '');
   m.field = mFieldNormalized;
 
-  ensureColumns(atzimesSheet, ['action_id', 'maina_tips']);
-  ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
+  ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks']);
+  ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
 
   const lock = LockService.getScriptLock();
   try {
@@ -472,29 +470,17 @@ function handleMark(data) {
       }
     }
 
-    // Parse timestamp from frontend (UTC ISO string) and convert to Europe/Riga
-    let lastModifiedRiga;
-    if (m.lastModified) {
-      const frontendTime = new Date(m.lastModified);
-      if (!isNaN(frontendTime.getTime())) {
-        lastModifiedRiga = Utilities.formatDate(frontendTime, TZ, 'HH:mm:ss');
-      }
-    }
-    if (!lastModifiedRiga) {
-      lastModifiedRiga = formatTimeOnly(new Date());
-    }
-
-    // Parse timestamp for log entry
-    let logDateTimeRiga;
-    if (m.lastModified) {
-      const frontendTime = new Date(m.lastModified);
-      if (!isNaN(frontendTime.getTime())) {
-        logDateTimeRiga = Utilities.formatDate(frontendTime, TZ, "yyyy-MM-dd'T'HH:mm:ss");
-      }
-    }
-    if (!logDateTimeRiga) {
-      logDateTimeRiga = formatDateTimeLV(new Date());
-    }
+    const modificationTime = getModificationTimeFromPayload(m);
+    const existingMarkData = existingMarkRow > 0 ? atzimesData[existingMarkRow - 2] : null;
+    const existingMarkId = existingMarkData ? existingMarkData[atzimesColMap.id] : null;
+    const existingEventTime = existingMarkData
+      ? getEventTimeForExistingMark(existingMarkData, atzimesColMap, logData, logColMap, existingMarkId)
+      : null;
+    const eventTime = getEventTimeFromPayload(m, existingEventTime || modificationTime, m.date);
+    const eventDateRiga = formatDate(eventTime);
+    const eventTimeRiga = formatTimeOnly(eventTime);
+    const eventDateTimeRiga = formatDateTimeLV(eventTime);
+    const modificationDateTimeRiga = formatDateTimeLV(modificationTime);
 
     const updates = []; // Batch updates to apply at once
     
@@ -511,7 +497,9 @@ function handleMark(data) {
 
       // Batch updates for existing mark
       if (atzimesColMap['vertiba'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['vertiba'] + 1, value: m.value });
-      if (atzimesColMap['pedeja_laiks'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['pedeja_laiks'] + 1, value: lastModifiedRiga });
+      if (atzimesColMap['pedeja_laiks'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['pedeja_laiks'] + 1, value: modificationDateTimeRiga });
+      if (atzimesColMap['pedejais_laiks'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['pedejais_laiks'] + 1, value: modificationDateTimeRiga });
+      if (atzimesColMap['darbinieks_pedejais'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['darbinieks_pedejais'] + 1, value: m.employeeId });
       if (m.actionId && atzimesColMap['action_id'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['action_id'] + 1, value: m.actionId });
       if (m.mainaTips && atzimesColMap['maina_tips'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['maina_tips'] + 1, value: m.mainaTips });
       
@@ -536,15 +524,16 @@ function handleMark(data) {
         atzimes_id: markId,
         klients_id: m.clientId,
         darbinieks_id: m.employeeId,
-        datums: formatDate(new Date()),
-        laiks: lastModifiedRiga,
+        datums: eventDateRiga,
+        laiks: eventTimeRiga,
         periods: m.shift || 'R',
         kategorija: m.category,
         lauka_nosaukums: m.field,
         vertiba: logValue,
-        skaits: logDateTimeRiga,
+        notikuma_laiks: eventDateTimeRiga,
+        skaits: eventDateTimeRiga,
         pedeja_vertiba: existingMarkValue,
-        pedeja_laiks: logDateTimeRiga,
+        pedeja_laiks: modificationDateTimeRiga,
         darbinieks_pedejais: m.employeeId,
         action_id: m.actionId || '',
         maina_tips: m.mainaTips || m.maina_tips || 'diennakts'
@@ -752,6 +741,117 @@ function doOptions(e) {
 
 function createResponse(status, data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function parseTimestamp(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+  const text = String(value).trim();
+  if (!text) return null;
+  const dateOnly = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    return new Date(
+      parseInt(dateOnly[1], 10),
+      parseInt(dateOnly[2], 10) - 1,
+      parseInt(dateOnly[3], 10)
+    );
+  }
+  const full = text.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:?\d{2})?$/);
+  if (full) {
+    const hasZone = !!full[8];
+    if (hasZone) {
+      const parsed = new Date(text.replace(' ', 'T'));
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return new Date(
+      parseInt(full[1], 10),
+      parseInt(full[2], 10) - 1,
+      parseInt(full[3], 10),
+      parseInt(full[4], 10),
+      parseInt(full[5], 10),
+      parseInt(full[6] || '0', 10),
+      parseInt((full[7] || '0') + '00', 10)
+    );
+  }
+  const parsed = new Date(text);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseTimeOnly(value) {
+  if (!value) return null;
+  const parts = String(value).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!parts) return null;
+  const hour = parseInt(parts[1], 10);
+  const minute = parseInt(parts[2], 10);
+  const second = parseInt(parts[3] || '0', 10);
+  if (hour > 23 || minute > 59 || second > 59) return null;
+  return { hour: hour, minute: minute, second: second };
+}
+
+function getEventDateFromPayload(payload, fallbackDate) {
+  const eventTime = parseTimestamp(payload.eventTime || payload.notikuma_laiks || payload.skaits);
+  if (eventTime) return eventTime;
+  const dateValue = payload.date || payload.datums || fallbackDate || new Date();
+  const parsedDate = parseTimestamp(dateValue);
+  return parsedDate || new Date();
+}
+
+function getEventTimeFromPayload(payload, fallbackEventTime, fallbackDate) {
+  const eventTime = parseTimestamp(payload.eventTime || payload.notikuma_laiks || payload.skaits);
+  if (eventTime) return eventTime;
+  if (fallbackEventTime) return fallbackEventTime;
+  const timeOnly = parseTimeOnly(payload.time || payload.laiks);
+  const eventDate = getEventDateFromPayload(payload, fallbackDate);
+  if (timeOnly) {
+    return new Date(
+      eventDate.getFullYear(),
+      eventDate.getMonth(),
+      eventDate.getDate(),
+      timeOnly.hour,
+      timeOnly.minute,
+      timeOnly.second
+    );
+  }
+  return new Date();
+}
+
+function getEventTimeFromRow(row, colMap) {
+  const fullTime = row[colMap.notikuma_laiks] || row[colMap.skaits];
+  const parsedFullTime = parseTimestamp(fullTime);
+  if (parsedFullTime) return parsedFullTime;
+
+  const dateValue = row[colMap.datums];
+  const timeOnly = parseTimeOnly(row[colMap.laiks]);
+  const parsedDate = parseTimestamp(dateValue);
+  if (parsedDate && timeOnly) {
+    return new Date(
+      parsedDate.getFullYear(),
+      parsedDate.getMonth(),
+      parsedDate.getDate(),
+      timeOnly.hour,
+      timeOnly.minute,
+      timeOnly.second
+    );
+  }
+  return null;
+}
+
+function getEventTimeForExistingMark(row, colMap, logData, logColMap, markId) {
+  if (logData && logColMap && markId) {
+    for (let i = 0; i < logData.length; i++) {
+      if (String(logData[i][logColMap.atzimes_id]) === String(markId)) {
+        const logEventTime = getEventTimeFromRow(logData[i], logColMap);
+        if (logEventTime) return logEventTime;
+      }
+    }
+  }
+  return getEventTimeFromRow(row, colMap);
+}
+
+function getModificationTimeFromPayload(payload) {
+  return parseTimestamp(payload.lastModified || payload.pedeja_laiks || payload.pēdējais_laiks) || new Date();
 }
 
 function formatDate(d) {

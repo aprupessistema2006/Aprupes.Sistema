@@ -3,7 +3,7 @@
  */
 
 const TEST_CONFIG = {
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbxfELoRysUW2HQlC1bujHSaB2nmiUAZQp_yHvXBjxVN7yUEqbBizGrB15vSPcGUn9LUzA/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbwyrmtaeCwzCNhoDYn2_ceS2m2GxX0A5lE-rL2SMvAK75Hy2Kh-KB8BNsNuk6jgJmvorw/exec',
   SHEET_ID: '1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E'
 };
 

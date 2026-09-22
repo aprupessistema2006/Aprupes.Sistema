@@ -169,22 +169,22 @@ async function runE2ETest() {
     assertEq('Diena ' + day + ' rīts temperatūra (R4, col ' + colLetter(colR) + ')', tempR, expected);
   }
 
-  console.log('\n[6] 1. lapa paraksts (rinda 32, 1×dienā):');
+  console.log('\n[6] 1. lapa paraksts (rinda 32, 2×dienā — D maiņa iet abās kolonnās):');
   for (let day = 1; day <= 15; day++) {
     const colR = 2 + (day - 1) * 2;
     const signR = get(sheet1, 32, colR);
     const signV = get(sheet1, 32, colR + 1);
     const totalSigns = (signR ? 1 : 0) + (signV ? 1 : 0);
-    assertEq('Diena ' + day + ' parakstu skaits (1×dienā)', totalSigns, 1);
+    assertEq('Diena ' + day + ' parakstu skaits (2×dienā — D=R+V)', totalSigns, 2);
   }
 
-  console.log('\n[7] 2. lapa paraksts (rinda 26, 1×dienā):');
+  console.log('\n[7] 2. lapa paraksts (rinda 26, 2×dienā — D maiņa iet abās kolonnās):');
   for (let day = 16; day <= 31; day++) {
     const colR = 2 + (day - 16) * 2;
     const signR = get(sheet2, 26, colR);
     const signV = get(sheet2, 26, colR + 1);
     const totalSigns = (signR ? 1 : 0) + (signV ? 1 : 0);
-    assertEq('Diena ' + day + ' parakstu skaits (1×dienā)', totalSigns, 1);
+    assertEq('Diena ' + day + ' parakstu skaits (2×dienā — D=R+V)', totalSigns, 2);
   }
 
   console.log('\n[7b] 1. lapa paraksts (rinda 32, atsevišķi R/V):');
@@ -215,7 +215,9 @@ async function runE2ETest() {
   assertEq('Diena 1 R mutes (C11)', get(sheet1, 11, 2), 'X');
   assertEq('Diena 1 V mutes (D11)', get(sheet1, 11, 3), 'X');
   assertEq('Diena 1 R urīna (C25)', get(sheet1, 25, 2), '1210');
-  assertEq('Diena 1 R autiņbikses (C31, merged R+V)', get(sheet1, 31, 2), '2 / 3');
+  // autiņbikses: R kolonna (R maiņa), V kolonna (V maiņa) — atsevišķi
+  assertEq('Diena 1 R autiņbikses (C31)', get(sheet1, 31, 2), '3');
+  assertEq('Diena 1 V autiņbikses (D31)', get(sheet1, 31, 3), '3');
 
   console.log('\n[9] Specifiskas vērtības (diena 31, 2. lapa):');
   const colR31 = 2 + (31 - 16) * 2;
