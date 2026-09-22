@@ -1,9 +1,11 @@
 ﻿{
   "version": "20260922-2020",
   "timestamp": 1790149200000,
-  "changes": "Fix timezone.js formatTimeRiga to properly convert UTC to Europe/Riga; GUI history now shows correct local time",
+  "changes": "STABLE BASELINE: Timezone correct (Europe/Riga), sync working with new GAS, data flows to Google Sheets, GUI history shows correct local time, offline-first architecture stable. TAG: stable-20260922-v20260922-2020",
   "files": [
     "version.json",
     "js/timezone.js"
-  ]
+  ],
+  "stable_baseline": true,
+  "tag": "stable-20260922-v20260922-2020"
 }
