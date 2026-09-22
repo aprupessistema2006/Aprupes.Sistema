@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260922-2240",
-  "timestamp": 1790155200000,
-  "changes": "Hospital status toggle now logs to atzimes_log (existing history table) with category 'slimnica', field 'statuss' - full history in existing Control/Care history views",
+  "version": "20260922-2315",
+  "timestamp": 1790157300000,
+  "changes": "Robust hospital status check in care_form.js (handles boolean/string/1 variants); added debug log to diagnose missing status on other devices",
   "files": [
     "version.json",
     "js/care_form.js"

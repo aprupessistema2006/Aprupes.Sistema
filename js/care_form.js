@@ -373,7 +373,13 @@ try {
   }
 
   updateHospitalStatusUI() {
-    const isHospital = this.client && (this.client.slimnica || this.client['Slimnīcā'] || false);
+    // Robust check: GS may return "slimnica", "Slimnīcā", or normalized variants; value may be boolean, "TRUE", "true", 1
+    const c = this.client || {};
+    const raw = c.slimnica ?? c['Slimnīcā'] ?? c.slimnica_ ?? c['slimnica'] ?? c['Slimnica'] ?? false;
+    const isHospital = raw === true || raw === 'TRUE' || raw === 'true' || raw === 1 || raw === '1';
+    
+    console.log('[care_form] Hospital status check:', { clientId: this.clientId, raw, isHospital, clientKeys: Object.keys(c) });
+    
     const tempInput = document.querySelector('input[data-cat="temp"][data-field="temperatura"]');
     const tempLabel = document.querySelector('label[data-cat="temp"][data-field="temperatura"]');
     const hospitalBanner = document.getElementById('hospitalBanner');

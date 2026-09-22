@@ -441,6 +441,50 @@ class CareSync {
     });
   }
 
+  _collectLocalClientChanges() {
+    return this.db.getAll('klienti').then((all) => {
+      if (!all || !all.length) return {};
+      const map = {};
+      all.forEach(c => {
+        const id = String(c.id || c.ID);
+        if (!id) return;
+        const slimnica = c.slimnica === true || c.slimnica === 'true' || c.slimnica === 1 || c.slimnica === '1' || c['Slimnīcā'] === true || c['Slimnīcā'] === 'true' || c['Slimnīcā'] === 1 || c['Slimnīcā'] === '1';
+        if (slimnica) {
+          map[id] = { slimnica: true, Slimnīcā: true };
+        }
+      });
+      return map;
+    }).catch((e) => {
+      console.warn('[sync] _collectLocalClientChanges kļūda', e);
+      return {};
+    });
+  }
+
+  _applyLocalClientChanges(changes) {
+    if (!changes || !Object.keys(changes).length) return Promise.resolve();
+    return this.db.getAll('klienti').then((all) => {
+      if (!all) return;
+      let changed = false;
+      all.forEach(c => {
+        const id = String(c.id || c.ID);
+        const change = changes[id];
+        if (!change) return;
+        const remoteSlimnica = c.slimnica === true || c.slimnica === 'true' || c.slimnica === 1 || c.slimnica === '1' || c['Slimnīcā'] === true || c['Slimnīcā'] === 'true' || c['Slimnīcā'] === 1 || c['Slimnīcā'] === '1';
+        if (!remoteSlimnica) {
+          c.slimnica = true;
+          c['Slimnīcā'] = true;
+          this.db.put('klienti', c);
+          changed = true;
+        }
+      });
+      if (changed) {
+        console.log('[sync] atjaunoti lokālie klientu izmaiņas (slimnīca) pēc ielādes');
+      }
+    }).catch((e) => {
+      console.warn('[sync] _applyLocalClientChanges kļūda', e);
+    });
+  }
+
   async loadInitialData(onProgress, filters = {}) {
     return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
   }
@@ -474,8 +518,9 @@ class CareSync {
       onProgress('Atjaunoju lokālos datus no Google Sheets...');
       const lastSync = Date.now();
 
-      // Saglabāt vietējos pabeigšanas statusus pirms DB tīrīšanas
+      // Saglabāt vietējos pabeigšanas statusus un klientu izmaiņas pirms DB tīrīšanas
       const localCompletions = await this._collectLocalCompletions();
+      const localClientChanges = await this._collectLocalClientChanges();
 
       await this.db.replaceStores({
         darbinieki: (data.darbinieki || []).map(normalizeRow),
@@ -486,8 +531,9 @@ class CareSync {
         meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
       });
 
-      // Atjaunot vietējos pabeigšanas statusus, ja Google Sheets tos nav atgriezti
+      // Atjaunot vietējos pabeigšanas statusus un klientu izmaiņas, ja Google Sheets tos nav atgriezti
       await this._applyLocalCompletions(localCompletions);
+      await this._applyLocalClientChanges(localClientChanges);
 
       this.loaded = true;
       this.revision = (this.revision || 0) + 1;
