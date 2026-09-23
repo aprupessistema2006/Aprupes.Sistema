@@ -159,6 +159,29 @@ class ExcelExporter {
       'paraksts|aprupetaja_paraksts': dataRowEnd
     };
 
+    // Build hospital status map from marks data: day -> { R: boolean, V: boolean, D: boolean }
+    const hospitalByDay = {};
+    for (let day = startDay; day <= endDay; day++) {
+      const dayData = dataByDay[day] || {};
+      const hospR = dayData['R|slimnica|statuss'];
+      const hospV = dayData['V|slimnica|statuss'];
+      const hospD = dayData['D|slimnica|statuss'];
+      if (hospR || hospV || hospD) {
+        hospitalByDay[day] = {
+          R: hospR && (hospR === 'hospitalizēts slimnīcā' || hospR === 'Iepazīdināts slimnīcā'),
+          V: hospV && (hospV === 'hospitalizēts slimnīcā' || hospV === 'Iepazīdināts slimnīcā'),
+          D: hospD && (hospD === 'hospitalizēts slimnīcā' || hospD === 'Iepazīdināts slimnīcā')
+        };
+      }
+    }
+
+    // Update temperature row label to "Temperatūra / slimnīca"
+    const tempRow = fieldMap['temp|temperatura'];
+    const tempLabelCell = ws.getCell(`A${tempRow}`);
+    if (tempLabelCell) {
+      tempLabelCell.value = 'Temperatūra / slimnīca';
+    }
+
     const colLetter = (num) => {
       let s = '';
       num = num + 1;
@@ -207,10 +230,31 @@ class ExcelExporter {
             cV.value = valV || null;
           }
         } else {
-          const valR = dayData['R|' + category + '|' + field];
-          const valV = dayData['V|' + category + '|' + field];
+          let valR = dayData['R|' + category + '|' + field];
+          let valV = dayData['V|' + category + '|' + field];
+          let valD = dayData['D|' + category + '|' + field];
+
+          // SPECIAL HANDLING FOR TEMPERATURE: combine with hospital status "S"
+          if (category === 'temp' && field === 'temperatura') {
+            const hosp = hospitalByDay[day] || { R: false, V: false, D: false };
+            if (hosp.R) {
+              valR = (valR ? valR + ' / S' : 'S');
+            }
+            if (hosp.V) {
+              valV = (valV ? valV + ' / S' : 'S');
+            }
+            if (hosp.D) {
+              valD = (valD ? valD + ' / S' : 'S');
+            }
+          }
+
           if (valR !== undefined && valR !== '') cR.value = valR;
           if (valV !== undefined && valV !== '') cV.value = valV;
+          // D shift writes to both R and V columns (as per existing logic)
+          if (valD !== undefined && valD !== '') {
+            if (cR.value === null || cR.value === undefined || cR.value === '') cR.value = valD;
+            if (cV.value === null || cV.value === undefined || cV.value === '') cV.value = valD;
+          }
         }
       }
     }
