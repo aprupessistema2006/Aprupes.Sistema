@@ -13,18 +13,35 @@ class UpdateNotifier {
 
   init() {
     if ('serviceWorker' in navigator) {
-      console.log('[UpdateNotifier] Reģistrējam Service Worker ar versiju:', this.versionParam);
-      navigator.serviceWorker.register('sw.js' + this.versionParam, { updateViaCache: 'none' })
-        .then(reg => console.log('[UpdateNotifier] SW reģistrēts veiksmīgi:', reg.scope))
-        .catch(err => console.warn('[SW] Registration failed:', err));
-
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
-          console.log('[UpdateNotifier] Jauna versija pieejama no SW');
-          this.showUpdateBanner();
+      console.log('[UpdateNotifier] Checking for old Service Worker to unregister');
+      // Check for and unregister any old Service Worker that might be caching stale content
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) {
+          console.log('[UpdateNotifier] Found existing SW registration, unregistering...');
+          reg.unregister().then(() => {
+            console.log('[UpdateNotifier] Old SW unregistered, registering new one...');
+            this.registerNewSW();
+          });
+        } else {
+          console.log('[UpdateNotifier] No existing SW, registering new one...');
+          this.registerNewSW();
         }
       });
     }
+  }
+
+  registerNewSW() {
+    console.log('[UpdateNotifier] Reģistrējam Service Worker ar versiju:', this.versionParam);
+    navigator.serviceWorker.register('sw.js' + this.versionParam, { updateViaCache: 'none' })
+      .then(reg => console.log('[UpdateNotifier] SW reģistrēts veiksmīgi:', reg.scope))
+      .catch(err => console.warn('[SW] Registration failed:', err));
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
+        console.log('[UpdateNotifier] Jauna versija pieejama no SW');
+        this.showUpdateBanner();
+      }
+    });
   }
 
   
@@ -84,6 +101,13 @@ class UpdateNotifier {
   }
 
   addDebugButton() {
+    // Check if force_update param is in URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('force_update') === '1') {
+      this.showUpdateBanner();
+      return;
+    }
+
     const debugBtn = document.createElement('button');
     debugBtn.id = 'debugForceUpdateBtn';
     debugBtn.innerHTML = 'Pārbaudīt atjauninājumu';
@@ -99,7 +123,7 @@ class UpdateNotifier {
       const manifest = await response.json();
       const currentVersion = manifest.version;
       const storedVersion = localStorage.getItem('appVersion') || '';
-      if (storedVersion && storedVersion !== currentVersion) {
+      if (storedVersion !== currentVersion) {
         debugBtn.textContent = 'Atjaunot!';
         debugBtn.style.background = '#2196F3';
         debugBtn.onclick = () => this.applyUpdate();
