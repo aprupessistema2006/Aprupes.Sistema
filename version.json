@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260923-1730",
-  "timestamp": 1790172200000,
-  "changes": "Vienkāršs atjauninājuma mehhanisms 65+ aprūpētājiem: jauna versija tikama paziņojuma ar vienkāršu 'Atjaunot' pogu. Pēc spiediena: notīr visi lokālie dati, SW aktivizējas, lapa pārlādējas ar jauniem datiem no Google Sheets.",
+  "version": "20260923-1745",
+  "timestamp": 1790172300000,
+  "changes": "Version check on app start + every 1h. Pirmais kas notiek atverot: pārbaude versijas. Ja jauna versija, paziņojums ar 'Atjaunot' pogu. Pēc spiediena: visi dati notīrās, SW atjaunojas, ielādēti jaunie dati no Google Sheets.",
   "files": [
     "version.json",
     "sw.js",

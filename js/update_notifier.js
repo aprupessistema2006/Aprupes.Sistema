@@ -5,8 +5,9 @@
  */
 class UpdateNotifier {
   constructor() {
-    this.versionParam = '?v=20260923-1730';
+    this.versionParam = '?v=20260923-1745';
     this.init();
+    this.checkVersionOnPageLoad();
   }
 
   init() {
@@ -20,6 +21,26 @@ class UpdateNotifier {
           this.showUpdateBanner();
         }
       });
+    }
+  }
+
+  
+  // Pārbaudīt jaunu versiju lapas ielādes brīdī (pirmais, kas dari, atverot programmu)
+  async checkVersionOnPageLoad() {
+    try {
+      const response = await fetch('version.json?t=' + Date.now());
+      if (!response.ok) return;
+      const manifest = await response.json();
+      const currentVersion = manifest.version;
+      const storedVersion = localStorage.getItem('appVersion') || '';
+
+      if (storedVersion && storedVersion !== currentVersion) {
+        console.log('[UpdateNotifier] Jauna versija konstatēta ielādes laikā:', storedVersion, '->', currentVersion);
+        this.showUpdateBanner();
+      }
+      localStorage.setItem('appVersion', currentVersion);
+    } catch (e) {
+      console.warn('[UpdateNotifier] Versijas pārbaude neizdevās:', e);
     }
   }
 

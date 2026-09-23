@@ -47,11 +47,21 @@ self.addEventListener('activate', (event) => {
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[SW] Deleting old cache:', name);
+            console.log('[SW] Dzēšam senāko kešu:', name);
             return caches.delete(name);
           })
       );
     }).then(() => self.clients.claim())
+      .then(() => {
+        // Pārbaudīt jaunu versiju nekavējoties pēc aktivācijas
+        return checkForUpdate();
+      })
+      .then((hasUpdate) => {
+        if (hasUpdate) {
+          console.log('[SW] Jauna versija konstatēta aktivācijas laikā');
+          return notifyClients({ type: 'UPDATE_AVAILABLE', action: 'notify' });
+        }
+      })
   );
 });
 
@@ -155,13 +165,13 @@ self.addEventListener('fetch', (event) => {
 });
 
 setInterval(async () => {
-  // Pārbauda jaunu versiju ik 30 sekundes (65+ aprūpētāji)
+  // Pārbauda jaunu versiju ik 1 stundu (65+ aprūpētāji — pietiekami bieži)
   const hasUpdate = await checkForUpdate();
   if (hasUpdate) {
     console.log('[SW] Jauna versija konstatēta — paziņojam klientiem');
     await notifyClients({ type: 'UPDATE_AVAILABLE', action: 'notify' });
   }
-}, 30 * 1000);
+}, 60 * 60 * 1000);
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
