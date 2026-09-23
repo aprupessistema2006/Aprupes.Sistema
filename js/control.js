@@ -1005,6 +1005,20 @@ class ControlPanel {
         return s;
       };
 
+      // Build hospital status map: day -> { R: boolean, V: boolean }
+      const hospitalByDay = {};
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayData = dataByDay[day] || {};
+        const hospR = dayData['R|slimnica|statuss'];
+        const hospV = dayData['V|slimnica|statuss'];
+        if (hospR || hospV) {
+          hospitalByDay[day] = {
+            R: hospR && (hospR === 'hospitalizēts slimnīcā' || hospR === 'Iepazīdināts slimnīcā'),
+            V: hospV && (hospV === 'hospitalizēts slimnīcā' || hospV === 'Iepazīdināts slimnīcā')
+          };
+        }
+      }
+
       let html = '<div class="month-table-wrapper"><table class="month-table"><thead><tr><th>Laiks / Diena</th>';
       for (let day = 1; day <= daysInMonth; day++) {
         html += `<th colspan="2" class="day-header">${day}</th>`;
@@ -1030,6 +1044,20 @@ class ControlPanel {
             if (typeof valR === 'string') valR = valR.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
             if (typeof valV === 'string') valV = valV.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
           }
+          
+          // SPECIAL HANDLING FOR TEMPERATURE: combine with hospital status "S"
+          if (f.category === 'temp' && f.field === 'temperatura') {
+            const hosp = hospitalByDay[day] || { R: false, V: false };
+            // R shift
+            if (hosp.R) {
+              valR = (valR ? valR + ' / S' : 'S');
+            }
+            // V shift
+            if (hosp.V) {
+              valV = (valV ? valV + ' / S' : 'S');
+            }
+          }
+          
           const rClass = valR ? '' : 'empty';
           const vClass = valV ? '' : 'empty';
           const rFever = (f.category === 'temp' && valR && parseFloat(valR) >= 37) ? ' fever' : '';
