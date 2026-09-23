@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260923-2000",
-  "timestamp": 1790198000000,
-  "changes": "Kritisks: jauns GAS_URL deponēts uz Google Apps Script (API atjauninājums ar statusa sinhronizācijas loģiku). Jauna versija spiediena uzlabo sync stabilitāti un hospitalizācijas statusa atjauninājumu uzticamību. Versija: 20260923-2000.",
+  "version": "20260923-2030",
+  "timestamp": 1790198600000,
+  "changes": "Kritisks: jauns GAS_URL `AkfycbwbRIupStYg...` deponēts. Šis ir pirmā rezes deploy ar `updateClientStatus()` logiku. Aprūpētājiem tiks parādīts 'Atjaunot' baneris.",
   "files": [
     "version.json",
     "js/config.js",
