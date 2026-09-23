@@ -6,12 +6,28 @@ node_modules/
 *.tmp
 *.bak
 *.xlsx
-.vscode/
-.idea/
+Aprūpes lapas.xlsx
+Aprūpes sistēma.xlsx
+Aprūpētāja rokasgrāmata.txt
+DUPLICATE_FIX_README.md
+README.md
+debug.xlsx
+final_test.xlsx
+test_output.xlsx
+test_output_*.xlsx
+test_*.js
+visas_aprupes_lapas_dati.txt
+.cursor/
+.kilo/
+backend/
+docs/
+js/demo_aprupetajs.html
+js/dataManager.js
+js/syncGuard.js
 .mcp.json
 uzdevums.md
 range_aprupe.txt
 Aprupes_sistema.xlsx
 Apru pes lapas.xlsx
-final_test.xlsx
-test_output.xlsx
+.vscode/
+.idea/
