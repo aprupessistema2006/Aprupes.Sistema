@@ -6,18 +6,21 @@
 class UpdateNotifier {
   constructor() {
     this.versionParam = '?v=20260923-1900';
+    console.log('[UpdateNotifier] Initializing with version param:', this.versionParam);
     this.init();
     this.checkVersionOnPageLoad();
   }
 
   init() {
     if ('serviceWorker' in navigator) {
+      console.log('[UpdateNotifier] Reģistrējam Service Worker ar versiju:', this.versionParam);
       navigator.serviceWorker.register('sw.js' + this.versionParam, { updateViaCache: 'none' })
+        .then(reg => console.log('[UpdateNotifier] SW reģistrēts veiksmīgi:', reg.scope))
         .catch(err => console.warn('[SW] Registration failed:', err));
 
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
-          console.log('[UpdateNotifier] Jauna versija pieejama');
+          console.log('[UpdateNotifier] Jauna versija pieejama no SW');
           this.showUpdateBanner();
         }
       });
@@ -29,14 +32,22 @@ class UpdateNotifier {
   async checkVersionOnPageLoad() {
     try {
       const response = await fetch('version.json?t=' + Date.now());
-      if (!response.ok) return;
+      console.log('[UpdateNotifier] Fetching version.json, response status:', response.status);
+      if (!response.ok) {
+        console.warn('[UpdateNotifier] version.json fetch failed:', response.status);
+        return;
+      }
       const manifest = await response.json();
       const currentVersion = manifest.version;
       const storedVersion = localStorage.getItem('appVersion') || '';
+      console.log('[UpdateNotifier] Version check:', { storedVersion, currentVersion });
 
+      // Show banner if versions differ (covers both v1855->v1900 upgrade and future updates)
       if (storedVersion && storedVersion !== currentVersion) {
         console.log('[UpdateNotifier] Jauna versija konstatēta ielādes laikā:', storedVersion, '->', currentVersion);
         this.showUpdateBanner();
+      } else if (!storedVersion) {
+        console.log('[UpdateNotifier] Pirma reize, iestatam versiju:', currentVersion);
       }
       localStorage.setItem('appVersion', currentVersion);
     } catch (e) {
@@ -72,38 +83,48 @@ class UpdateNotifier {
   }
 
   async applyUpdate() {
+    console.log('[UpdateNotifier] applyUpdate sākās');
     const banner = document.getElementById('updateBanner');
     if (banner) banner.style.opacity = '0.5';
 
     if ('serviceWorker' in navigator) {
       try {
         const reg = await navigator.serviceWorker.ready;
+        console.log('[UpdateNotifier] SW gatavs, checking waiting SW...');
         if (reg.waiting) {
+          console.log('[UpdateNotifier] Atrodas gaidījošais SW, sūtām SKIP_WAITING');
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        } else {
+          console.log('[UpdateNotifier] Nav gaidīgoša SW');
         }
       } catch (e) {
         console.warn('[UpdateNotifier] SKIP_WAITING neizdevās:', e);
       }
     }
 
+    console.log('[UpdateNotifier] Tīra visus datus...');
     await this.clearAllLocalData();
 
-    window.location.reload();
+    console.log('[UpdateNotifier] Pārlādē lapu...');
+    window.location = window.location.href.split('?')[0] + '?v=20260923-1900';
   }
 
   async clearAllLocalData() {
     console.log('[UpdateNotifier] Tīra visus lokālos datus...');
 
+    const storeNames = ['darbinieki', 'klienti', 'atzime', 'atzime', 'atzimes', 'atzimes_log', 'uzdevomi', 'meta', 'sync_queue'];
+
     try {
       if (window.indexedDB) {
+        console.log('[UpdateNotifier] Tīra IndexedDB: AprupesSistema');
         const db = new CareDB();
         await db.init();
-        const storeNames = ['darbinieki', 'klienti', 'atzime', 'atzimes', 'atzimes_log', 'uzdevomi', 'meta', 'sync_queue'];
         for (const storeName of storeNames) {
           try {
             await db.clear(storeName);
+            console.log('[UpdateNotifier] Notīrīts:', storeName);
           } catch (e) {
-            console.warn('[UpdateNotifier] Neizdevās notīrīt ' + storeName + ':', e);
+            console.warn('[UpdateNotifier] Neizdevās notīrīt ' + storeName + ':', e.message);
           }
         }
         if (db.db && db.db.close) {
@@ -112,7 +133,7 @@ class UpdateNotifier {
         indexedDB.deleteDatabase('AprupesSistema');
       }
     } catch (e) {
-      console.warn('[UpdateNotifier] IndexedDB notīrīšana neizdevās:', e);
+      console.warn('[UpdateNotifier] IndexedDB notīrīšana neizdevās:', e.message);
       try {
         indexedDB.deleteDatabase('AprupesSistema');
       } catch (e2) {
@@ -125,6 +146,7 @@ class UpdateNotifier {
         const keys = await caches.keys();
         for (const key of keys) {
           await caches.delete(key);
+          console.log('[UpdateNotifier] Cache dzēsts:', key);
         }
       } catch (e) {
         console.warn('[UpdateNotifier] Cache notīrīšana neizdevās:', e);
@@ -134,7 +156,7 @@ class UpdateNotifier {
     localStorage.clear();
     sessionStorage.clear();
 
-    console.log('[UpdateNotifier] Visi dati notīrīti. Pārlādē...');
+    console.log('[UpdateNotifier] Visi dati notīrīti.');
   }
 }
 
