@@ -508,6 +508,24 @@ try {
       }
     });
     
+    // Also write to atzimes table for monthly view (control.html)
+    this.sync.enqueueChange({
+      action: 'mark',
+      table: 'atzimes',
+      data: {
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        shift: shift,
+        category: 'slimnica',
+        field: 'statuss',
+        value: logValue,
+        lastModified: nowUTC,
+        actionId: 'hospital_' + this.clientId + '_' + shift + '_' + today,
+        mainaTips: this.currentUser.mainaTips || 'diennakts'
+      }
+    });
+    
     if (this.allClientLog) {
       this.allClientLog.unshift(logEntry);
     }

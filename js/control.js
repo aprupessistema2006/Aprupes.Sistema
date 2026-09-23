@@ -966,6 +966,7 @@ class ControlPanel {
       });
 
       const fieldMap = [
+        { category: 'slimnica', field: 'statuss', label: 'Slimnīcas statuss' },
         { category: 'temp', field: 'temperatura', label: 'Temperatūra' },
         { category: 'higiena', field: 'mutes_dobuma_kopsana', label: 'Mutes dobuma kopšana' },
         { category: 'higiena', field: 'vana_dns', label: 'Vanna, duša' },

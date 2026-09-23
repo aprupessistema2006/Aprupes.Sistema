@@ -1,9 +1,10 @@
 ﻿{
-  "version": "20260923-0815",
-  "timestamp": 1790164500000,
-  "changes": "Hospital status now determined from atzimes_log (latest entry category=slimnica, field=statuss) instead of client.slimnica column. New log values: 'hospitalizēts slimnīcā' / 'atgriezies SAC'. Works across all devices via GS log sync.",
+  "version": "20260923-0830",
+  "timestamp": 1790165400000,
+  "changes": "Hospital status now appears in control.html monthly view (Mēneša apskats). Added atzimes table sync + fieldMap entry for 'slimnica' category.",
   "files": [
     "version.json",
-    "js/care_form.js"
+    "js/care_form.js",
+    "js/control.js"
   ]
 }
