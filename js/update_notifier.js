@@ -5,6 +5,32 @@
  */
 class UpdateNotifier {
   constructor() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('force_update') === '1' || urlParams.get('v') === 'force') {
+      console.log('[UpdateNotifier] Force update requested via URL param');
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg) {
+            console.log('[UpdateNotifier] Unregistering old SW to break cache lock...');
+            reg.unregister().then(() => {
+              console.log('[UpdateNotifier] Old SW unregistered, reloading with new SW...');
+              localStorage.removeItem('appVersion');
+              // Reload without any params to get fresh HTML/JS from server (not SW cache)
+              window.location.href = window.location.origin + window.location.pathname;
+            });
+          } else {
+            console.log('[UpdateNotifier] No SW found, reloading for fresh code...');
+            localStorage.removeItem('appVersion');
+            window.location.href = window.location.origin + window.location.pathname;
+          }
+        });
+      } else {
+        localStorage.removeItem('appVersion');
+        window.location.href = window.location.origin + window.location.pathname;
+      }
+      return;
+    }
+
     this.versionParam = '?v=20260923-1900';
     console.log('[UpdateNotifier] Initializing with version param:', this.versionParam);
     this.init();
