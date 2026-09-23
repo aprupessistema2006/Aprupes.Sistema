@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260922-2315",
-  "timestamp": 1790157300000,
-  "changes": "Robust hospital status check in care_form.js (handles boolean/string/1 variants); added debug log to diagnose missing status on other devices",
+  "version": "20260923-0815",
+  "timestamp": 1790164500000,
+  "changes": "Hospital status now determined from atzimes_log (latest entry category=slimnica, field=statuss) instead of client.slimnica column. New log values: 'hospitalizēts slimnīcā' / 'atgriezies SAC'. Works across all devices via GS log sync.",
   "files": [
     "version.json",
     "js/care_form.js"

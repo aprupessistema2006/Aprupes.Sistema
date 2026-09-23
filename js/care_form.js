@@ -373,12 +373,10 @@ try {
   }
 
   updateHospitalStatusUI() {
-    // Robust check: GS may return "slimnica", "Slimnīcā", or normalized variants; value may be boolean, "TRUE", "true", 1
-    const c = this.client || {};
-    const raw = c.slimnica ?? c['Slimnīcā'] ?? c.slimnica_ ?? c['slimnica'] ?? c['Slimnica'] ?? false;
-    const isHospital = raw === true || raw === 'TRUE' || raw === 'true' || raw === 1 || raw === '1';
+    // Determine hospital status from atzimes_log (source of truth), fallback to client field
+    const isHospital = this.getHospitalStatusFromLog() || (this.client && (this.client.slimnica || this.client['Slimnīcā'] || false));
     
-    console.log('[care_form] Hospital status check:', { clientId: this.clientId, raw, isHospital, clientKeys: Object.keys(c) });
+    console.log('[care_form] Hospital status check:', { clientId: this.clientId, isHospital, fromLog: this.getHospitalStatusFromLog() });
     
     const tempInput = document.querySelector('input[data-cat="temp"][data-field="temperatura"]');
     const tempLabel = document.querySelector('label[data-cat="temp"][data-field="temperatura"]');
@@ -452,10 +450,12 @@ try {
   }
 
   async toggleHospitalStatus() {
-    const newStatus = !(this.client.slimnica || this.client['Slimnīcā'] || false);
+    const isCurrentlyHospital = this.getHospitalStatusFromLog();
+    const newStatus = !isCurrentlyHospital;
+    
+    // Update local client object for immediate UI feedback
     this.client.slimnica = newStatus;
     this.client['Slimnīcā'] = newStatus;
-    
     await this.db.put('klienti', this.client);
     this.sync.enqueueChange({
       action: 'updateClient',
@@ -463,14 +463,17 @@ try {
       data: { id: this.client.id, slimnica: newStatus }
     });
     
-    // Log to atzimes_log (same as other care actions)
+    // Log to atzimes_log with NEW text values
     const today = this.getToday();
     const nowRiga = TimezoneUtils.getNowRiga();
     const timeStr = TimezoneUtils.getTimeRiga();
     const nowUTC = nowRiga.toISOString();
     const shift = this.currentShift || 'V';
     
-    const logValue = newStatus ? 'Iepazīdināts slimnīcā' : 'Atvadināts no slimnīcas';
+    // NEW VALUES: "hospitalizēts slimnīcā" / "atgriezies SAC"
+    const logValue = newStatus ? 'hospitalizēts slimnīcā' : 'atgriezies SAC';
+    const prevValue = newStatus ? 'atgriezies SAC' : 'hospitalizēts slimnīcā';
+    
     const logEntry = {
       id: this.db.generateId(),
       markId: 'hosp_' + Date.now(),
@@ -482,7 +485,7 @@ try {
       category: 'slimnica',
       field: 'statuss',
       value: logValue,
-      prevValue: newStatus ? 'Atvadināts no slimnīcas' : 'Iepazīdināts slimnīcā',
+      prevValue: prevValue,
       type: 'Jauns',
       created: nowUTC,
       mainaTips: this.currentUser.mainaTips || 'diennakts'
@@ -512,7 +515,20 @@ try {
     
     this.updateHospitalStatusUI();
     this.updateHospitalToggleButton(newStatus);
-    this.toast(newStatus ? 'Klients pievienots slimnīcā' : 'Klients atgriezies no slimnīcas');
+    this.toast(newStatus ? 'Klients hospitalizēts slimnīcā' : 'Klients atgriezies SAC');
+  }
+
+  // Determine hospital status from atzimes_log (latest entry for this client with category=slimnica, field=statuss)
+  getHospitalStatusFromLog() {
+    const logs = this.allClientLog || this.history || [];
+    const hospitalLogs = logs.filter(l => l.category === 'slimnica' && l.field === 'statuss');
+    if (!hospitalLogs.length) return false;
+    // Get latest by created timestamp
+    const latest = hospitalLogs.reduce((a, b) => 
+      new Date(b.created || 0) > new Date(a.created || 0) ? b : a
+    );
+    // "hospitalizēts slimnīcā" = true, "atgriezies SAC" = false
+    return latest.value === 'hospitalizēts slimnīcā' || latest.value === 'Iepazīdināts slimnīcā';
   }
 
   updateHospitalToggleButton(isHospital) {
