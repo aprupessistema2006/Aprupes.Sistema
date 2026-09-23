@@ -150,31 +150,34 @@
           ">Atjaunot</button>
         `;
         document.body.insertBefore(banner, document.body.firstChild);
-        document.getElementById('inlineUpdateNowBtn').onclick = function() {
-          console.log('[InlineCheck] Clear all data and reload...');
-          // Clear everything
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistration().then(reg => {
-              if (reg) { reg.unregister().then(() => {
-                localStorage.clear();
-                caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
-                  localStorage.setItem('appVersion', currentVersion);
-                  window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
-                });
-              });
-              else {
-                localStorage.clear();
-                localStorage.setItem('appVersion', currentVersion);
-                window.location.href = window.location.origin + window.location.pathname;
-              }
+    document.getElementById('inlineUpdateNowBtn').onclick = function() {
+      console.log('[InlineCheck] Clear all data and reload...');
+      // Clear everything
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg) {
+            reg.unregister().then(() => {
+              localStorage.clear();
+              return caches.keys();
+            }).then(keys => {
+              return Promise.all(keys.map(k => caches.delete(k)));
+            }).then(() => {
+              localStorage.setItem('appVersion', currentVersion);
+              window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
             });
           } else {
             localStorage.clear();
             localStorage.setItem('appVersion', currentVersion);
-            window.location.href = window.location.origin + window.location.pathname;
+            window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
           }
-        };
+        });
+      } else {
+        localStorage.clear();
+        localStorage.setItem('appVersion', currentVersion);
+        window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
       }
+    };
+  }
       localStorage.setItem('appVersion', currentVersion);
     } catch (e) {
       console.warn('[InlineCheck] Version check failed:', e);
