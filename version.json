@@ -1,16 +1,9 @@
 ﻿{
-  "version": "20260923-1845",
-  "timestamp": 1790177100000,
-  "changes": "Fix: _applyLocalClientChanges tikai saglabā nesinhronizētus slimnīcas statusus (no sync_queue). Versijas pārbaude tieši lapas ielādes brīdī ar vienkāršu 'Atjaunot' pogu. Pēc spiediena: notīr visi dati, SW atjaunojas, ielādēti jaunie dati.",
+  "version": "20260923-1850",
+  "timestamp": 1790173000000,
+  "changes": "Fix: nowUTC variable used before initialization in toggleHospitalStatus. Pārvietots mainīgo deklarēšana pirms lietošanas. Hospital status toggle tagad darbosies pareizi.",
   "files": [
     "version.json",
-    "sw.js",
-    "js/update_notifier.js",
-    "js/sync.js",
-    "aprupe.html",
-    "aprupetajs.html",
-    "admin.html",
-    "index.html",
-    "control.html"
+    "js/care_form.js"
   ]
 }

@@ -459,6 +459,12 @@ try {
     const isCurrentlyHospital = this.getHospitalStatusFromLog();
     const newStatus = !isCurrentlyHospital;
     
+    const nowRiga = TimezoneUtils.getNowRiga();
+    const timeStr = TimezoneUtils.getTimeRiga();
+    const nowUTC = nowRiga.toISOString();
+    const today = this.getToday();
+    const shift = this.currentShift || 'V';
+    
     // Update local client object for immediate UI feedback
     this.client.slimnica = newStatus;
     this.client['Slimnīcā'] = newStatus;
@@ -477,13 +483,7 @@ try {
     });
     
     // Log to atzimes_log with NEW text values
-    const today = this.getToday();
-    const nowRiga = TimezoneUtils.getNowRiga();
-    const timeStr = TimezoneUtils.getTimeRiga();
-    const nowUTC = nowRiga.toISOString();
-    const shift = this.currentShift || 'V';
-    
-     // NEW VALUES: "hospitalizēts slimnīcā" / "atgriezies SAC"
+    // NEW VALUES: "hospitalizēts slimnīcā" / "atgriezies SAC"
     const logValue = newStatus ? 'hospitalizēts slimnīcā' : 'atgriezies SAC';
     const prevValue = newStatus ? 'atgriezies SAC' : 'hospitalizēts slimnīcā';
     
