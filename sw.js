@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v4';
+const CACHE_NAME = 'aprupes-sistema-v5';
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -154,13 +154,14 @@ self.addEventListener('fetch', (event) => {
 });
 
 setInterval(async () => {
-  // Check for updates silently — don't auto-reload
+  // Check for updates and auto-reload — no user interaction needed (65+ caregivers)
   const hasUpdate = await checkForUpdate();
   if (hasUpdate) {
-    console.log('[SW] New version available — user will be notified');
-    await notifyClients({ type: 'UPDATE_AVAILABLE', action: 'notify' });
+    console.log('[SW] New version detected — auto-reloading clients');
+    self.skipWaiting();
+    await notifyClients({ type: 'UPDATE_AVAILABLE', action: 'reload' });
   }
-}, 60 * 1000);
+}, 30 * 1000);
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {

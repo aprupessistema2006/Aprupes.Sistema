@@ -1,13 +1,14 @@
 ﻿{
-  "version": "20260923-1630",
-  "timestamp": 1790170000000,
-  "changes": "Persistent klienta slimnīcas statuss: pievienota slimnica/statuss kolonna klientiem, servera pārbaude, un statuss iegūstams no Google Sheets.",
+  "version": "20260923-1700",
+  "timestamp": 1790171600000,
+  "changes": "Auto-update bez lietotāja intervences: SW automātiski pārlādē visus klientus, kad konstatē jaunu versiju. Noņemta manuālā 'Atjaunot' poga (65+ aprūpētāji).",
   "files": [
     "version.json",
     "sw.js",
-    "backend/gas_webhook.gs",
-    "js/care_form.js",
-    "js/aprupe.js",
-    "js/sync.js"
+    "aprupe.html",
+    "aprupetajs.html",
+    "admin.html",
+    "index.html",
+    "control.html"
   ]
 }
