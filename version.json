@@ -1,11 +1,12 @@
 ﻿{
-  "version": "20260923-1830",
-  "timestamp": 1790173800000,
-  "changes": "Version check on app start + 1h polling. Pirmajā atvēršanā pārbauda versiju, ja jauna - paziņojums ar 'Atjaunot' pogu. Pēc spiediena: notīr visi dati, SW atjaunojas, ielādēti jaunie dati no GS.",
+  "version": "20260923-1845",
+  "timestamp": 1790177100000,
+  "changes": "Fix: _applyLocalClientChanges tikai saglabā nesinhronizētus slimnīcas statusus (no sync_queue). Versijas pārbaude tieši lapas ielādes brīdī ar vienkāršu 'Atjaunot' pogu. Pēc spiediena: notīr visi dati, SW atjaunojas, ielādēti jaunie dati.",
   "files": [
     "version.json",
     "sw.js",
     "js/update_notifier.js",
+    "js/sync.js",
     "aprupe.html",
     "aprupetajs.html",
     "admin.html",

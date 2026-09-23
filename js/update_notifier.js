@@ -5,7 +5,7 @@
  */
 class UpdateNotifier {
   constructor() {
-    this.versionParam = '?v=20260923-1745';
+    this.versionParam = '?v=20260923-1845';
     this.init();
     this.checkVersionOnPageLoad();
   }

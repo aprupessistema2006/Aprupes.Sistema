@@ -441,23 +441,31 @@ class CareSync {
     });
   }
 
-  _collectLocalClientChanges() {
-    return this.db.getAll('klienti').then((all) => {
-      if (!all || !all.length) return {};
-      const map = {};
-      all.forEach(c => {
-        const id = String(c.id || c.ID);
-        if (!id) return;
-        const slimnica = c.slimnica === true || c.slimnica === 'true' || c.slimnica === 1 || c.slimnica === '1' || c['Slimnīcā'] === true || c['Slimnīcā'] === 'true' || c['Slimnīcā'] === 1 || c['Slimnīcā'] === '1';
-        if (slimnica) {
-          map[id] = { slimnica: true, Slimnīcā: true };
+  async _collectLocalClientChanges() {
+    const all = await this.db.getAll('klienti');
+    if (!all || !all.length) return {};
+
+    const queue = await this.db.getAll('sync_queue');
+    const unsyncedHospitalClientIds = new Set();
+    queue.forEach(item => {
+      if (item && item.change && item.change.table === 'klienti' && item.change.action === 'updateClient') {
+        const d = item.change.data || {};
+        if (d.slimnica === true || String(d.slimnica).toLowerCase() === 'true' || d.slimnica === 1 || d.slimnica === '1') {
+          unsyncedHospitalClientIds.add(String(d.id || d.ID));
         }
-      });
-      return map;
-    }).catch((e) => {
-      console.warn('[sync] _collectLocalClientChanges kļūda', e);
-      return {};
+      }
     });
+
+    const map = {};
+    all.forEach(c => {
+      const id = String(c.id || c.ID);
+      if (!id) return;
+      const slimnica = c.slimnica === true || c.slimnica === 'true' || c.slimnica === 1 || c.slimnica === '1' || c['Slimnīcā'] === true || c['Slimnīcā'] === 'true' || c['Slimnīcā'] === 1 || c['Slimnīcā'] === '1';
+      if (slimnica && unsyncedHospitalClientIds.has(id)) {
+        map[id] = { slimnica: true, Slimnīcā: true };
+      }
+    });
+    return map;
   }
 
   _applyLocalClientChanges(changes) {
