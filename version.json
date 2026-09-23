@@ -1,9 +1,9 @@
 ﻿{
-  "version": "20260923-1855",
+  "version": "20260923-1900",
   "timestamp": 1790174200000,
-  "changes": "Fix: palielināts JSONP timeout no 30s uz 120s (GAS cold start), MAX_RETRIES no 3 uz 5. Novērš mark sincrinizācijas timeout kļūdes.",
+  "changes": "Kritisks: jauns GAS_URL deponēts uz Google Apps Script (API atjauninājums ar statusa sinhronizācijas loģiku). Jauna versija spiediena uzlabo sync stabilitāti un hospitalizācijas statusa atjauninājumu uzticamību.",
   "files": [
     "version.json",
-    "js/sync.js"
+    "js/config.js"
   ]
 }
