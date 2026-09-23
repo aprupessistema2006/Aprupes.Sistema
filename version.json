@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260923-0840",
-  "timestamp": 1790166000000,
-  "changes": "Monthly view temperature now shows hospital status: '36.6 / S' if temp measured + in hospital, 'S' if in hospital but no temp measured. Uses slimnica|statuss from atzimes data.",
+  "version": "20260923-0845",
+  "timestamp": 1790166300000,
+  "changes": "Removed 'Slimnīcas statuss' row from monthly view - hospital status now only shown in temperature row as '36.6 / S' or 'S'",
   "files": [
     "version.json",
     "js/control.js"
