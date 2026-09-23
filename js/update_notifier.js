@@ -79,10 +79,16 @@ class UpdateNotifier {
   // Pārbaudīt jaunu versiju lapas ielādes brīdī (pirmais, kas dari, atverot programmu)
   async checkVersionOnPageLoad() {
     try {
-      const response = await fetch('version.json?t=' + Date.now());
+      const response = await fetch('version.json?v=20260923-2030');
       console.log('[UpdateNotifier] Fetching version.json, response status:', response.status);
       if (!response.ok) {
         console.warn('[UpdateNotifier] version.json fetch failed:', response.status);
+        // Fallback: Always show banner if version.json unavailable
+        // This ensures users get the update even if version.json is cached or unavailable
+        const storedVersion = localStorage.getItem('appVersion') || '';
+        if (!storedVersion || storedVersion !== '20260923-2030') {
+          this.showUpdateBanner();
+        }
         return;
       }
       const manifest = await response.json();
@@ -98,6 +104,11 @@ class UpdateNotifier {
       localStorage.setItem('appVersion', currentVersion);
     } catch (e) {
       console.warn('[UpdateNotifier] Versijas pārbaude neizdevās:', e);
+      // Fallback: Show banner on error
+      const storedVersion = localStorage.getItem('appVersion') || '';
+      if (!storedVersion || storedVersion !== '20260923-2030') {
+        this.showUpdateBanner();
+      }
     }
   }
 
