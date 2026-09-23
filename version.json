@@ -1,10 +1,11 @@
 ﻿{
-  "version": "20260923-1700",
-  "timestamp": 1790171600000,
-  "changes": "Auto-update bez lietotāja intervences: SW automātiski pārlādē visus klientus, kad konstatē jaunu versiju. Noņemta manuālā 'Atjaunot' poga (65+ aprūpētāji).",
+  "version": "20260923-1730",
+  "timestamp": 1790172200000,
+  "changes": "Vienkāršs atjauninājuma mehhanisms 65+ aprūpētājiem: jauna versija tikama paziņojuma ar vienkāršu 'Atjaunot' pogu. Pēc spiediena: notīr visi lokālie dati, SW aktivizējas, lapa pārlādējas ar jauniem datiem no Google Sheets.",
   "files": [
     "version.json",
     "sw.js",
+    "js/update_notifier.js",
     "aprupe.html",
     "aprupetajs.html",
     "admin.html",

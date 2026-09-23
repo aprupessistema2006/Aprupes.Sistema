@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v5';
+const CACHE_NAME = 'aprupes-sistema-v6';
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   'css/aprupetajs.css',
   'css/login.css',
   'js/config.js',
+  'js/update_notifier.js',
   'js/i18n.js',
   'js/timezone.js',
   'js/db.js',
@@ -154,12 +155,11 @@ self.addEventListener('fetch', (event) => {
 });
 
 setInterval(async () => {
-  // Check for updates and auto-reload — no user interaction needed (65+ caregivers)
+  // Pārbauda jaunu versiju ik 30 sekundes (65+ aprūpētāji)
   const hasUpdate = await checkForUpdate();
   if (hasUpdate) {
-    console.log('[SW] New version detected — auto-reloading clients');
-    self.skipWaiting();
-    await notifyClients({ type: 'UPDATE_AVAILABLE', action: 'reload' });
+    console.log('[SW] Jauna versija konstatēta — paziņojam klientiem');
+    await notifyClients({ type: 'UPDATE_AVAILABLE', action: 'notify' });
   }
 }, 30 * 1000);
 
