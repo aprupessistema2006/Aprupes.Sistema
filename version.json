@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260923-1745",
-  "timestamp": 1790172300000,
-  "changes": "Version check on app start + every 1h. Pirmais kas notiek atverot: pārbaude versijas. Ja jauna versija, paziņojums ar 'Atjaunot' pogu. Pēc spiediena: visi dati notīrās, SW atjaunojas, ielādēti jaunie dati no Google Sheets.",
+  "version": "20260923-1830",
+  "timestamp": 1790173800000,
+  "changes": "Version check on app start + 1h polling. Pirmajā atvēršanā pārbauda versiju, ja jauna - paziņojums ar 'Atjaunot' pogu. Pēc spiediena: notīr visi dati, SW atjaunojas, ielādēti jaunie dati no GS.",
   "files": [
     "version.json",
     "sw.js",
