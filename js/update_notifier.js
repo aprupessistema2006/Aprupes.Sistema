@@ -42,12 +42,10 @@ class UpdateNotifier {
       const storedVersion = localStorage.getItem('appVersion') || '';
       console.log('[UpdateNotifier] Version check:', { storedVersion, currentVersion });
 
-      // Show banner if versions differ (covers both v1855->v1900 upgrade and future updates)
-      if (storedVersion && storedVersion !== currentVersion) {
-        console.log('[UpdateNotifier] Jauna versija konstatēta ielādes laikā:', storedVersion, '->', currentVersion);
+      // Show banner if versions differ OR if localStorage is empty (upgrade scenario)
+      if (storedVersion !== currentVersion) {
+        console.log('[UpdateNotifier] Version mismatched:', storedVersion || '(tukšs)', '->', currentVersion);
         this.showUpdateBanner();
-      } else if (!storedVersion) {
-        console.log('[UpdateNotifier] Pirma reize, iestatam versiju:', currentVersion);
       }
       localStorage.setItem('appVersion', currentVersion);
     } catch (e) {
@@ -80,6 +78,37 @@ class UpdateNotifier {
     document.getElementById('updateNowBtn').addEventListener('click', () => {
       this.applyUpdate();
     });
+
+    // Debug pogas, kas veic manuālu versijas pārbaudi (noder, ja baneris neparādās)
+    this.addDebugButton();
+  }
+
+  addDebugButton() {
+    const debugBtn = document.createElement('button');
+    debugBtn.id = 'debugForceUpdateBtn';
+    debugBtn.innerHTML = 'Pārbaudīt atjauninājumu';
+    debugBtn.style.cssText = `
+      position: fixed; bottom: 20px; right: 20px; z-index: 10002;
+      background: #ff9800; color: white; border: none; padding: 10px 15px;
+      border-radius: 6px; font-size: 14px; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    `;
+    debugBtn.onclick = async () => {
+      debugBtn.textContent = 'Pārbauda...';
+      const response = await fetch('version.json?t=' + Date.now());
+      const manifest = await response.json();
+      const currentVersion = manifest.version;
+      const storedVersion = localStorage.getItem('appVersion') || '';
+      if (storedVersion && storedVersion !== currentVersion) {
+        debugBtn.textContent = 'Atjaunot!';
+        debugBtn.style.background = '#2196F3';
+        debugBtn.onclick = () => this.applyUpdate();
+      } else {
+        debugBtn.textContent = 'Nav jauninājuma';
+        setTimeout(() => { debugBtn.style.display = 'none'; }, 3000);
+      }
+    };
+    document.body.appendChild(debugBtn);
   }
 
   async applyUpdate() {
