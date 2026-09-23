@@ -31,7 +31,7 @@ class UpdateNotifier {
       return;
     }
 
-    this.versionParam = '?v=20260923-1900';
+    this.versionParam = '?v=20260923-1930';
     console.log('[UpdateNotifier] Initializing with version param:', this.versionParam);
     this.init();
     this.checkVersionOnPageLoad();
@@ -57,15 +57,20 @@ class UpdateNotifier {
   }
 
   registerNewSW() {
-    console.log('[UpdateNotifier] Reģistrējam Service Worker ar versiju:', this.versionParam);
-    navigator.serviceWorker.register('sw.js' + this.versionParam, { updateViaCache: 'none' })
-      .then(reg => console.log('[UpdateNotifier] SW reģistrēts veiksmīgi:', reg.scope))
+    console.log('[UpdateNotifier] Reģistrējam jauno Service Worker (sw2.js):', this.versionParam);
+    // Use sw2.js to bypass any cached sw.js from old Service Worker
+    navigator.serviceWorker.register('sw2.js' + this.versionParam, { updateViaCache: 'none' })
+      .then(reg => console.log('[UpdateNotifier] Jaunā SW reģistrēta:', reg.scope))
       .catch(err => console.warn('[SW] Registration failed:', err));
 
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
         console.log('[UpdateNotifier] Jauna versija pieejama no SW');
         this.showUpdateBanner();
+      }
+      if (event.data && event.data.type === 'SW_REPLACED') {
+        console.log('[UpdateNotifier] Vecā SW aizvietota, pārslādē...');
+        window.location.reload();
       }
     });
   }
