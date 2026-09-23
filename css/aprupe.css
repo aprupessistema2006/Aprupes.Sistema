@@ -350,6 +350,23 @@ body {
   margin-bottom: 4px;
 }
 
+.hospital-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #e74c3c;
+  background: #fdecea;
+  border: 1px solid #e74c3c;
+  border-radius: 10px;
+  padding: 2px 6px;
+  vertical-align: middle;
+}
+
+.client-card.hospital {
+  border-color: #e74c3c;
+}
+
 .client-card-dob {
   font-size: 13px;
   color: var(--text-light);

@@ -596,7 +596,9 @@ class CareSync {
     if (change.data && change.data.actionId) {
       const existing = await this.db.getAll('sync_queue');
       const duplicate = existing.find(item =>
-        item.change && item.change.data && item.change.data.actionId === change.data.actionId
+        item.change && item.change.data &&
+        item.change.table === change.table &&
+        item.change.data.actionId === change.data.actionId
       );
       if (duplicate) {
         duplicate.change.data = change.data;

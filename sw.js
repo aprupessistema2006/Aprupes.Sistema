@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v3';
+const CACHE_NAME = 'aprupes-sistema-v4';
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',

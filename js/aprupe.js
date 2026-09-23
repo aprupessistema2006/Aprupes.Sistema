@@ -701,10 +701,13 @@ class AprupeController {
       const ageText = age ? (age + ' gadi') : 'Vecums nav norādīts';
       const clientInfo = dieta ? (ageText + ', ' + dieta) : ageText;
 
+      const isHospital = (client.slimnica === true || client.slimnica === 'true' || client.slimnica === 1 || client.slimnica === '1' || client['Slimnīcā'] === true || client['Slimnīcā'] === 'true' || client['Slimnīcā'] === 1 || client['Slimnīcā'] === '1') || String(client.statuss || '').toUpperCase() === 'SLIMNĪCĀ';
+      const hospitalBadge = isHospital ? '<span class="hospital-badge">🏥 Slimnīcā</span>' : '';
+
       return `
-        <div class="client-card ${this.selectedClientId === String(id) ? 'selected' : ''}" data-client-id="${id}" data-client-name="${this.escapeHtml(displayName)}">
+        <div class="client-card ${this.selectedClientId === String(id) ? 'selected' : ''} ${isHospital ? 'hospital' : ''}" data-client-id="${id}" data-client-name="${this.escapeHtml(displayName)}">
           <div>
-            <div class="client-card-name">${this.escapeHtml(vards)} ${this.escapeHtml(uzvards)}</div>
+            <div class="client-card-name">${this.escapeHtml(vards)} ${this.escapeHtml(uzvards)} ${hospitalBadge}</div>
             <div class="client-card-dob">${this.escapeHtml(clientInfo)}</div>
             ${teamHtml}
           </div>

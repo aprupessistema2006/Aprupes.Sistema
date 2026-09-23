@@ -1,9 +1,13 @@
 ﻿{
-  "version": "20260923-0850",
-  "timestamp": 1790166600000,
-  "changes": "Excel export: temperature now shows '36.6 / S' or 'S' when in hospital; row label changed to 'Temperatūra / slimnīca'. Uses slimnica|statuss from marks data.",
+  "version": "20260923-1630",
+  "timestamp": 1790170000000,
+  "changes": "Persistent klienta slimnīcas statuss: pievienota slimnica/statuss kolonna klientiem, servera pārbaude, un statuss iegūstams no Google Sheets.",
   "files": [
     "version.json",
-    "js/excel_export.js"
+    "sw.js",
+    "backend/gas_webhook.gs",
+    "js/care_form.js",
+    "js/aprupe.js",
+    "js/sync.js"
   ]
 }

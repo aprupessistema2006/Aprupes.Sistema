@@ -231,6 +231,7 @@ function handleLoadData(params) {
     
     // Ensure all sheets have required columns (headers)
     ensureColumns(getSheet('darbinieki'), ['maina_tips']);
+    ensureColumns(getSheet('klienti'), ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id']);
     ensureColumns(getSheet('atzimes'), ['action_id', 'maina_tips', 'notikuma_laiks']);
     ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
     ensureColumns(getSheet('uzdevomi'), ['action_id']);
@@ -365,6 +366,9 @@ function handleCreateEmployee(data) {
 
 function handleUpdate(data, sheetName) {
   const sheet = getSheet(sheetName);
+  if (sheetName === 'klienti') {
+    ensureColumns(sheet, ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id']);
+  }
   const row = findRow(sheet, [['id', data.data.id]]);
   if (!row) return { error: 'Nav atrasts' };
   Object.keys(data.data).forEach(f => {
@@ -401,6 +405,7 @@ function buildLogRow(headers, colMap, data) {
 function handleMark(data) {
   const atzimesSheet = getSheet('atzimes');
   const logSheet = getSheet('atzimes_log');
+  const klientiSheet = getSheet('klienti');
   const m = data.data;
 
   // Normalize signature field names to canonical 'aprupetaja_paraksts'
@@ -410,6 +415,7 @@ function handleMark(data) {
 
   ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks']);
   ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
+  ensureColumns(klientiSheet, ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id']);
 
   const lock = LockService.getScriptLock();
   try {
@@ -483,7 +489,23 @@ function handleMark(data) {
     const modificationDateTimeRiga = formatDateTimeLV(modificationTime);
 
     const updates = []; // Batch updates to apply at once
-    
+
+    // Status toggle detection: category=slimnica, field=statuss
+    const isStatusToggle = (normalizeKey(m.field) === 'statuss' && String(m.category || '').toLowerCase() === 'slimnica');
+
+    // Server-side enforcement: if the client is currently in hospital, non-status
+    // care marks must be rejected. Status toggles are always allowed.
+    if (!isStatusToggle) {
+      const hospitalNow = getLatestClientStatus(logData, logColMap, m.clientId) || isClientHospitalRow(klientiSheet, m.clientId);
+      if (hospitalNow) {
+        return {
+          success: false,
+          error: 'Klients atrodas slimnīcā; aprūpes ierakstus nevar saglabāt.',
+          blocked: true
+        };
+      }
+    }
+
     if (existingMarkRow > 0) {
       // Ja vērtība ir tā pati, neizveido duplikātu žurnāla ierakstu
       if (existingMarkValue === String(m.value)) {
@@ -552,6 +574,11 @@ function handleMark(data) {
       
       SpreadsheetApp.flush();
 
+      // Keep the client's hospital status in sync (source of truth for other devices)
+      if (isStatusToggle) {
+        updateClientStatus(klientiSheet, m, modificationDateTimeRiga, m.employeeId);
+      }
+
       return {
         success: true,
         id: markId,
@@ -615,6 +642,11 @@ function handleMark(data) {
     
     SpreadsheetApp.flush();
 
+    // Keep the client's hospital status in sync (source of truth for other devices)
+    if (isStatusToggle) {
+      updateClientStatus(klientiSheet, m, modificationDateTimeRiga, m.employeeId);
+    }
+
     return { success: true, id: id, already_processed: false };
   } finally {
     lock.releaseLock();
@@ -624,7 +656,7 @@ function handleMark(data) {
 function ensureColumns(sheet, requiredColumns) {
   if (!sheet) return;
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
-  const missing = requiredColumns.filter(col => !headers.includes(col));
+  const missing = requiredColumns.filter(col => !headers.some(h => normalizeKey(h) === normalizeKey(col)));
   if (missing.length > 0) {
     const lastCol = headers.length;
     missing.forEach((col, i) => {
@@ -894,4 +926,69 @@ function normalizeKey(h) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/ /g, '_')
     .replace(/[^a-z0-9_]/g, '');
+}
+
+function isTruthy(v) {
+  if (v === true || v === 1) return true;
+  if (typeof v === 'string') {
+    const t = v.trim().toLowerCase();
+    return t === 'true' || t === '1';
+  }
+  return false;
+}
+
+function isHospitalValue(v) {
+  const t = String(v || '').trim().toLowerCase();
+  return t === 'true' || t === '1' ||
+    t === 'slimnīcā' || t === 'sludnīcā' ||
+    t.includes('hospitaliz') || t.includes('slimnīcā') || t.includes('iepazīdināts');
+}
+
+// Returns the most recent hospital status from the atzimes_log rows (source of truth)
+function getLatestClientStatus(logData, logColMap, clientId) {
+  if (!logData || !logColMap || !clientId) return false;
+  const klientsCol = logColMap['klients_id'];
+  const katCol = logColMap['kategorija'];
+  const lauksCol = logColMap['lauka_nosaukums'];
+  const vertCol = logColMap['vertiba'];
+  if (klientsCol === undefined || katCol === undefined || lauksCol === undefined) return false;
+  let latestTime = null;
+  let latestValue = '';
+  for (let i = 0; i < logData.length; i++) {
+    if (String(logData[i][klientsCol]) !== String(clientId)) continue;
+    if (String(logData[i][katCol]).toLowerCase() !== 'slimnica') continue;
+    if (String(logData[i][lauksCol]).toLowerCase() !== 'statuss') continue;
+    const et = getEventTimeFromRow(logData[i], logColMap);
+    if (!et) continue;
+    if (!latestTime || et.getTime() > latestTime.getTime()) {
+      latestTime = et;
+      latestValue = String(logData[i][vertCol != null ? vertCol : 0] || '');
+    }
+  }
+  if (!latestTime) return false;
+  return isHospitalValue(latestValue);
+}
+
+function isClientHospitalRow(klientiSheet, clientId) {
+  if (!klientiSheet || !clientId) return false;
+  const row = findRow(klientiSheet, [['id', clientId]]);
+  if (!row) return false;
+  const d = row.data;
+  return isTruthy(d.slimnica) || isTruthy(d['Slimnīcā']) || isHospitalValue(d.statuss);
+}
+
+// Writes the current hospital status back to the klienti sheet so other devices
+// can read it without scanning the entire change log.
+function updateClientStatus(sheet, m, timestampRiga, employeeId) {
+  if (!sheet || !m.clientId) return;
+  const row = findRow(sheet, [['id', m.clientId]]);
+  if (!row) return;
+  const val = String(m.value || '').trim().toLowerCase();
+  const isHosp = isHospitalValue(val);
+  setCellValue(sheet, row.row, 'statuss', isHosp ? 'SLIMNĪCĀ' : 'SAC');
+  setCellValue(sheet, row.row, 'slimnica', isHosp);
+  setCellValue(sheet, row.row, 'Slimnīcā', isHosp);
+  if (timestampRiga) setCellValue(sheet, row.row, 'statusa_laiks', timestampRiga);
+  if (employeeId) setCellValue(sheet, row.row, 'statusa_darbinieks_id', employeeId);
+  SpreadsheetApp.flush();
 }

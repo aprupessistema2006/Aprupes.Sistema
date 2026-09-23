@@ -169,6 +169,9 @@ try {
       this.renderForm();
       this.renderHistory();
       this.renderSignature();
+      // Statusa logi ielādēti: atjaunojam UI no Google Sheets avota.
+      // Izsaucam pēc renderSignature, lai tas nesprāgstu ziburi atpakaļ.
+      this.updateHospitalStatusUI();
       this.updateTeamSummary();
       this.renderQuickTotals();
       this.toast('✓ Dati ielādēti no Google Sheets');
@@ -269,6 +272,9 @@ try {
             this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
           } else {
             // Rendering is handled by syncComplete event listener
+            await Promise.all([this.loadAllClientMarks(), this.loadMarks()]);
+            this.renderHistory();
+            this.updateHospitalStatusUI();
             this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
@@ -456,11 +462,18 @@ try {
     // Update local client object for immediate UI feedback
     this.client.slimnica = newStatus;
     this.client['Slimnīcā'] = newStatus;
+    this.client.statuss = newStatus ? 'SLIMNĪCĀ' : 'SAC';
     await this.db.put('klienti', this.client);
     this.sync.enqueueChange({
       action: 'updateClient',
       table: 'klienti',
-      data: { id: this.client.id, slimnica: newStatus }
+      data: {
+        id: this.client.id,
+        slimnica: newStatus,
+        statuss: newStatus ? 'SLIMNĪCĀ' : 'SAC',
+        statusa_laiks: nowUTC,
+        statusa_darbinieks_id: this.currentUser.id
+      }
     });
     
     // Log to atzimes_log with NEW text values
@@ -470,13 +483,16 @@ try {
     const nowUTC = nowRiga.toISOString();
     const shift = this.currentShift || 'V';
     
-    // NEW VALUES: "hospitalizēts slimnīcā" / "atgriezies SAC"
+     // NEW VALUES: "hospitalizēts slimnīcā" / "atgriezies SAC"
     const logValue = newStatus ? 'hospitalizēts slimnīcā' : 'atgriezies SAC';
     const prevValue = newStatus ? 'atgriezies SAC' : 'hospitalizēts slimnīcā';
     
+    // Unique event id so repeated toggles are never deduplicated by the sync queue
+    const statusEventId = 'hospital_' + this.clientId + '_' + nowRiga.getTime() + '_' + Math.random().toString(36).substr(2, 6);
+    
     const logEntry = {
       id: this.db.generateId(),
-      markId: 'hosp_' + Date.now(),
+      markId: statusEventId,
       clientId: this.clientId,
       employeeId: this.currentUser.id,
       date: today,
@@ -504,7 +520,7 @@ try {
         field: 'statuss',
         value: logValue,
         lastModified: nowUTC,
-        actionId: 'hospital_' + this.clientId + '_' + shift + '_' + today
+        actionId: statusEventId
       }
     });
     
@@ -521,7 +537,7 @@ try {
         field: 'statuss',
         value: logValue,
         lastModified: nowUTC,
-        actionId: 'hospital_' + this.clientId + '_' + shift + '_' + today,
+        actionId: statusEventId,
         mainaTips: this.currentUser.mainaTips || 'diennakts'
       }
     });
@@ -536,17 +552,28 @@ try {
     this.toast(newStatus ? 'Klients hospitalizēts slimnīcā' : 'Klients atgriezies SAC');
   }
 
-  // Determine hospital status from atzimes_log (latest entry for this client with category=slimnica, field=statuss)
+  // Determine hospital status from the latest status event across ALL dates
+  // (source of truth loaded fresh from Google Sheets on every login/sync)
   getHospitalStatusFromLog() {
-    const logs = this.allClientLog || this.history || [];
-    const hospitalLogs = logs.filter(l => l.category === 'slimnica' && l.field === 'statuss');
-    if (!hospitalLogs.length) return false;
-    // Get latest by created timestamp
-    const latest = hospitalLogs.reduce((a, b) => 
-      new Date(b.created || 0) > new Date(a.created || 0) ? b : a
+    const sources = [];
+    if (this.allClientStatusLog) sources.push(...this.allClientStatusLog);
+    if (this.allClientLog) sources.push(...this.allClientLog);
+    if (this.history) sources.push(...this.history);
+    if (this.allClientMarks) sources.push(...this.allClientMarks);
+
+    const statusLogs = sources.filter(l => {
+      if (!l) return false;
+      const cat = (l.category || l.kategorija || '').toLowerCase();
+      const field = (l.field || l.lauka_nosaukums || '').toLowerCase();
+      return cat === 'slimnica' && field === 'statuss';
+    });
+
+    if (!statusLogs.length) return false;
+    const latest = statusLogs.reduce((a, b) =>
+      this.getMarkTimeLocal(b) > this.getMarkTimeLocal(a) ? b : a
     );
-    // "hospitalizēts slimnīcā" = true, "atgriezies SAC" = false
-    return latest.value === 'hospitalizēts slimnīcā' || latest.value === 'Iepazīdināts slimnīcā';
+    const val = String(latest.value || latest.vertiba || '').trim().toLowerCase();
+    return val.includes('slimnīcā') || val.includes('hospitaliz') || val === 'iepazīdināts' || val === 'true' || val === '1';
   }
 
   updateHospitalToggleButton(isHospital) {
@@ -613,7 +640,7 @@ try {
   }
 
   getMarkTime(m) {
-    return m.created || m.izveidots || m.lastModified || m.pedeja_laiks || m.pēdējais_laiks || m.time || m.laiks || '';
+    return m.eventTime || m.created || m.izveidots || m.lastModified || m.pedeja_laiks || m.pēdējais_laiks || m.time || m.laiks || '';
   }
 
   getMarkTimeLocal(m) {
@@ -1467,6 +1494,15 @@ try {
     this.allClientLog = allLog.filter(l => {
       if (!this.clientIdsMatch(l, this.clientId)) return false;
       return this.isToday(l, today);
+    });
+
+    // Hospital status is a persistent state — look at ALL historical status events
+    // for this client, not just today. This is the source of truth read from Google Sheets.
+    this.allClientStatusLog = allLog.filter(l => {
+      if (!this.clientIdsMatch(l, this.clientId)) return false;
+      const cat = (l.category || l.kategorija || '').toLowerCase();
+      const field = (l.field || l.lauka_nosaukums || '').toLowerCase();
+      return cat === 'slimnica' && field === 'statuss';
     });
   }
 
