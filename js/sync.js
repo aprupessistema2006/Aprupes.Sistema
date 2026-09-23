@@ -99,7 +99,7 @@ async function requestData(url, timeout = 60000) {
 // Request deduplication — prevent parallel identical requests
 const pendingActions = new Map();
 
-async function jsonpAction(action, data, timeout = 30000) {
+async function jsonpAction(action, data, timeout = 120000) {
   const actionKey = action + ':' + JSON.stringify(data);
 
   if (pendingActions.has(actionKey)) {
@@ -131,7 +131,7 @@ async function jsonpAction(action, data, timeout = 30000) {
 // POST-based action for write operations
 // Uses JSONP (GET) since GAS doesn't support CORS for fetch POST.
 // This is equivalent to jsonpAction but with a distinct key prefix.
-async function postAction(action, data, timeout = 30000) {
+async function postAction(action, data, timeout = 120000) {
   return jsonpAction(action, data, timeout);
 }
 
@@ -654,7 +654,7 @@ class CareSync {
         return summary;
       }
 
-      const MAX_RETRIES = 3;
+      const MAX_RETRIES = 5;
       const sorted = items.slice().sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
         // Skip permanently failed items (exceeded max retries)

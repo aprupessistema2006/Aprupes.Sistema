@@ -1,9 +1,9 @@
 ﻿{
-  "version": "20260923-1850",
-  "timestamp": 1790173000000,
-  "changes": "Fix: nowUTC variable used before initialization in toggleHospitalStatus. Pārvietots mainīgo deklarēšana pirms lietošanas. Hospital status toggle tagad darbosies pareizi.",
+  "version": "20260923-1855",
+  "timestamp": 1790174200000,
+  "changes": "Fix: palielināts JSONP timeout no 30s uz 120s (GAS cold start), MAX_RETRIES no 3 uz 5. Novērš mark sincrinizācijas timeout kļūdes.",
   "files": [
     "version.json",
-    "js/care_form.js"
+    "js/sync.js"
   ]
 }
