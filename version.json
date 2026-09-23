@@ -1,9 +1,11 @@
 ﻿{
-  "version": "20260923-1900",
-  "timestamp": 1790174200000,
-  "changes": "Kritisks: jauns GAS_URL deponēts uz Google Apps Script (API atjauninājums ar statusa sinhronizācijas loģiku). Jauna versija spiediena uzlabo sync stabilitāti un hospitalizācijas statusa atjauninājumu uzticamību.",
+  "version": "20260923-2000",
+  "timestamp": 1790198000000,
+  "changes": "Kritisks: jauns GAS_URL deponēts uz Google Apps Script (API atjauninājums ar statusa sinhronizācijas loģiku). Jauna versija spiediena uzlabo sync stabilitāti un hospitalizācijas statusa atjauninājumu uzticamību. Versija: 20260923-2000.",
   "files": [
     "version.json",
-    "js/config.js"
+    "js/config.js",
+    "js/update_notifier.js",
+    "sw2.js"
   ]
 }
