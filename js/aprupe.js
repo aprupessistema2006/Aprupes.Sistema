@@ -573,7 +573,8 @@ class AprupeController {
       const aktivs = c.aktivs;
       // Default to active if aktivs is missing (legacy clients without this column)
       if (aktivs === undefined || aktivs === null || aktivs === '') return true;
-      return aktivs === true || aktivs === 'true' || aktivs === 1 || aktivs === '1';
+      const a = String(aktivs).toLowerCase();
+      return a === 'true' || a === '1' || aktivs === true || aktivs === 1;
     });
     this.clients.sort((a, b) => {
       const aName = ((a.uzvards || a.Uzvārds || '') + ' ' + (a.vards || a.Vārds || '')).toLowerCase();

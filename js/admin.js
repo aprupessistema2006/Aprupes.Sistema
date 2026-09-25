@@ -231,7 +231,12 @@ class AdminPanel {
 
     const exportMultiClients = document.getElementById('exportMultiClients');
     if (exportMultiClients && exportMultiClients.options.length === 0) {
-      const activeClients = this.clients.filter(c => (c.aktivs === undefined || c.aktivs === null || c.aktivs === '' || c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1'));
+      const activeClients = this.clients.filter(c => {
+        const a = c.aktivs;
+        if (a === undefined || a === null || a === '') return true;
+        const al = String(a).toLowerCase();
+        return al === 'true' || al === '1' || a === true || a === 1;
+      });
       exportMultiClients.innerHTML = activeClients.map(c => {
         const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
         return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim())}</option>`;
@@ -486,7 +491,7 @@ class AdminPanel {
     list.innerHTML = items.map(c => {
       const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
        const dob = c.dzimis || c['Dzimšanas datums'] || c.dzimsans_datums || c.dzimšans_datums || c.birth_date || '';
-      const active = c.aktivs === undefined || c.aktivs === null || c.aktivs === '' || c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1';
+      const active = (() => { const a = c.aktivs; if (a === undefined || a === null || a === '') return true; const al = String(a).toLowerCase(); return al === 'true' || al === '1' || a === true || a === 1; })();
       const id = c.id || c.ID;
 
       return `
@@ -531,7 +536,7 @@ class AdminPanel {
       const name = (e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '');
       const loma = e.loma || e.Loma || '';
       const pin = e.pin || e['PIN kods'] || '';
-      const active = e.aktivs === undefined || e.aktivs === null || e.aktivs === '' || e.aktivs === true || e.aktivs === 'true' || e.aktivs === 1 || e.aktivs === '1';
+      const active = (() => { const a = e.aktivs; if (a === undefined || a === null || a === '') return true; const al = String(a).toLowerCase(); return al === 'true' || al === '1' || a === true || a === 1; })();
       const id = e.id || e.ID;
 
       return `
