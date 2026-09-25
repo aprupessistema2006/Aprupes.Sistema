@@ -1,11 +1,17 @@
 ﻿{
-  "version": "20260923-2030",
-  "timestamp": 1790198600000,
-  "changes": "Kritisks: jauns GAS_URL `AkfycbwbRIupStYg...` deponēts. Šis ir pirmā rezes deploy ar `updateClientStatus()` logiku. Aprūpētājiem tiks parādīts 'Atjaunot' baneris.",
+  "version": "20260925-1205",
+  "timestamp": 1790361900000,
+  "changes": "Fix: sync_queue not cleared after successful server sync. Added robust queue item deletion in processQueue (moved to after request completes) and clear stale queue items after successful data load from Google Sheets. This prevents false 'nesaglabāti ieraksti' warnings.",
   "files": [
     "version.json",
     "js/config.js",
+    "js/sync.js",
     "js/update_notifier.js",
-    "sw2.js"
+    "sw2.js",
+    "index.html",
+    "aprupetajs.html",
+    "aprupe.html",
+    "control.html",
+    "admin.html"
   ]
 }

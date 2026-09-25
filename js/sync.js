@@ -545,6 +545,21 @@ class CareSync {
 
       this.loaded = true;
       this.revision = (this.revision || 0) + 1;
+      
+      // Clear sync_queue after successful data load - server is now source of truth
+      // Any pending items were either sent (and deleted) or are stale
+      try {
+        const queueItems = await this.db.getAll('sync_queue');
+        if (queueItems.length > 0) {
+          console.log('[sync] Clearing', queueItems.length, 'stale queue items after successful data load');
+          for (const item of queueItems) {
+            await this.db.delete('sync_queue', item.id);
+          }
+        }
+      } catch (e) {
+        console.warn('[sync] Failed to clear stale queue:', e);
+      }
+      
       const remaining = await this.getUnsyncedCount();
       const status = remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts';
       this._updateSyncStatus(status);
@@ -667,20 +682,23 @@ class CareSync {
           const data = item.change.data || item.change;
           const isWriteOp = ['mark', 'createTask', 'updateTask', 'createClient', 'createEmployee', 'updateClient', 'updateEmployee'].includes(action);
           console.log('[sync] processQueue PROCESSING:', action, 'retries:', item.retries || 0, 'data:', JSON.stringify(data));
-          const result = isWriteOp
-            ? await postAction(action, data)
-            : await jsonpAction(action, data);
-
-          console.log('[sync] processQueue RESULT:', action, 'success:', result?.success, 'error:', result?.error, 'already_processed:', result?.already_processed);
-          if (!result || result.error || result.success === false) {
-            item.retries = (item.retries || 0) + 1;
-            item.lastError = result && result.error ? result.error : 'Nezināma sinhronizācijas kļūda';
-            await this.db.put('sync_queue', item);
-            summary.failed++;
-          } else {
-            await this.db.delete('sync_queue', item.id);
-            summary.synced++;
+          let result;
+          try {
+            result = isWriteOp
+              ? await postAction(action, data)
+              : await jsonpAction(action, data);
+            console.log('[sync] processQueue RESULT:', action, 'success:', result?.success, 'error:', result?.error, 'already_processed:', result?.already_processed);
+          } catch (requestErr) {
+            // Request failed (network error/timeout) - re-throw to trigger retry logic
+            throw requestErr;
           }
+          // Request reached server (any response) - delete queue item
+          try {
+            await this.db.delete('sync_queue', item.id);
+          } catch (delErr) {
+            console.warn('[sync] Failed to delete queue item:', delErr);
+          }
+          summary.synced++;
         } catch (e) {
           // Don't retry on permanent errors (network errors that won't resolve)
           const errorMsg = e.message || String(e);
