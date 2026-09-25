@@ -1,11 +1,12 @@
 ﻿{
-  "version": "20260925-1205",
-  "timestamp": 1790361900000,
-  "changes": "Fix: sync_queue not cleared after successful server sync. Added robust queue item deletion in processQueue (moved to after request completes) and clear stale queue items after successful data load from Google Sheets. This prevents false 'nesaglabāti ieraksti' warnings.",
+  "version": "20260925-1223",
+  "timestamp": 1790362980000,
+  "changes": "Fix: False 'nesaglabāti dati' warning on logout. Added flushQueue() + clearQueue() in sync.js, reduced queue timer to 100ms. logout.js now calls flushQueue() before checking pending items. Server is source of truth - queue cleared after successful sync.",
   "files": [
     "version.json",
     "js/config.js",
     "js/sync.js",
+    "js/logout.js",
     "js/update_notifier.js",
     "sw2.js",
     "index.html",

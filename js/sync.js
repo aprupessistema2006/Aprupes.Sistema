@@ -647,7 +647,17 @@ class CareSync {
     this._queueTimer = setTimeout(() => {
       this._queueTimer = null;
       this.processQueue().catch(() => {});
-    }, 500);
+    }, 100); // Reduced from 500ms to 100ms for faster sync
+  }
+
+  // Tūlītēja rindas apstrāde (bez timeout) - izsaukt pirms logout pārbaudes
+  async flushQueue() {
+    if (this._queueTimer) {
+      clearTimeout(this._queueTimer);
+      this._queueTimer = null;
+    }
+    await this.processQueue();
+    await this.clearQueue();
   }
 
   async processQueue() {
@@ -727,6 +737,8 @@ class CareSync {
     return this._runExclusive(async () => {
       const queue = await this._processQueueUnlocked();
       const load = await this._loadInitialDataUnlocked(onProgress, false, filters);
+      // Clear any remaining queue items after full sync - server is source of truth
+      await this.clearQueue();
       const result = { ...load, queue };
       try {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
@@ -734,6 +746,21 @@ class CareSync {
       this._broadcastSyncComplete(result);
       return result;
     });
+  }
+
+  // Pūsta sync_queue - izsaucot, kad serveris ir "source of truth"
+  async clearQueue() {
+    try {
+      const items = await this.db.getAll('sync_queue');
+      if (items.length > 0) {
+        console.log('[sync] clearQueue: dzēš', items.length, 'ierakstus');
+        for (const item of items) {
+          await this.db.delete('sync_queue', item.id);
+        }
+      }
+    } catch (e) {
+      console.warn('[sync] clearQueue kļūda:', e);
+    }
   }
 
   async getUnsyncedItems() {

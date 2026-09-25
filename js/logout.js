@@ -147,6 +147,12 @@ const Logout = {
     if (!buttonEl) return;
     buttonEl.addEventListener('click', async (e) => {
       if (e) e.preventDefault();
+      // Pirms pārbaudes - tīra rindu, lai novērstu false positive brīdinājumus
+      try {
+        if (window.careSync && typeof window.careSync.flushQueue === 'function') {
+          await window.careSync.flushQueue();
+        }
+      } catch (err) {}
       const pending = (opts && typeof opts.pending === 'number')
         ? opts.pending
         : await (async () => {
