@@ -1,7 +1,7 @@
 ﻿{
-  "version": "20260925-1235",
-  "timestamp": 1790363700000,
-  "changes": "Fix: sync_queue items not deleted after successful sync. Added deletion success logging, improved deduplication by actionId across all action types, clearQueue logs each deletion. Debug version to trace why queue persists.",
+  "version": "20260925-1247",
+  "timestamp": 1790364420000,
+  "changes": "Fix: Logout doesn't wait for slow GAS sync. flushQueue() now triggers background processing without awaiting. Logout shows friendly 'Dati sinhronizējas fonā' message instead of scary warning. Added .syncing CSS style. SW v14.",
   "files": [
     "version.json",
     "js/config.js",
@@ -9,6 +9,10 @@
     "js/logout.js",
     "js/update_notifier.js",
     "sw2.js",
+    "css/admin.css",
+    "css/aprupe.css",
+    "css/aprupetajs.css",
+    "css/login.css",
     "index.html",
     "aprupetajs.html",
     "aprupe.html",

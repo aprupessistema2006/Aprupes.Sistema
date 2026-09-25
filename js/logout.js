@@ -16,24 +16,29 @@ const Logout = {
   confirm: function(opts) {
     opts = opts || {};
     const pending = opts.pending !== undefined ? opts.pending : this.getPending();
+    const backgroundSync = opts.backgroundSync === true;
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'logout-confirm-overlay';
       const hasPending = pending > 0;
-      const icon = hasPending ? '⚠️' : '👋';
-      const title = hasPending ? 'Ir nesaglabāti dati!' : 'Vai tiešām vēlies iziet?';
+      const icon = hasPending ? (backgroundSync ? '🔄' : '⚠️') : '👋';
+      const title = hasPending 
+        ? (backgroundSync ? 'Dati sinhronizējas...' : 'Ir nesaglabāti dati!') 
+        : 'Vai tiešām vēlies iziet?';
       const msg = hasPending
-        ? 'Tev pašlaik ir <strong>' + pending + ' nesaglabāts(-i) ieraksts(-i)</strong>. Tie tiks nosūtīti automātiski, bet, ja nav interneta, tie var pazust.<br><br>Vai tiešām vēlies iziet?'
+        ? (backgroundSync
+            ? 'Dati tiks nosūtīti uz Google Sheets fonā. Varat droši iziet — sinhronizācija turpināsies automātiski.'
+            : 'Tev pašlaik ir <strong>' + pending + ' nesaglabāts(-i) ieraksts(-i)</strong>. Tie tiks nosūtīti automātiski, bet, ja nav interneta, tie var pazust.<br><br>Vai tiešām vēlies iziet?')
         : 'Visi dati ir saglabāti. Vai tiešām vēlies iziet no sistēmas?';
       overlay.innerHTML = `
         <div class="logout-confirm-card">
           <div class="logout-confirm-icon">${icon}</div>
           <div class="logout-confirm-title">${title}</div>
-          <div class="logout-confirm-msg ${hasPending ? 'unsaved' : ''}">${msg}</div>
+          <div class="logout-confirm-msg ${hasPending ? (backgroundSync ? 'syncing' : 'unsaved') : ''}">${msg}</div>
           <div class="logout-buttons">
             <button class="logout-btn-cancel" data-act="cancel">Palikt</button>
-            ${hasPending ? '<button class="logout-btn-sync" data-act="sync">🔄 Sinhronizēt tagad</button>' : ''}
-            <button class="logout-btn-confirm" data-act="ok">Jā, iziet</button>
+            ${hasPending && !backgroundSync ? '<button class="logout-btn-sync" data-act="sync">🔄 Sinhronizēt tagad</button>' : ''}
+            <button class="logout-btn-confirm" data-act="ok">${backgroundSync ? 'Iziet' : 'Jā, iziet'}</button>
           </div>
         </div>
       `;
@@ -147,12 +152,13 @@ const Logout = {
     if (!buttonEl) return;
     buttonEl.addEventListener('click', async (e) => {
       if (e) e.preventDefault();
-      // Pirms pārbaudes - tīra rindu, lai novērstu false positive brīdinājumus
+      // Izsauc queue apstrādi fonā (negaida pabeigšanu - GAS var būt lēns)
       try {
         if (window.careSync && typeof window.careSync.flushQueue === 'function') {
-          await window.careSync.flushQueue();
+          window.careSync.flushQueue();
         }
       } catch (err) {}
+      // Nedaudzas par flushQueue pabeigšanos - pārbauda pašreizējo stāvokli
       const pending = (opts && typeof opts.pending === 'number')
         ? opts.pending
         : await (async () => {
@@ -164,7 +170,8 @@ const Logout = {
             } catch (err) {}
             return this.getPending();
           })();
-      const ok = await this.confirm({ pending });
+      // Ja ir vienumi rindā - parāda mirogo brīdinājumu, ka tiks sinhronizēti fonā
+      const ok = await this.confirm({ pending, backgroundSync: pending > 0 });
       if (ok) this.performLogout();
     });
   }

@@ -1275,6 +1275,11 @@ body {
   font-weight: 600;
 }
 
+.logout-confirm-msg.syncing {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 /* Paziņojumu logs (toast) — augšpusē, neaizsedz darba zonu */
 .toast {
   position: fixed;

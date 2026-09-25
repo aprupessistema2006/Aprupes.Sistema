@@ -650,14 +650,15 @@ class CareSync {
     }, 100); // Reduced from 500ms to 100ms for faster sync
   }
 
-  // Tūlītēja rindas apstrāde (bez timeout) - izsaukt pirms logout pārbaudes
+  // Tūlītējs rindas apstrādes izsaukums (bez gaidīšanas) - izsaukt pirms logout pārbaudes
   async flushQueue() {
     if (this._queueTimer) {
       clearTimeout(this._queueTimer);
       this._queueTimer = null;
     }
-    await this.processQueue();
-    await this.clearQueue();
+    // Tikai izsauc processQueue fonā, nē gaida pabeigšanu (GAS cold start var būt 30-60s)
+    this.processQueue().catch(() => {});
+    // Nevis clearQueue šeit - tas tiks izsaukts pēc processQueue pabeigšanas
   }
 
   async processQueue() {

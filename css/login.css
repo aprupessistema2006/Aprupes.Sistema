@@ -899,6 +899,11 @@ body.online {
   font-weight: 600;
 }
 
+.logout-confirm-msg.syncing {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .logout-buttons {
   display: flex;
   gap: 10px;
