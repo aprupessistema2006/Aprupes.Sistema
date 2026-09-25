@@ -651,7 +651,7 @@ class CareSync {
   // Konkrēta klienta dati pēc vajadzības (care_form, control)
   async loadClientRange(clientId, dateFrom, dateTo) {
     if (!SYNC_URL || !clientId) return { marks: [], logs: [] };
-    const LIMIT = 3000;
+    const LIMIT = 1000; // Mazāk — ātrāk GAS atbildē
     let offset = 0;
     const allMarks = [];
     const allLogs = [];
@@ -667,7 +667,7 @@ class CareSync {
       const url = SYNC_URL + '?' + params.toString();
       let data;
       try {
-        data = await requestData(url, 90000);
+        data = await requestData(url, 30000); // Ātrāk timeout — 30s
       } catch (e) {
         console.warn('[sync] loadClientRange neizdevās:', e.message);
         break;

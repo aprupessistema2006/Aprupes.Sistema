@@ -192,6 +192,16 @@ try {
     }
 
     this.setupEventListeners();
+
+    // Pievieno syncComplete listener — atjaunojam UI kad fona sinhronizācija pabeidzās
+    window.addEventListener('syncComplete', (e) => {
+      if (e.detail && !e.detail.offline && this._initialLoadDone && this.client) {
+        this.loadTodayMarks();
+        this.updateHospitalStatusUI();
+        this.updateTeamSummary();
+        this.renderQuickTotals();
+      }
+    });
   }
 
   setupLanguageSwitcher() {
@@ -1486,16 +1496,26 @@ try {
   }
 
   // Pārliecina, ka šī klienta dati ir ielādēti pirms formas atvēršanas.
-  // Lielu datu apjomu gadījumā negaida visu 225k ierakstu fonas ielādi,
-  // bet ielādē tikai šī klienta pēdējās 90 dienas.
+  // Pirmkārt pārbauda IDB — ja _loadRecentMarks jsau ielādējis, dati jau ir.
+  // Ja nav — ielādē tikai šī klienta pēdējās 7 dienas.
   async ensureClientDataLoaded() {
     if (!window.careSync || typeof window.careSync.loadClientRange !== 'function') return;
     if (!this.clientId) return;
     if (this._clientDataLoaded) return;
     if (this._clientDataLoading) { return this._clientDataLoading; }
 
+    // Pārbaudam, vai marks jau ir IDB (no _loadRecentMarks vai _loadMarksPaged)
+    const existingMarks = await this.db.getAll('atzimes');
+    const clientHasRecent = existingMarks.some(m =>
+      (m.clientId === this.clientId || m.klientsId === this.clientId || m.klients_id === this.clientId || m.klientsId === this.clientId));
+    if (clientHasRecent) {
+      this._clientDataLoaded = true;
+      console.log('[care_form] Klients jau ir IDB (no _loadRecentMarks)');
+      return { marks: [], logs: [] };
+    }
+
     const to = this.getToday();
-    const from = this.getOffsetDate(-90);
+    const from = this.getOffsetDate(-7); // tikai 7 dienas — ātri, GAS neslogo
     this._clientDataLoading = window.careSync.loadClientRange(this.clientId, from, to)
       .then(r => {
         this._clientDataLoaded = true;
