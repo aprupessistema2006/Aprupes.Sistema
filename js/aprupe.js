@@ -56,8 +56,10 @@ class AprupeController {
 
     // syncComplete listener — ielādē klientus pēc sync
     window.addEventListener('syncComplete', async (e) => {
+      console.log('[aprupe] syncComplete fired:', e.detail);
       const result = e.detail;
       if (result && !result.offline) {
+        console.log('[aprupe] syncComplete: Ielādēju klientus...');
         await this.loadClients();
         this.filteredClients = [...this.clients];
         this.renderCards();
