@@ -1,7 +1,7 @@
 {
-  "version": "20260925-1660",
+  "version": "20260925-1661",
   "timestamp": 1790373090000,
-  "changes": "Sync.js paging - jaunākās pirmāk līdz offset=0. GAS URL jaunināts. SW v26.",
+  "changes": "Sync.js paging - jaunākās pirmāk līdz offset=0. GAS URL jaunināts. SW v27.",
   "files": [
     "version.json",
     "js/config.js",
@@ -16,6 +16,7 @@
     "admin.html"
   ]
 }
+
 
 
 
