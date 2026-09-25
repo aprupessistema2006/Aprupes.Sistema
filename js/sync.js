@@ -559,11 +559,13 @@ class CareSync {
       loadedLog += logs.length;
       onProgress('Ielādēju aprūpes ierakstus: ' + loadedMarks + ' / ' + (totalMarks || '?'));
 
-      if (data.done === true) break;
+      // Newest-first paging: stop when we've paged all the way down to offset 0.
+      // Do NOT rely on data.done — the first (newest) page reports done=true
+      // from the server's perspective, which would stop after a single page.
+      if (offset === 0) break;
       const next = Math.max(0, offset - LIMIT); // jaunākie pirmāk → atpakaļ
       if (next === offset) break; // kļūda kļūst nepārvietojama
       offset = next;
-      if (marks.length === 0 && logs.length === 0 && offset === 0) break;
     }
 
     console.log('[sync] marks ielādēti. offset=' + offset + ' markTotal=' + totalMarks + ' logTotal=' + totalLog);

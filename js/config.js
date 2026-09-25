@@ -1,8 +1,8 @@
 const CONFIG = {
   APP_NAME: 'Aprūpes sistēma',
-  VERSION: '20260925-1650',
+  VERSION: '20260925-1651',
 
-  GAS_URL: 'https://script.google.com/macros/s/AKfycby_iNzXWP-CABf8ZxCv5Zd2yyXZ3fW7OQmQtRQB6_SbQNz3DGtj4yBmnw2iTP3KzUB8iw/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbyZac-05OxYdC3B2SjwLo6tdwPRkz6WuJtLVtI_Aa7Tci4dfYmb9acddlxyU418MRJKcw/exec',
 
   SHEET_ID: '1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E',
 

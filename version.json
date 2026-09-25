@@ -1,7 +1,7 @@
 {
-  "version": "20260925-1650",
-  "timestamp": 1790372640000,
-  "changes": "Dalita ielade ar atkārtotu mēģinājumu. Bootstrap + atzimes fonā jaunākās pirmāk + pēc vajadzības. SW v19.",
+  "version": "20260925-1651",
+  "timestamp": 1790373090000,
+  "changes": "Sync.js paging - jaunākās pirmāk līdz offset=0. GAS URL jaunināts. SW v20.",
   "files": [
     "version.json",
     "js/config.js",

@@ -31,7 +31,7 @@ class UpdateNotifier {
       return;
     }
 
-    this.versionParam = '?v=20260925-1650';
+    this.versionParam = '?v=20260925-1651';
     console.log('[UpdateNotifier] Initializing with version param:', this.versionParam);
     this.init();
     this.checkVersionOnPageLoad();
@@ -60,7 +60,7 @@ class UpdateNotifier {
     console.log('[UpdateNotifier] Reģistrējam jauno Service Worker (sw2.js):', this.versionParam);
     // Use sw2.js to bypass any cached sw.js from old Service Worker
     navigator.serviceWorker.register('sw2.js' + this.versionParam, { updateViaCache: 'none' })
-      .then(reg => console.log('[UpdateNotifier] Jaunā SW reģistrēta:', reg.scope))
+      .then(reg => console.log('[UpdateNotifier] Jaunā SW reģistrēta v20:', reg.scope))
       .catch(err => console.warn('[SW] Registration failed:', err));
 
     navigator.serviceWorker.addEventListener('message', (event) => {
@@ -79,14 +79,14 @@ class UpdateNotifier {
   // Pārbaudīt jaunu versiju lapas ielādes brīdī (pirmais, kas dari, atverot programmu)
   async checkVersionOnPageLoad() {
     try {
-      const response = await fetch('version.json?v=20260925-1650');
+      const response = await fetch('version.json?v=20260925-1651');
       console.log('[UpdateNotifier] Fetching version.json, response status:', response.status);
       if (!response.ok) {
         console.warn('[UpdateNotifier] version.json fetch failed:', response.status);
         // Fallback: Always show banner if version.json unavailable
         // This ensures users get the update even if version.json is cached or unavailable
         const storedVersion = localStorage.getItem('appVersion') || '';
-        if (!storedVersion || storedVersion !== '20260925-1650') {
+        if (!storedVersion || storedVersion !== '20260925-1651') {
           this.showUpdateBanner();
         }
         return;
@@ -106,7 +106,7 @@ class UpdateNotifier {
       console.warn('[UpdateNotifier] Versijas pārbaude neizdevās:', e);
       // Fallback: Show banner on error
       const storedVersion = localStorage.getItem('appVersion') || '';
-      if (!storedVersion || storedVersion !== '20260925-1650') {
+      if (!storedVersion || storedVersion !== '20260925-1651') {
         this.showUpdateBanner();
       }
     }
@@ -201,7 +201,7 @@ class UpdateNotifier {
     await this.clearAllLocalData();
 
     console.log('[UpdateNotifier] Pārlādē lapu...');
-    window.location = window.location.href.split('?')[0] + '?v=20260925-1650';
+    window.location = window.location.href.split('?')[0] + '?v=20260925-1651';
   }
 
   async clearAllLocalData() {
