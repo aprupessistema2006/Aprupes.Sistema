@@ -650,11 +650,22 @@ class AprupeController {
       return;
     }
 
+    const words = lowerTerm.split(/\s+/).filter(w => w.length > 0);
+
     this.filteredClients = this.clients.filter(client => {
       const vards = normalize(client.vards || client.Vārds || '');
       const uzvards = normalize(client.uzvards || client.Uzvārds || '');
       const id = String(client.id || client.ID || '');
-      const matches = vards.includes(lowerTerm) || uzvards.includes(lowerTerm) || id.toLowerCase().includes(lowerTerm);
+      const fullName = (vards + ' ' + uzvards).trim();
+
+      let matches = false;
+      if (words.length === 1) {
+        matches = vards.includes(lowerTerm) || uzvards.includes(lowerTerm) || id.toLowerCase().includes(lowerTerm);
+      } else {
+        // Multi-word: ALL words must match somewhere in the full name
+        matches = words.every(w => fullName.includes(w) || id.toLowerCase().includes(w));
+      }
+
       if (matches) console.log('[aprupe] filterClients: MATCH ' + vards + ' ' + uzvards + ' (id=' + id + ')');
       return matches;
     });

@@ -422,12 +422,23 @@ class LoginController {
       const term = this._normalizeForSearch(searchTerm.trim());
       console.log('[login] applyFilters: normalized term="' + term + '" roleFilter="' + role + '" filteredByRole=' + result.length);
       if (term) {
+        const words = term.split(/\s+/).filter(w => w.length > 0);
         result = result.filter(e => {
           const v = this._normalizeForSearch(e.vards || '');
           const u = this._normalizeForSearch(e.uzvards || '');
+          const fullName = (v + ' ' + u).trim();
           const roles = e.lomas || [];
           const roleMatch = roles.some(r => this._normalizeForSearch(r).includes(term));
-          const matches = v.includes(term) || u.includes(term) || v.startsWith(term) || u.startsWith(term) || roleMatch;
+
+          let matches = false;
+          if (words.length === 1) {
+            // Single word: match anywhere
+            matches = v.includes(term) || u.includes(term) || v.startsWith(term) || u.startsWith(term) || roleMatch;
+          } else {
+            // Multi-word: ALL words must match somewhere in the full name
+            matches = words.every(w => fullName.includes(w)) || roleMatch;
+          }
+
           if (matches) console.log('[login] applyFilters: MATCH ' + (e.vards || '') + ' ' + (e.uzvards || '') + ' id=' + e.id);
           return matches;
         });
