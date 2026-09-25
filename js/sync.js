@@ -719,6 +719,7 @@ class CareSync {
         uzdevomi: (base.uzdevomi || []).map(normalizeRow),
         meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
       });
+      console.log('[sync] replaceStores complete. klienti count:', (base.klienti || []).length);
 
       await this._applyLocalCompletions(localCompletions);
       await this._applyLocalClientChanges(localClientChanges);
