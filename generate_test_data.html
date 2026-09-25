@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Data Generator - Aprūpes sistēma</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+    .btn { padding: 12px 24px; font-size: 16px; margin: 8px; cursor: pointer; border: none; border-radius: 6px; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-success { background: #16a34a; color: white; }
+    .log { background: #1e1e1e; color: #e0e0e0; padding: 16px; border-radius: 8px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 13px; white-space: pre-wrap; }
+    .progress { width: 100%; height: 24px; background: #e5e7eb; border-radius: 12px; overflow: hidden; margin: 16px 0; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, #2563eb, #3b82f6); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+    .stat-card { background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; }
+    .stat-value { font-size: 28px; font-weight: bold; color: #2563eb; }
+    .stat-label { font-size: 14px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Test Data Generator</h1>
+  <p>Ģenerē testa datus visiem mēnešiem, visiem klientiem, visiem darbiniekiem.</p>
+
+  <div>
+    <button class="btn btn-primary" onclick="generateAll()">🚀 Ģenerēt visus datus (500 klienti, 10 darbinieki, 30 dienas)</button>
+    <button class="btn btn-success" onclick="generateSmall()">📝 Mazs tests (50 klienti, 3 darbinieki, 7 dienas)</button>
+    <button class="btn btn-danger" onclick="clearAll()">🗑️ Notīrīt visu</button>
+    <button class="btn" onclick="checkData()">📊 Pārbaudīt esošos datus</button>
+  </div>
+
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%">Gaida...</div></div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-value" id="statClients">0</div><div class="stat-label">Klienti</div></div>
+    <div class="stat-card"><div class="stat-value" id="statEmployees">0</div><div class="stat-label">Darbinieki</div></div>
+    <div class="stat-card"><div class="stat-value" id="statMarks">0</div><div class="stat-label">Atzīmes (atzimes)</div></div>
+    <div class="stat-card"><div class="stat-value" id="statLogs">0</div><div class="stat-label">Vēsture (atzimes_log)</div></div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <script type="module">
+    import { CareDB } from './js/db.js';
+    import { TimezoneUtils } from './js/timezone.js';
+
+    const db = new CareDB();
+    await db.init();
+
+    const logEl = document.getElementById('log');
+    const progressBar = document.getElementById('progressBar');
+    const stats = {
+      clients: document.getElementById('statClients'),
+      employees: document.getElementById('statEmployees'),
+      marks: document.getElementById('statMarks'),
+      logs: document.getElementById('statLogs')
+    };
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logEl.textContent += `\n[${time}] ${msg}`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setProgress(pct, label) {
+      progressBar.style.width = pct + '%';
+      progressBar.textContent = label || `${pct}%`;
+    }
+
+    function updateStats() {
+      checkData(true);
+    }
+
+    // ===== DATU ĢENERĀTORI =====
+
+    const LV_NAMES = {
+      male: ['Jānis', 'Pēteris', 'Andris', 'Mārtiņš', 'Kristaps', 'Edgars', 'Kārlis', 'Aleksandrs', 'Viktors', 'Igors', 'Sergejs', 'Dmitrijs', 'Olegs', 'Vladislavs', 'Artūrs', 'Roberts', 'Raimonds', 'Guntars', 'Aivars', 'Māris'],
+      female: ['Anna', 'Marija', 'Kristīne', 'Inese', 'Dace', 'Liene', 'Santa', 'Ieva', 'Elīna', 'Marta', 'Zane', 'Līga', 'Sarmīte', 'Ruta', 'Aija', 'Baiba', 'Ilze', 'Sandra', 'Liga', 'Vita'],
+      surnames: ['Bērziņš', 'Kalniņš', 'Ozoliņš', 'Liepiņš', 'Krūmiņš', 'Balodis', 'Eglītis', 'Zariņš', 'Celmiņš', 'Vanags', 'Ozols', 'Briedis', 'Lūcis', 'Tīters', 'Kaza', 'Kūlis', 'Vītols', 'Strazdiņš', 'Priedītis', 'Saulītis', 'Zelts', 'Rozītis', 'Lapiņš', 'Upītis', 'Ābele', 'Kārkliņš', 'Ķīselis', 'Mūrnieks', 'Tālberga', 'Ziemelis']
+    };
+
+    const DIETAS = ['Nav noteikta diēta', 'VEĢETĀRĀ UN VEGĀNISKĀ DIĒTA', 'BEZLAKTOZES DIĒTA', 'PALEO DIĒTA', 'DIABĒTA DIĒTA', 'MĀKSLĪGĀ UZTUREŠANA', 'KETO DIĒTA', 'GLITENA BRĪVA DIĒTA'];
+    const SASKARSMES = ['Nav saskarsmes īpatnības', 'Demence', 'Vājredzīga', 'Ausimtrūkums', 'Kustību ierobežojumi', 'Atmiņas traucējumi', 'Depresija', 'Psihiskie traucējumi', 'Autisms', 'Cita'];
+    const ROLES = [
+      { role: 'aprūpētājs', shift: 'diennakts', count: 6 },
+      { role: 'aprūpētājs', shift: 'diena', count: 2 },
+      { role: 'kontroliere', shift: 'diena', count: 1 },
+      { role: 'administrators', shift: 'diena', count: 1 }
+    ];
+    const CATEGORIES = {
+      temp: { fields: ['temperatura'], values: () => (36.0 + Math.random() * 3.5).toFixed(1), shifts: ['R', 'V'] },
+      slimnica: { fields: ['statuss'], values: () => ['atgriezies SAC', 'hospitalizēts slimnīcā', 'SAC'][Math.floor(Math.random() * 3)], shifts: ['R', 'V'] },
+      higiena: { fields: ['vana_dns', 'mutes_dobuma_kopsana', 'daleja_apmazgasana'], values: () => 'X', shifts: ['R', 'V'] },
+      edinasana: { fields: ['brokastis', 'pusdienas', 'vakarienas'], values: () => ['A', '½', 'X'][Math.floor(Math.random() * 3)], shifts: ['R', 'V'] },
+      fiziologija: { fields: ['vedera_izeja'], values: () => ['N', 'D', 'K'][Math.floor(Math.random() * 3)], shifts: ['R', 'V'] },
+      sikdrumi: { fields: ['uznemts_ml', 'urina_daudzums'], values: () => String(100 + Math.floor(Math.random() * 400)), shifts: ['R', 'V'] },
+      citsi_pasakomi: { fields: ['adas_kopsana', 'autins_biksitu_skaits', 'pastaigas'], values: () => Math.random() > 0.5 ? 'X' : String(Math.floor(Math.random() * 3)), shifts: ['R', 'V'] },
+      aktivitate: { fields: ['stav_ar_palidziigu', 'parvietojas_ar_palidzlekli'], values: () => 'X', shifts: ['R', 'V'] },
+      paraksts: { fields: ['aprupetaja_paraksts'], values: () => LV_NAMES.surnames[Math.floor(Math.random() * LV_NAMES.surnames.length)], shifts: ['R', 'V'] }
+    };
+    const SHIFTS = ['R', 'V']; // R = rīts, V = vakars/vakara
+
+    function randomName(gender) {
+      const first = LV_NAMES[gender][Math.floor(Math.random() * LV_NAMES[gender].length)];
+      const last = LV_NAMES.surnames[Math.floor(Math.random() * LV_NAMES.surnames.length)];
+      return { vards: first, uzvards: last };
+    }
+
+    function randomDate(start, end) {
+      return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+    }
+
+    function formatDateRiga(date) {
+      return date.toISOString().split('T')[0];
+    }
+
+    function formatDateTimeRiga(date) {
+      return date.toISOString().replace('T', ' ').substring(0, 19);
+    }
+
+    function generateId(prefix = 'id') {
+      return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // ===== GALVENĀS FUNKCIJAS =====
+
+    async function clearAll() {
+      log('🗑️ Notīra visu datubāzi...');
+      const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue', 'meta'];
+      for (const store of stores) {
+        await db.clear(store);
+      }
+      log('✅ Datubāze notīrīta');
+      updateStats();
+    }
+
+    async function generateEmployees(count = 10) {
+      log(`👥 Ģenerē ${count} darbinieku...`);
+      const employees = [];
+      let idx = 0;
+
+      for (const roleConfig of ROLES) {
+        for (let i = 0; i < roleConfig.count && employees.length < count; i++) {
+          const gender = Math.random() > 0.5 ? 'male' : 'female';
+          const name = randomName(gender);
+          const pin = String(100000 + Math.floor(Math.random() * 900000));
+          const emp = {
+            id: generateId('e'),
+            vards: name.vards,
+            uzvards: name.uzvards,
+            loma: roleConfig.role,
+            pin_kods: pin,
+            parole: pin,
+            aktivs: true,
+            maina_tips: roleConfig.shift,
+            izveidots: formatDateTimeRiga(new Date())
+          };
+          await db.put('darbinieki', emp);
+          employees.push(emp);
+          log(`  ✓ ${emp.vards} ${emp.uzvards} (${emp.loma}, ${emp.maina_tips}, PIN: ${emp.pin_kods})`);
+        }
+      }
+      log(`✅ Kopā ${employees.length} darbinieki`);
+      return employees;
+    }
+
+    async function generateClients(count = 500, employees) {
+      log(`👴 Ģenerē ${count} klientu...`);
+      const clients = [];
+      const caregivers = employees.filter(e => e.loma === 'aprūpētājs');
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1); // 1 mēneš atpakaļ
+      const endDate = new Date();
+
+      for (let i = 0; i < count; i++) {
+        const gender = Math.random() > 0.5 ? 'male' : 'female';
+        const name = randomName(gender);
+        const birthYear = 1920 + Math.floor(Math.random() * 55); // 1920-1975
+        const birthMonth = 1 + Math.floor(Math.random() * 12);
+        const birthDay = 1 + Math.floor(Math.random() * 28);
+        const birthDate = `${birthYear}-${String(birthMonth).padStart(2,'0')}-${String(birthDay).padStart(2,'0')}`;
+
+        // Piesaista klientu kādam aprūpētājam (vienmēr viens galvenais)
+        const primaryCaregiver = caregivers[Math.floor(Math.random() * caregivers.length)];
+        
+        const client = {
+          id: generateId('c'),
+          vards: name.vards,
+          uzvards: name.uzvards,
+          dzimis: birthDate,
+          dieta: DIETAS[Math.floor(Math.random() * DIETAS.length)],
+          saskarsmes: SASKARSMES[Math.floor(Math.random() * SASKARSMES.length)],
+          aktivs: true,
+          slimnica: false,
+          statuss: 'SAC',
+          statusa_laiks: formatDateTimeRiga(new Date()),
+          statusa_darbinieks_id: primaryCaregiver.id,
+          galvenais_aprupetajs: primaryCaregiver.id,
+          izveidots: formatDateTimeRiga(new Date())
+        };
+        await db.put('klienti', client);
+        clients.push(client);
+
+        if ((i + 1) % 50 === 0) {
+          log(`  ✓ ${i + 1}/${count} klienti`);
+          setProgress(Math.round((i + 1) / count * 30), `Klienti: ${i + 1}/${count}`);
+        }
+      }
+      log(`✅ Kopā ${clients.length} klienti`);
+      return clients;
+    }
+
+    async function generateMarksAndLogs(clients, employees, days = 30) {
+      log(`📝 Ģenerē atzīmes un vēsturi par ${days} dienām...`);
+      const caregivers = employees.filter(e => e.loma === 'aprūpētājs');
+      const totalDays = days;
+      let marksCount = 0;
+      let logsCount = 0;
+      const today = new Date();
+      const startDate = new Date(today);
+      startDate.setDate(today.getDate() - days + 1);
+
+      for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + dayOffset);
+        const dateStr = formatDateRiga(currentDate);
+        const isToday = dayOffset === totalDays - 1;
+
+        // Katram klientam - divas maiņas (R un V), bet ne visiem kategorijām katrā maiņā
+        for (const client of clients) {
+          const caregiver = caregivers.find(c => c.id === client.galvenais_aprupetajs) || caregivers[0];
+          
+          for (const shift of SHIFTS) {
+            // Katrā maiņā - 3-5 kategorijas
+            const activeCategories = Object.keys(CATEGORIES).filter(cat => CATEGORIES[cat].shifts.includes(shift));
+            const numCategories = 3 + Math.floor(Math.random() * 3); // 3-5 kategorijas
+            const selectedCats = activeCategories.sort(() => Math.random() - 0.5).slice(0, numCategories);
+
+            for (const cat of selectedCats) {
+              const catConfig = CATEGORIES[cat];
+              for (const field of catConfig.fields) {
+                const value = catConfig.values();
+                const now = new Date(currentDate);
+                now.setHours(shift === 'R' ? 6 + Math.floor(Math.random() * 4) : 18 + Math.floor(Math.random() * 4));
+                now.setMinutes(Math.floor(Math.random() * 60));
+                const timeStr = now.toTimeString().substring(0, 5);
+                const eventTime = now.toISOString();
+                const actionId = `${cat}_${client.id}_${dateStr}_${caregiver.id}_${generateId('act')}`;
+
+                // atzimes (pašreizējā vērtība)
+                const mark = {
+                  id: generateId('m'),
+                  clientId: client.id,
+                  employeeId: caregiver.id,
+                  date: dateStr,
+                  shift: shift,
+                  category: cat,
+                  field: field,
+                  value: value,
+                  lastModified: eventTime,
+                  lastValue: '',
+                  lastBy: caregiver.id,
+                  actionId: actionId,
+                  maina_tips: caregiver.maina_tips,
+                  notikuma_laiks: eventTime
+                };
+                await db.put('atzimes', mark);
+                marksCount++;
+
+                // atzimes_log (vēsture)
+                const logEntry = {
+                  id: generateId('l'),
+                  atzimes_id: mark.id,
+                  klients_id: client.id,
+                  darbinieks_id: caregiver.id,
+                  datums: dateStr,
+                  laiks: timeStr,
+                  periods: shift,
+                  kategorija: cat,
+                  lauka_nosaukums: field,
+                  vertiba: value,
+                  skaits: eventTime,
+                  pedeja_vertiba: '',
+                  pedeja_laiks: eventTime,
+                  darbinieks_pedejais: caregiver.id,
+                  action_id: actionId,
+                  maina_tips: caregiver.maina_tips,
+                  notikuma_laiks: eventTime
+                };
+                await db.add('atzimes_log', logEntry);
+                logsCount++;
+              }
+            }
+          }
+        }
+
+        if ((dayOffset + 1) % 5 === 0 || dayOffset === totalDays - 1) {
+          const pct = 30 + Math.round((dayOffset + 1) / totalDays * 60);
+          setProgress(pct, `Diena ${dayOffset + 1}/${totalDays} - atzīmes: ${marksCount}, logi: ${logsCount}`);
+        }
+      }
+
+      log(`✅ Atzīmes: ${marksCount}, Vēsture: ${logsCount}`);
+      return { marksCount, logsCount };
+    }
+
+    async function generateTasks(clients, employees, days = 30) {
+      log(`📋 Ģenerē uzdevumus...`);
+      const caregivers = employees.filter(e => e.loma === 'aprūpētājs');
+      const taskTemplates = [
+        'Pārbaudīt cukuru', 'Nomainīt apdares', 'Aizvest pie ārsta', 'Atzīmēt receptes',
+        'Sazināties ar ģimeni', 'Pārbaudīt asinsspiedienu', 'Nomainīt kateteru',
+        'Veikt rietumu mērījumus', 'Pārbaudīt medikamentus', 'Izveidot aprūpes plānu'
+      ];
+      let taskCount = 0;
+      const today = new Date();
+
+      for (let i = 0; i < clients.length * 2; i++) { // ~2 uzdevumi klientam
+        const client = clients[Math.floor(Math.random() * clients.length)];
+        const caregiver = caregivers.find(c => c.id === client.galvenais_aprupetajs) || caregivers[0];
+        const daysAhead = Math.floor(Math.random() * days);
+        const dueDate = new Date(today);
+        dueDate.setDate(today.getDate() + daysAhead);
+        
+        const task = {
+          id: generateId('t'),
+          teksts: taskTemplates[Math.floor(Math.random() * taskTemplates.length)],
+          klientsId: client.id,
+          pieskirtDarbiniekamId: caregiver.id,
+          termins: formatDateRiga(dueDate),
+          prioritate: ['zema', 'videja', 'augsta'][Math.floor(Math.random() * 3)],
+          statuss: ['jauns', 'procesā', 'pabeigts'][Math.floor(Math.random() * 3)],
+          irPabeigts: Math.random() > 0.7,
+          izveidots: formatDateTimeRiga(new Date(Date.now() - Math.random() * 7 * 86400000)),
+          izveidotajsId: caregiver.id,
+          pabeigtsLaiks: Math.random() > 0.7 ? formatDateTimeRiga(new Date()) : null,
+          pabeigtajsId: Math.random() > 0.7 ? caregiver.id : null
+        };
+        await db.put('uzdevomi', task);
+        taskCount++;
+      }
+      log(`✅ Uzdevumi: ${taskCount}`);
+      return taskCount;
+    }
+
+    async function generateAll() {
+      setProgress(0, 'Sākam...');
+      log('🚀 Sāk pilno datu ģenerēšanu...');
+      
+      await clearAll();
+      
+      const employees = await generateEmployees(10);
+      setProgress(10, 'Darbinieki gatavi');
+      
+      const clients = await generateClients(500, employees);
+      setProgress(40, 'Klienti gatavi');
+      
+      await generateMarksAndLogs(clients, employees, 30);
+      setProgress(85, 'Atzīmes un vēsture gatavi');
+      
+      await generateTasks(clients, employees, 30);
+      setProgress(95, 'Uzdevumi gatavi');
+      
+      setProgress(100, '✅ Pabeigts!');
+      log('🎉 VISI DATI ĢENERĒTI VEIKSMĪGI!');
+      updateStats();
+    }
+
+    async function generateSmall() {
+      setProgress(0, 'Sākam mazo testu...');
+      log('📝 Sāk mazo datu ģenerēšanu...');
+      
+      await clearAll();
+      
+      const employees = await generateEmployees(3);
+      setProgress(15, 'Darbinieki gatavi');
+      
+      const clients = await generateClients(50, employees);
+      setProgress(45, 'Klienti gatavi');
+      
+      await generateMarksAndLogs(clients, employees, 7);
+      setProgress(85, 'Atzīmes un vēsture gatavi');
+      
+      await generateTasks(clients, employees, 7);
+      setProgress(95, 'Uzdevumi gatavi');
+      
+      setProgress(100, '✅ Pabeigts!');
+      log('🎉 MAZIE TEST DATI ĢENERĒTI!');
+      updateStats();
+    }
+
+    async function checkData(silent = false) {
+      if (!silent) log('📊 Pārbauda esošos datus...');
+      const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi'];
+      let total = 0;
+      for (const store of stores) {
+        const data = await db.getAll(store);
+        if (!silent) log(`  ${store}: ${data.length} ieraksti`);
+        total += data.length;
+        if (store === 'darbinieki') stats.employees.textContent = data.length;
+        if (store === 'klienti') stats.clients.textContent = data.length;
+        if (store === 'atzimes') stats.marks.textContent = data.length;
+        if (store === 'atzimes_log') stats.logs.textContent = data.length;
+      }
+      if (!silent) log(`  KOPA: ${total} ieraksti`);
+    }
+
+    // Auto-check on load
+    checkData(true);
+  </script>
+</body>
+</html>

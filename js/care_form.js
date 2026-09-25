@@ -160,6 +160,9 @@ try {
         if (overlay) overlay.style.display = 'flex';
         return; // Don't render anything - no data loaded
       }
+      // Klienta dati var nebūt vēl ielādēti (liels apjoms ielādējas fonā pa blokiem).
+      // Šeit ielādējam TIKAI šī klienta pēdējās 90 dienas — ātri, bez miljoniem ierakstu.
+      await this.ensureClientDataLoaded();
       await Promise.all([
         this.loadClient(),
         this.loadMarks(),
@@ -1482,6 +1485,30 @@ try {
     await this.handleOptionSelect(shift, 'fiziologija', 'vedera_izeja', value, selected);
   }
 
+  // Pārliecina, ka šī klienta dati ir ielādēti pirms formas atvēršanas.
+  // Lielu datu apjomu gadījumā negaida visu 225k ierakstu fonas ielādi,
+  // bet ielādē tikai šī klienta pēdējās 90 dienas.
+  async ensureClientDataLoaded() {
+    if (!window.careSync || typeof window.careSync.loadClientRange !== 'function') return;
+    if (!this.clientId) return;
+    if (this._clientDataLoaded) return;
+    if (this._clientDataLoading) { return this._clientDataLoading; }
+
+    const to = this.getToday();
+    const from = this.getOffsetDate(-90);
+    this._clientDataLoading = window.careSync.loadClientRange(this.clientId, from, to)
+      .then(r => {
+        this._clientDataLoaded = true;
+        console.log('[care_form] klienta dati ielādēti:', 'marks=' + (r.marks || []).length, 'logs=' + (r.logs || []).length);
+        return r;
+      })
+      .catch(e => {
+        console.warn('[care_form] klienta datu ielāde neizdevās:', e.message);
+        return null;
+      });
+    return this._clientDataLoading;
+  }
+
   async loadAllClientMarks() {
     const today = this.getToday();
     const allMarks = await this.db.getAll('atzimes');
@@ -1492,8 +1519,7 @@ try {
 
     const allLog = await this.db.getAll('atzimes_log');
     this.allClientLog = allLog.filter(l => {
-      if (!this.clientIdsMatch(l, this.clientId)) return false;
-      return this.isToday(l, today);
+      if (!this.clientIdsMatch(l, this.clientId)) return false;      return this.isToday(l, today);
     });
 
     // Hospital status is a persistent state — look at ALL historical status events

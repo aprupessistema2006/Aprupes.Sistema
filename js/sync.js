@@ -497,6 +497,112 @@ class CareSync {
     return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
   }
 
+  // Faza 1: nelielās tabulas (darbinieki, klienti, uzdevomi) — ātri, vienā pieprasījumā
+  async _loadBootstrap(onProgress) {
+    const params = new URLSearchParams({ action: 'load', mode: 'bootstrap', t: Date.now() });
+    const url = SYNC_URL + '?' + params.toString();
+    console.log('[sync] bootstrap SENDING:', url);
+    const data = await requestData(url, 60000);
+    console.log('[sync] bootstrap RECEIVED:', 'darbinieki=' + (data.darbinieki || []).length,
+      'klienti=' + (data.klienti || []).length, 'counts=', JSON.stringify(data.counts || {}));
+    if (data.error) throw new Error(data.error);
+    return data;
+  }
+
+  // Faza 2: atzimes + atzimes_log pa blokiem. SAPLŪST, netīra (nepazaudina vēsturi)
+  async _loadMarksPaged(onProgress) {
+    const LIMIT = 3000;
+    let offset = 0;
+    let totalMarks = 0, totalLog = 0;
+    let guard = 0;
+    const MAX_GUARD = 400; // ~1.2M rindu drošības klipsis
+
+    while (guard++ < MAX_GUARD) {
+      const params = new URLSearchParams({
+        action: 'load', mode: 'marks', t: Date.now(),
+        offset: String(offset), limit: String(LIMIT)
+      });
+      const url = SYNC_URL + '?' + params.toString();
+      let data;
+      try {
+        data = await requestData(url, 90000);
+      } catch (e) {
+        console.warn('[sync] marks page @offset ' + offset + ' neizdevās:', e.message);
+        break;
+      }
+      if (data.error) {
+        console.warn('[sync] marks page kļūda:', data.error);
+        break;
+      }
+
+      const marks = data.atzimes || [];
+      const logs = data.atzimes_log || [];
+      totalMarks = data.markTotal || totalMarks;
+      totalLog = data.logTotal || totalLog;
+
+      if (marks.length) await this.db.batchPut('atzimes', marks.map(normalizeRow));
+      if (logs.length) await this.db.batchPut('atzimes_log', logs.map(normalizeRow));
+
+      const next = (data.markNext !== undefined) ? data.markNext : (offset + LIMIT);
+      onProgress('Ielādēju aprūpes ierakstus: ' + (next) + ' / ' + (totalMarks || '?'));
+
+      if (data.done === true) break;
+      if (next <= offset) break; // drošības pārbaude
+      offset = next;
+      if (marks.length === 0 && logs.length === 0) break;
+    }
+
+    console.log('[sync] marks ielādēti. offset=' + offset + ' markTotal=' + totalMarks + ' logTotal=' + totalLog);
+    this._marksLoaded = true;
+    this.revision = (this.revision || 0) + 1;
+    try { window.dispatchEvent(new CustomEvent('marksLoaded')); } catch (e) {}
+    return { markTotal: totalMarks, logTotal: totalLog };
+  }
+
+  // Konkrēta klienta dati pēc vajadzības (care_form, control)
+  async loadClientRange(clientId, dateFrom, dateTo) {
+    if (!SYNC_URL || !clientId) return { marks: [], logs: [] };
+    const LIMIT = 3000;
+    let offset = 0;
+    const allMarks = [];
+    const allLogs = [];
+    let guard = 0;
+
+    while (guard++ < 60) {
+      const params = new URLSearchParams({
+        action: 'load', mode: 'range', t: Date.now(),
+        clientId: String(clientId),
+        dateFrom: dateFrom || '', dateTo: dateTo || '',
+        offset: String(offset), limit: String(LIMIT)
+      });
+      const url = SYNC_URL + '?' + params.toString();
+      let data;
+      try {
+        data = await requestData(url, 90000);
+      } catch (e) {
+        console.warn('[sync] loadClientRange neizdevās:', e.message);
+        break;
+      }
+      if (data.error) break;
+
+      const marks = (data.atzimes || []).map(normalizeRow);
+      const logs = (data.atzimes_log || []).map(normalizeRow);
+      if (marks.length) await this.db.batchPut('atzimes', marks);
+      if (logs.length) await this.db.batchPut('atzimes_log', logs);
+      // Neliels klienta apjoms - 90 dienas, tāpēc safe, bet bez spread, lai neuzkrauktu staku
+      for (const m of marks) allMarks.push(m);
+      for (const l of logs) allLogs.push(l);
+
+      const next = (data.nextOffset !== undefined) ? data.nextOffset : (offset + marks.length);
+      if (data.done === true) break;
+      if (marks.length === 0 && logs.length === 0) break;
+      if (next <= offset) break;
+      offset = next;
+    }
+
+    return { marks: allMarks, logs: allLogs };
+  }
+
   async _loadInitialDataUnlocked(onProgress, processQueueFirst, filters = {}) {
     this._loading = true;
     this._updateSyncStatus('Sinhronizē...');
@@ -508,46 +614,33 @@ class CareSync {
         await this._processQueueUnlocked();
       }
 
-      onProgress('Ielādēju datus no Google Sheets...');
-      const params = new URLSearchParams({ action: 'load', t: Date.now() });
-      if (filters.clientId) params.set('clientId', filters.clientId);
-      if (filters.employeeId) params.set('employeeId', filters.employeeId);
-      if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
-      if (filters.dateTo) params.set('dateTo', filters.dateTo);
-      const url = SYNC_URL + '?' + params.toString();
-      console.log('[sync] loadInitialData SENDING load request to:', url);
-      const data = await requestData(url, 60000);
-      console.log('[sync] loadInitialData RECEIVED:', JSON.stringify(data).substring(0, 500));
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      onProgress('Atjaunoju lokālos datus no Google Sheets...');
+      // === FAZA 1: nelielās tabulas (ātri) ===
+      onProgress('Ielādēju klientus un darbiniekus...');
+      const base = await this._loadBootstrap(onProgress);
       const lastSync = Date.now();
 
       // Saglabāt vietējos pabeigšanas statusus un klientu izmaiņas pirms DB tīrīšanas
       const localCompletions = await this._collectLocalCompletions();
       const localClientChanges = await this._collectLocalClientChanges();
 
+      // NOMAINĀT atzimes/atzimes_log — tās tiek ielādētas daļās fonā un saplūstas
       await this.db.replaceStores({
-        darbinieki: (data.darbinieki || []).map(normalizeRow),
-        klienti: (data.klienti || []).map(normalizeRow),
-        atzimes: (data.atzimes || []).map(normalizeRow),
-        atzimes_log: (data.atzimes_log || []).map(normalizeRow),
-        uzdevomi: (data.uzdevomi || []).map(normalizeRow),
+        darbinieki: (base.darbinieki || []).map(normalizeRow),
+        klienti: (base.klienti || []).map(normalizeRow),
+        uzdevomi: (base.uzdevomi || []).map(normalizeRow),
         meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
       });
 
-      // Atjaunot vietējos pabeigšanas statusus un klientu izmaiņas, ja Google Sheets tos nav atgriezti
       await this._applyLocalCompletions(localCompletions);
       await this._applyLocalClientChanges(localClientChanges);
 
+      const counts = base.counts || {};
+      this._serverCounts = counts;
+
       this.loaded = true;
       this.revision = (this.revision || 0) + 1;
-      
+
       // Clear sync_queue after successful data load - server is now source of truth
-      // Any pending items were either sent (and deleted) or are stale
       try {
         const queueItems = await this.db.getAll('sync_queue');
         if (queueItems.length > 0) {
@@ -559,27 +652,26 @@ class CareSync {
       } catch (e) {
         console.warn('[sync] Failed to clear stale queue:', e);
       }
-      
-      const remaining = await this.getUnsyncedCount();
-      const status = remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts';
-      this._updateSyncStatus(status);
 
-      // Pēc datu ielādes nosūtīt atlikušos sync_queue ierakstus uz Google Sheets
+      const remaining = await this.getUnsyncedCount();
+      this._updateSyncStatus(remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts');
+
       if (remaining > 0) {
         console.log('[sync] Pēc ielādes atlikuši ' + remaining + ' neatlasīti ieraksti, sūtu uz GS');
-        // processQueue izsaukts fonā, lai nebloķētu UI
         this.processQueue().catch(() => {});
       }
+
       const result = {
         offline: false,
         connected: true,
         count: {
-          darbinieki: (data.darbinieki || []).length,
-          klienti: (data.klienti || []).length,
-          atzimes: (data.atzimes || []).length,
-          atzimes_log: (data.atzimes_log || []).length,
-          uzdevomi: (data.uzdevomi || []).length
+          darbinieki: (base.darbinieki || []).length,
+          klienti: (base.klienti || []).length,
+          atzimes: counts.atzimes || 0,
+          atzimes_log: counts.atzimes_log || 0,
+          uzdevomi: (base.uzdevomi || []).length
         },
+        counts: counts,
         pending: remaining,
         revision: this.revision
       };
@@ -587,11 +679,24 @@ class CareSync {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
       } catch (e) {}
       this._broadcastSyncComplete(result);
-      onProgress('✓ Dati veiksmīgi ielādēti no Google Sheets');
+      onProgress('✓ Klienti ielādēti. Zemtā aprūpes ieraksti...');
+
+      // === FAZA 2: atzimes pa blokiem — FONĀ, nebloķē UI ===
+      this._marksLoadingPromise = this._loadMarksPaged(onProgress)
+        .then(r => {
+          this._updateSyncStatus('Saglabāts');
+          onProgress('✓ Visi aprūpes ieraksti ielādēti');
+          return r;
+        })
+        .catch(e => {
+          console.warn('[sync] fona atzīmju ielāde neizdevās:', e.message);
+          this._updateSyncStatus('Saglabāts');
+          return null;
+        });
+
       return result;
     } catch (err) {
       // JA NEIZDODAS — NEDZĒSIM DATUS!
-      // Saglabājam esošos datus lokālajā atmiņā, lai lietotājs nezaudētu darbu
       console.warn('[sync] loadInitialData kļūda, saglabājam esošos datus:', err.message);
       this._updateSyncStatus('Nav savienojuma ar Google Sheets');
       onProgress('⚠️ Neizdevās sazināties ar Google Sheets. Darbojies ar lokālajiem datiem.');
@@ -599,6 +704,14 @@ class CareSync {
     } finally {
       this._loading = false;
     }
+  }
+
+  // Gaidīt, kamēr fona atzīmju ielāde beidzās
+  async waitForMarks() {
+    if (this._marksLoadingPromise) {
+      try { await this._marksLoadingPromise; } catch (e) {}
+    }
+    return this._marksLoaded;
   }
 
   // Atjauno datus no GS — izsaukt, kad lietotājs pāriet uz citu sadaļu
