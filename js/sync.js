@@ -620,13 +620,13 @@ class CareSync {
       const existing = await this.db.getAll('sync_queue');
       const duplicate = existing.find(item =>
         item.change && item.change.data &&
-        item.change.table === change.table &&
         item.change.data.actionId === change.data.actionId
       );
       if (duplicate) {
         duplicate.change.data = change.data;
         duplicate.timestamp = Date.now();
         await this.db.put('sync_queue', duplicate);
+        console.log('[sync] enqueueChange: atjaunināts dublets actionId:', change.data.actionId);
         return duplicate.id;
       }
     }
@@ -687,28 +687,29 @@ class CareSync {
           summary.permanentlyFailed++;
           continue;
         }
-        try {
-          const action = item.change.action || item.change.type || 'mark';
-          const data = item.change.data || item.change;
-          const isWriteOp = ['mark', 'createTask', 'updateTask', 'createClient', 'createEmployee', 'updateClient', 'updateEmployee'].includes(action);
-          console.log('[sync] processQueue PROCESSING:', action, 'retries:', item.retries || 0, 'data:', JSON.stringify(data));
-          let result;
-          try {
-            result = isWriteOp
-              ? await postAction(action, data)
-              : await jsonpAction(action, data);
-            console.log('[sync] processQueue RESULT:', action, 'success:', result?.success, 'error:', result?.error, 'already_processed:', result?.already_processed);
-          } catch (requestErr) {
-            // Request failed (network error/timeout) - re-throw to trigger retry logic
-            throw requestErr;
-          }
-          // Request reached server (any response) - delete queue item
-          try {
-            await this.db.delete('sync_queue', item.id);
-          } catch (delErr) {
-            console.warn('[sync] Failed to delete queue item:', delErr);
-          }
-          summary.synced++;
+try {
+            const action = item.change.action || item.change.type || 'mark';
+            const data = item.change.data || item.change;
+            const isWriteOp = ['mark', 'createTask', 'updateTask', 'createClient', 'createEmployee', 'updateClient', 'updateEmployee'].includes(action);
+            console.log('[sync] processQueue PROCESSING:', action, 'retries:', item.retries || 0, 'data:', JSON.stringify(data));
+            let result;
+            try {
+              result = isWriteOp
+                ? await postAction(action, data)
+                : await jsonpAction(action, data);
+              console.log('[sync] processQueue RESULT:', action, 'success:', result?.success, 'error:', result?.error, 'already_processed:', result?.already_processed);
+            } catch (requestErr) {
+              // Request failed (network error/timeout) - re-throw to trigger retry logic
+              throw requestErr;
+            }
+            // Request reached server (any response) - delete queue item
+            try {
+              await this.db.delete('sync_queue', item.id);
+              console.log('[sync] Queue item DELETED:', item.id);
+            } catch (delErr) {
+              console.warn('[sync] Failed to delete queue item:', delErr);
+            }
+            summary.synced++;
         } catch (e) {
           // Don't retry on permanent errors (network errors that won't resolve)
           const errorMsg = e.message || String(e);
@@ -756,6 +757,7 @@ class CareSync {
         console.log('[sync] clearQueue: dzēš', items.length, 'ierakstus');
         for (const item of items) {
           await this.db.delete('sync_queue', item.id);
+          console.log('[sync] clearQueue DELETED:', item.id);
         }
       }
     } catch (e) {
