@@ -158,6 +158,8 @@ const Logout = {
           window.careSync.flushQueue();
         }
       } catch (err) {}
+      // Nedaudzas par flushQueue pabeigšanos - iekavē 300ms, lai processQueue izdzēstu vienumus
+      await new Promise(r => setTimeout(r, 300));
       // Nedaudzas par flushQueue pabeigšanos - pārbauda pašreizējo stāvokli
       const pending = (opts && typeof opts.pending === 'number')
         ? opts.pending
