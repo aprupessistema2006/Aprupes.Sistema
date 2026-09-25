@@ -1,13 +1,12 @@
 ﻿{
-  "version": "20260925-1553",
-  "timestamp": 1790370780000,
-  "changes": "Architekturas labs: dalita ielade. Bootstrap (nelielas tabulas) + atzimes pa blokiem fonā + klienta datos pēc vajadzības (90 dienas). Novērš GAS timeout ar 225k+ ierakstiem. SW v17.",
+  "version": "20260925-1604",
+  "timestamp": 1790372640000,
+  "changes": "Jauns GAS deployment URL (dalita ielade). Konfigurets jauns script.google.com endpoints. SW v17.",
   "files": [
     "version.json",
-    "backend/gas_webhook.gs",
+    "js/config.js",
     "js/sync.js",
     "js/care_form.js",
-    "js/config.js",
     "js/update_notifier.js",
     "sw2.js",
     "index.html",
