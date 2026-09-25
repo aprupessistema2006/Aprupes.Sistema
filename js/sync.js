@@ -578,6 +578,51 @@ class CareSync {
     return { markTotal: totalMarks, logTotal: totalLog };
   }
 
+  // Ātra ielāde — tikai vakardiena + šodiena + rītdiena (3 dienas)
+  // Ielādējas pirmos ~5 sekundes, UI nav bloķēts
+  async _loadRecentMarks(onProgress) {
+    const now = new Date();
+    const dates = [];
+    for (let i = -1; i <= 1; i++) { // -1=vakardiena, 0=šodiena, +1=rītdiena
+      const d = new Date(now);
+      d.setDate(d.getDate() + i);
+      dates.push(d.toISOString().slice(0, 10)); // "yyyy-mm-dd"
+    }
+
+    // Vienā pieprasījumā filtrēt pēc datuma diapazonam
+    const params = new URLSearchParams({
+      action: 'load', mode: 'range', t: Date.now(),
+      dateFrom: dates[0], dateTo: dates[2], limit: '2000'
+    });
+    const url = SYNC_URL + '?' + params.toString();
+    const data = await this._fetchWithRetry(url, 60000, 2);
+
+    const marks = (data.atzimes || []).map(normalizeRow);
+    const logs = (data.atzimes_log || []).map(normalizeRow);
+    if (marks.length) await this.db.batchPut('atzimes', marks);
+    if (logs.length) await this.db.batchPut('atzimes_log', logs);
+
+    console.log('[sync] ielādēti aktuālie ieraksti: ' + marks.length + ' atzimes, ' + logs.length + ' logi');
+    try { window.dispatchEvent(new CustomEvent('recentMarksLoaded')); } catch (e) {}
+  }
+
+  // Fonā ielādē visus pārējos atzimes (500/rindura lapām)
+  // Neprasina await — turpinās neatkarībā no UI
+  _loadMarksBackground(onProgress, counts) {
+    this._marksLoadingPromise = this._loadMarksPaged(onProgress, counts)
+      .then(r => {
+        this._updateSyncStatus('Saglabāts');
+        onProgress('✓ Visi aprūpes ieraksti ielādēti');
+        return r;
+      })
+      .catch(e => {
+        console.warn('[sync] fona atzīmju ielāde neizdevās:', e.message);
+        this._updateSyncStatus('Saglabāts');
+        onProgress('⚠️ Daži ieraksti netika ielādēti, bet varat turpināt darbu');
+        return null;
+      });
+  }
+
   // Palūkstīga pieprasījuma atkārtota mēģinājuma ar eksponenciālo atliki
   async _fetchWithRetry(url, timeout, retries) {
     let lastErr;
@@ -719,18 +764,14 @@ class CareSync {
       this._broadcastSyncComplete(result);
       onProgress('✓ Klienti ielādēti. Zemtā aprūpes ieraksti...');
 
-      // === FAZA 2: atzimes pa blokiem — FONĀ, nebloķē UI ===
-      this._marksLoadingPromise = this._loadMarksPaged(onProgress, counts)
-        .then(r => {
-          this._updateSyncStatus('Saglabāts');
-          onProgress('✓ Visi aprūpes ieraksti ielādēti');
-          return r;
-        })
-        .catch(e => {
-          console.warn('[sync] fona atzīmju ielāde neizdevās:', e.message);
-          this._updateSyncStatus('Saglabāts');
-          return null;
-        });
+      // === FAZA 2: FONĀ — ielādē pārējos atzimes, bet nebloķē UI ===
+      this._loadMarksBackground(onProgress, counts);
+
+      // === FAZA 3: Ātra ierakveida ielāde — tikai 3 dienas (vakardiena + šodiena + rītdiena) ===
+      // NEPASLēGJ fonu loading — tas turpinās neatkarībā
+      const recentPromise = this._loadRecentMarks(onProgress)
+        .then(() => { onProgress('✓ Aktuālie ieraksti gatavi'); })
+        .catch(e => console.warn('[sync] Recent marks failed:', e.message));
 
       return result;
     } catch (err) {

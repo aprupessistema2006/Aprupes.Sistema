@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v22'; // Jauns GAS URL
+const CACHE_NAME = 'aprupes-sistema-v23'; // 3-phase loading: recent + background
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
