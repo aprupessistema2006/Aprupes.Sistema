@@ -152,15 +152,17 @@ const Logout = {
     if (!buttonEl) return;
     buttonEl.addEventListener('click', async (e) => {
       if (e) e.preventDefault();
-      // Izsauc queue apstrādi fonā (negaida pabeigšanu - GAS var būt lēns)
+      // Izsauc queue apstrādi un gaida līdz 5s, lai processQueue iziet cauri vienumiem
       try {
         if (window.careSync && typeof window.careSync.flushQueue === 'function') {
-          window.careSync.flushQueue();
+          // Gaida flushQueue pabeigšanos, bet ne ilgāk par 5 sekundēm (GAS cold start aizsardzība)
+          await Promise.race([
+            window.careSync.flushQueue(),
+            new Promise(r => setTimeout(r, 5000))
+          ]);
         }
       } catch (err) {}
-      // Nedaudzas par flushQueue pabeigšanos - iekavē 300ms, lai processQueue izdzēstu vienumus
-      await new Promise(r => setTimeout(r, 300));
-      // Nedaudzas par flushQueue pabeigšanos - pārbauda pašreizējo stāvokli
+      // Pārbauda pašreizējo stāvokli pēc flushQueue
       const pending = (opts && typeof opts.pending === 'number')
         ? opts.pending
         : await (async () => {

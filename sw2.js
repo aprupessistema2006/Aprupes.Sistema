@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v15'; // New cache to bypass old v14 SW lock
+const CACHE_NAME = 'aprupes-sistema-v16'; // New cache to bypass old v15 SW lock
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -32,30 +32,30 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  console.log('[SW-v15] Installing new service worker (cache:', CACHE_NAME, ')');
+  console.log('[SW-v16] Installing new service worker (cache:', CACHE_NAME, ')');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW-v15] Precaching static assets');
+      console.log('[SW-v16] Precaching static assets');
       return cache.addAll(STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' })));
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW-v15] Activating new service worker');
+  console.log('[SW-v16] Activating new service worker');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[SW-v15] Deleting old cache:', name);
+            console.log('[SW-v16] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
     }).then(() => self.clients.claim())
       .then(() => {
-        console.log('[SW-v15] Activation complete, notifying clients to reload');
+        console.log('[SW-v16] Activation complete, notifying clients to reload');
         // Force clients to reload immediately to pick up new SW
         return self.clients.matchAll({ type: 'window' }).then(clients => {
           clients.forEach(client => {
