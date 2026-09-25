@@ -135,9 +135,9 @@ self.addEventListener('fetch', (event) => {
   const isHTML = event.request.headers.get('accept')?.includes('text/html');
 
   if (isHTML) {
-    // For HTML, always fetch fresh but cache it
+    // For HTML, always fetch fresh from network (bypass all caches)
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-store', credentials: 'same-origin' })
         .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
@@ -148,15 +148,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For static assets, use cache-first strategy
+  // For static assets, use cache-first but strip query params for matching
+  // (js/app.js?v=123 matches cached js/app.js)
+  const urlNoQuery = new URL(event.request.url);
+  urlNoQuery.search = '';
+  const cacheKey = new Request(urlNoQuery.toString(), { ignoreSearch: true });
   event.respondWith(
-    caches.match(event.request).then((cached) => {
+    caches.match(cacheKey).then((cached) => {
       if (cached) return cached;
       return fetch(event.request)
         .then((response) => {
           if (response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
           }
           return response;
         })
@@ -179,6 +183,7 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
 
 
 
