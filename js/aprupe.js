@@ -533,7 +533,7 @@ class AprupeController {
     const searchCount = document.getElementById('searchCount');
 
     searchBox.addEventListener('input', (e) => {
-      const term = e.target.value.trim().toLowerCase();
+      const term = e.target.value.trim();
       this.filterClients(term);
       this.renderCards();
       if (term) {
@@ -640,18 +640,25 @@ class AprupeController {
   }
 
   filterClients(term) {
-    if (!term) {
+    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const lowerTerm = normalize(term);
+    console.log('[aprupe] filterClients: term="' + term + '" normalized="' + lowerTerm + '" totalClients=' + this.clients.length);
+
+    if (!lowerTerm) {
       this.filteredClients = [...this.clients];
+      console.log('[aprupe] filterClients: clearing filter, showing all ' + this.filteredClients.length + ' clients');
       return;
     }
 
-    const lowerTerm = term.toLowerCase();
     this.filteredClients = this.clients.filter(client => {
-      const vards = (client.vards || client.Vārds || '').toLowerCase();
-      const uzvards = (client.uzvards || client.Uzvārds || '').toLowerCase();
+      const vards = normalize(client.vards || client.Vārds || '');
+      const uzvards = normalize(client.uzvards || client.Uzvārds || '');
       const id = String(client.id || client.ID || '');
-      return vards.includes(lowerTerm) || uzvards.includes(lowerTerm) || id.toLowerCase().includes(lowerTerm);
+      const matches = vards.includes(lowerTerm) || uzvards.includes(lowerTerm) || id.toLowerCase().includes(lowerTerm);
+      if (matches) console.log('[aprupe] filterClients: MATCH ' + vards + ' ' + uzvards + ' (id=' + id + ')');
+      return matches;
     });
+    console.log('[aprupe] filterClients: result=' + this.filteredClients.length + ' matches');
   }
 
   getClientStatus(clientId) {
