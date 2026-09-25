@@ -31,7 +31,7 @@ class UpdateNotifier {
       return;
     }
 
-    this.versionParam = '?v=20260925-1663';
+    this.versionParam = '?v=20260925-1664';
     console.log('[UpdateNotifier] Initializing with version param:', this.versionParam);
     this.init();
     this.checkVersionOnPageLoad();
@@ -79,14 +79,14 @@ class UpdateNotifier {
   // Pārbaudīt jaunu versiju lapas ielādes brīdī (pirmais, kas dari, atverot programmu)
   async checkVersionOnPageLoad() {
     try {
-      const response = await fetch('version.json?v=20260925-1663');
+      const response = await fetch('version.json?v=20260925-1664');
       console.log('[UpdateNotifier] Fetching version.json, response status:', response.status);
       if (!response.ok) {
         console.warn('[UpdateNotifier] version.json fetch failed:', response.status);
         // Fallback: Always show banner if version.json unavailable
         // This ensures users get the update even if version.json is cached or unavailable
         const storedVersion = localStorage.getItem('appVersion') || '';
-        if (!storedVersion || storedVersion !== '20260925-1663') {
+        if (!storedVersion || storedVersion !== '20260925-1664') {
           this.showUpdateBanner();
         }
         return;
@@ -106,7 +106,7 @@ class UpdateNotifier {
       console.warn('[UpdateNotifier] Versijas pārbaude neizdevās:', e);
       // Fallback: Show banner on error
       const storedVersion = localStorage.getItem('appVersion') || '';
-      if (!storedVersion || storedVersion !== '20260925-1663') {
+      if (!storedVersion || storedVersion !== '20260925-1664') {
         this.showUpdateBanner();
       }
     }
@@ -201,7 +201,7 @@ class UpdateNotifier {
     await this.clearAllLocalData();
 
     console.log('[UpdateNotifier] Pārlādē lapu...');
-    window.location = window.location.href.split('?')[0] + '?v=20260925-1663';
+    window.location = window.location.href.split('?')[0] + '?v=20260925-1664';
   }
 
   async clearAllLocalData() {
@@ -258,5 +258,6 @@ class UpdateNotifier {
 if (typeof globalThis !== 'undefined') {
   globalThis.UpdateNotifier = UpdateNotifier;
 }
+
 
 

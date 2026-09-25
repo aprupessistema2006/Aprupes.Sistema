@@ -768,18 +768,15 @@ class CareSync {
       try {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
       } catch (e) {}
-      this._broadcastSyncComplete(result);
       onProgress('✓ Klienti ielādēti. Zemtā aprūpes ieraksti...');
 
       // === FAZA 2: FONĀ — ielādē pārējos atzimes, bet nebloķē UI ===
       // Fona ielāde ir klusa — tikai konsolē, neredzams lietotājam
       this._loadMarksBackground(null, counts);
 
-      // === FAZA 3: Ātra ierakveida ielāde — tikai 3 dienas (vakardiena + šodiena + rītdiena) ===
-      // NEPASLēGJ fonu loading — tas turpinās neatkarībā
-      const recentPromise = this._loadRecentMarks(onProgress)
-        .then(() => { onProgress('✓ Aktuālie ieraksti gatavi'); })
-        .catch(e => console.warn('[sync] Recent marks failed:', e.message));
+      // === FAZA 3: Ātra ierakveida ielāde — tikai 3 dienas ===
+      // Pilnīgi klusi — neredzams lietotājam, tikai konsolē
+      this._loadRecentMarks(null);
 
       return result;
     } catch (err) {
@@ -944,7 +941,6 @@ try {
       try {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
       } catch (e) {}
-      this._broadcastSyncComplete(result);
       return result;
     });
   }
@@ -975,15 +971,12 @@ try {
     return items.length;
   }
 
-  _broadcastSyncComplete(result) {
-    try {
-      window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
-    } catch (e) {}
-  }
-
   async sync() {
     const summary = await this.processQueue();
-    this._broadcastSyncComplete({ queue: summary });
+    // Fire queueComplete (not syncComplete) to avoid triggering re-renders
+    try {
+      window.dispatchEvent(new CustomEvent('queueComplete', { detail: { queue: summary } }));
+    } catch (e) {}
   }
 
   async hasLocalData() {

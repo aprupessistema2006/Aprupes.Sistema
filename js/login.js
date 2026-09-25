@@ -417,14 +417,17 @@ class LoginController {
       });
     }
     if (searchTerm) {
-      const term = this._normalizeForSearch(searchTerm);
-      result = result.filter(e => {
-        const v = this._normalizeForSearch(e.vards || '');
-        const u = this._normalizeForSearch(e.uzvards || '');
-        const roles = e.lomas || [];
-        const roleMatch = roles.some(r => this._normalizeForSearch(r).includes(term));
-        return v.includes(term) || u.includes(term) || roleMatch;
-      });
+      const term = this._normalizeForSearch(searchTerm.trim());
+      if (term) {
+        result = result.filter(e => {
+          const v = this._normalizeForSearch(e.vards || '');
+          const u = this._normalizeForSearch(e.uzvards || '');
+          const roles = e.lomas || [];
+          const roleMatch = roles.some(r => this._normalizeForSearch(r).includes(term));
+          // Match if vards or uzvards contains the term OR starts with it (for partial typing like "Git")
+          return v.includes(term) || u.includes(term) || v.startsWith(term) || u.startsWith(term) || roleMatch;
+        });
+      }
     }
     this.filteredEmployees = [...result];
   }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v29'; // SW cache refresh - klienti pārlāde
+const CACHE_NAME = 'aprupes-sistema-v30'; // SW cache refresh - klienti pārlāde
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -179,6 +179,7 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
 
 
 
