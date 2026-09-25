@@ -1,5 +1,5 @@
 {
-  "version": "20260925-1604",
+  "version": "20260925-1610",
   "timestamp": 1790372640000,
   "changes": "Jauns GAS deployment URL (dalita ielade). Konfigurets jauns script.google.com endpoints. SW v17.",
   "files": [
