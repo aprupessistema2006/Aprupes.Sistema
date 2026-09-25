@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v20'; // Sync.js paging fix + jauns GAS URL
+const CACHE_NAME = 'aprupes-sistema-v21'; // Smaller pages + non-blocking UI
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',

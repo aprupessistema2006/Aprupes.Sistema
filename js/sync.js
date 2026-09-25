@@ -512,7 +512,7 @@ class CareSync {
   // Faza 2: atzimes + atzimes_log pa blokiem (jaunākie pirmāk). SAPLŪST, netīra.
   async _loadMarksPaged(onProgress, totals) {
     if (!SYNC_URL) return null;
-    const LIMIT = 2500;
+    const LIMIT = 500; // Mazāk — ātrāk GAS atmoderas, mazāk timeoutu
     let totalMarks = (totals && totals.atzimes) || 0;
     let totalLog = (totals && totals.atzimes_log) || 0;
 
@@ -522,7 +522,7 @@ class CareSync {
     let offset = Math.max(0, end - LIMIT);
     let loadedMarks = 0, loadedLog = 0;
     let guard = 0;
-    const MAX_GUARD = 300; // ~750k rindu drošības klipsis
+    const MAX_GUARD = 2000; // 500-row lapas → ~452 lapas
 
     while (guard++ < MAX_GUARD) {
       const params = new URLSearchParams({
@@ -530,20 +530,24 @@ class CareSync {
         offset: String(offset), limit: String(LIMIT)
       });
       const url = SYNC_URL + '?' + params.toString();
+
+      // GAS atgriež atzimes + atzimes_log vienā atbildē (vienā pieprasījumā)
       let data;
       try {
-        data = await this._fetchWithRetry(url, 90000, 3);
+        data = await this._fetchWithRetry(url, 120000, 3);
       } catch (e) {
         console.warn('[sync] marks page @offset ' + offset + ' neizdevās pēc retry:', e.message);
-        offset = Math.max(0, offset - LIMIT); // atpakaļ, lai izmēģinātu vēlreiz
+        offset = Math.max(0, offset - LIMIT);
         if (offset === 0 && guard > 2) break;
         onProgress('⚠️ Pārlejot garš ' + offset);
+        await new Promise(r => setTimeout(r, 0)); // Atladīg UI
         continue;
       }
       if (data.error) {
         console.warn('[sync] marks page kļūda:', data.error);
         offset = Math.max(0, offset - LIMIT);
         if (offset === 0 && guard > 2) break;
+        await new Promise(r => setTimeout(r, 0));
         continue;
       }
 
@@ -560,12 +564,11 @@ class CareSync {
       onProgress('Ielādēju aprūpes ierakstus: ' + loadedMarks + ' / ' + (totalMarks || '?'));
 
       // Newest-first paging: stop when we've paged all the way down to offset 0.
-      // Do NOT rely on data.done — the first (newest) page reports done=true
-      // from the server's perspective, which would stop after a single page.
       if (offset === 0) break;
       const next = Math.max(0, offset - LIMIT); // jaunākie pirmāk → atpakaļ
-      if (next === offset) break; // kļūda kļūst nepārvietojama
+      if (next === offset) break;
       offset = next;
+      await new Promise(r => setTimeout(r, 0)); // Atlaide UI starp lapām
     }
 
     console.log('[sync] marks ielādēti. offset=' + offset + ' markTotal=' + totalMarks + ' logTotal=' + totalLog);
@@ -578,6 +581,7 @@ class CareSync {
   // Palūkstīga pieprasījuma atkārtota mēģinājuma ar eksponenciālo atliki
   async _fetchWithRetry(url, timeout, retries) {
     let lastErr;
+    const backoff = [1000, 3000, 8000]; // Ātrāk atjauno GAS pēc cold start
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         return await requestData(url, timeout);
@@ -585,7 +589,8 @@ class CareSync {
         lastErr = e;
         console.warn('[sync] atkārtota mēģinājuma kļūda (mēģinājums ' + (attempt + 1) + '):', e.message);
         if (attempt < retries) {
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          const delay = backoff[Math.min(attempt, backoff.length - 1)];
+          await new Promise(r => setTimeout(r, delay));
         }
       }
     }
