@@ -231,7 +231,7 @@ class AdminPanel {
 
     const exportMultiClients = document.getElementById('exportMultiClients');
     if (exportMultiClients && exportMultiClients.options.length === 0) {
-      const activeClients = this.clients.filter(c => c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1');
+      const activeClients = this.clients.filter(c => (c.aktivs === undefined || c.aktivs === null || c.aktivs === '' || c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1'));
       exportMultiClients.innerHTML = activeClients.map(c => {
         const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
         return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim())}</option>`;
@@ -296,7 +296,7 @@ class AdminPanel {
     const monthVal = monthEl ? monthEl.value : '';
     if (!monthVal) { this.toast('Izvēlieties mēnesi'); return; }
 
-    const activeClients = this.clients.filter(c => c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1');
+    const activeClients = this.clients.filter(c => (c.aktivs === undefined || c.aktivs === null || c.aktivs === '' || c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1'));
     if (activeClients.length === 0) { this.toast('Nav aktīvu klientu'); return; }
 
     try {
@@ -451,7 +451,7 @@ class AdminPanel {
   }
 
   async renderDashboard() {
-    const activeClients = this.clients.filter(c => c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1');
+    const activeClients = this.clients.filter(c => (c.aktivs === undefined || c.aktivs === null || c.aktivs === '' || c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1'));
     const activeEmployees = this.employees.filter(e => e.aktivs === true || e.aktivs === 'true' || e.aktivs === 1 || e.aktivs === '1');
 
     const unsynced = await this.sync.getUnsyncedCount();
@@ -486,7 +486,7 @@ class AdminPanel {
     list.innerHTML = items.map(c => {
       const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
        const dob = c.dzimis || c['Dzimšanas datums'] || c.dzimsans_datums || c.dzimšans_datums || c.birth_date || '';
-      const active = c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1';
+      const active = c.aktivs === undefined || c.aktivs === null || c.aktivs === '' || c.aktivs === true || c.aktivs === 'true' || c.aktivs === 1 || c.aktivs === '1';
       const id = c.id || c.ID;
 
       return `
@@ -531,7 +531,7 @@ class AdminPanel {
       const name = (e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '');
       const loma = e.loma || e.Loma || '';
       const pin = e.pin || e['PIN kods'] || '';
-      const active = e.aktivs === true || e.aktivs === 'true' || e.aktivs === 1 || e.aktivs === '1';
+      const active = e.aktivs === undefined || e.aktivs === null || e.aktivs === '' || e.aktivs === true || e.aktivs === 'true' || e.aktivs === 1 || e.aktivs === '1';
       const id = e.id || e.ID;
 
       return `

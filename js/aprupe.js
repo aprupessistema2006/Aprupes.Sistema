@@ -558,6 +558,8 @@ class AprupeController {
     this.clients = await this.db.getAll(CONFIG.STORES.KLIENTI);
     this.clients = this.clients.filter(c => {
       const aktivs = c.aktivs;
+      // Default to active if aktivs is missing (legacy clients without this column)
+      if (aktivs === undefined || aktivs === null || aktivs === '') return true;
       return aktivs === true || aktivs === 'true' || aktivs === 1 || aktivs === '1';
     });
     this.clients.sort((a, b) => {
