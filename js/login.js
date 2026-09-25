@@ -386,6 +386,7 @@ class LoginController {
       const bN = (b.uzvards + ' ' + b.vards).toLowerCase();
       return aN.localeCompare(bN);
     });
+    console.log('[login] loadEmployees: employees =', this.employees.length, 'sample:', this.employees.slice(0, 2).map(e => ({ id: e.id, vards: e.vards, uzvards: e.uzvards, lomas: e.lomas })));
 
     this.filteredEmployees = [...this.employees];
     this.renderEmployeeList();
