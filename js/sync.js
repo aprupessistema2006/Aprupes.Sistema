@@ -512,6 +512,7 @@ class CareSync {
   // Faza 2: atzimes + atzimes_log pa blokiem (jaunākie pirmāk). SAPLŪST, netīra.
   async _loadMarksPaged(onProgress, totals) {
     if (!SYNC_URL) return null;
+    onProgress = onProgress || function() {}; // Fons: neatjaudājams console.log iekšā
     const LIMIT = 500; // Mazāk — ātrāk GAS atmoderas, mazāk timeoutu
     let totalMarks = (totals && totals.atzimes) || 0;
     let totalLog = (totals && totals.atzimes_log) || 0;
@@ -609,16 +610,17 @@ class CareSync {
   // Fonā ielādē visus pārējos atzimes (500/rindura lapām)
   // Neprasina await — turpinās neatkarībā no UI
   _loadMarksBackground(onProgress, counts) {
-    this._marksLoadingPromise = this._loadMarksPaged(onProgress, counts)
+    const bgProgress = onProgress || function() {}; // Fons: klusi konsolē
+    this._marksLoadingPromise = this._loadMarksPaged(bgProgress, counts)
       .then(r => {
         this._updateSyncStatus('Saglabāts');
-        onProgress('✓ Visi aprūpes ieraksti ielādēti');
+        if (onProgress) onProgress('✓ Visi aprūpes ieraksti ielādēti');
         return r;
       })
       .catch(e => {
         console.warn('[sync] fona atzīmju ielāde neizdevās:', e.message);
         this._updateSyncStatus('Saglabāts');
-        onProgress('⚠️ Daži ieraksti netika ielādēti, bet varat turpināt darbu');
+        if (onProgress) onProgress('⚠️ Daži ieraksti netika ielādēti, bet varat turpināt darbu');
         return null;
       });
   }
@@ -765,7 +767,8 @@ class CareSync {
       onProgress('✓ Klienti ielādēti. Zemtā aprūpes ieraksti...');
 
       // === FAZA 2: FONĀ — ielādē pārējos atzimes, bet nebloķē UI ===
-      this._loadMarksBackground(onProgress, counts);
+      // Fona ielāde ir klusa — tikai konsolē, neredzams lietotājam
+      this._loadMarksBackground(null, counts);
 
       // === FAZA 3: Ātra ierakveida ielāde — tikai 3 dienas (vakardiena + šodiena + rītdiena) ===
       // NEPASLēGJ fonu loading — tas turpinās neatkarībā
