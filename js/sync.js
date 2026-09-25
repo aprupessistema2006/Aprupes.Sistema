@@ -509,13 +509,21 @@ class CareSync {
     return data;
   }
 
-  // Faza 2: atzimes + atzimes_log pa blokiem. SAPLŪST, netīra (nepazaudina vēsturi)
-  async _loadMarksPaged(onProgress) {
+  // Faza 2: atzimes + atzimes_log pa blokiem (jaunākie pirmāk). SAPLŪST, netīra.
+  async _loadMarksPaged(onProgress, totals) {
+    if (!SYNC_URL) return null;
     const LIMIT = 3000;
-    let offset = 0;
-    let totalMarks = 0, totalLog = 0;
+    const totalMarks = (totals && totals.atzimes) || 0;
+    const totalLog = (totals && totals.atzimes_log) || 0;
+
+    // Jaunākie pirmāk! Pēdējās 60000 rindas (~1 nedēļa pie 500 klientiem) ielādē
+    // pirmāk, lai "šodien" dati būtu pieejami pirms pilnas vēstures.
+    const BUDGET = 60000;
+    const startOffset = Math.max(0, Math.min(totalMarks, totalLog) - BUDGET);
+    let offset = startOffset;
+    let loadedMarks = 0, loadedLog = 0;
     let guard = 0;
-    const MAX_GUARD = 400; // ~1.2M rindu drošības klipsis
+    const MAX_GUARD = 200;
 
     while (guard++ < MAX_GUARD) {
       const params = new URLSearchParams({
@@ -525,14 +533,20 @@ class CareSync {
       const url = SYNC_URL + '?' + params.toString();
       let data;
       try {
-        data = await requestData(url, 90000);
+        data = await this._fetchWithRetry(url, 90000, 3); // 3 retry ar atliki
       } catch (e) {
-        console.warn('[sync] marks page @offset ' + offset + ' neizdevās:', e.message);
-        break;
+        console.warn('[sync] marks page @offset ' + offset + ' neizdevās pēc retry:', e.message);
+        // neprātīgi pārorietot - turpinām uzpretī
+        offset += LIMIT;
+        onProgress('⚠️ Pārlejot garš ' + offset);
+        if (offset >= Math.max(totalMarks, totalLog)) break;
+        continue;
       }
       if (data.error) {
         console.warn('[sync] marks page kļūda:', data.error);
-        break;
+        offset += LIMIT;
+        if (offset >= Math.max(totalMarks, totalLog)) break;
+        continue;
       }
 
       const marks = data.atzimes || [];
@@ -543,13 +557,15 @@ class CareSync {
       if (marks.length) await this.db.batchPut('atzimes', marks.map(normalizeRow));
       if (logs.length) await this.db.batchPut('atzimes_log', logs.map(normalizeRow));
 
-      const next = (data.markNext !== undefined) ? data.markNext : (offset + LIMIT);
-      onProgress('Ielādēju aprūpes ierakstus: ' + (next) + ' / ' + (totalMarks || '?'));
+      loadedMarks += marks.length;
+      loadedLog += logs.length;
+      onProgress('Ielādēju aprūpes ierakstus: ' + loadedMarks + ' / ' + (totalMarks || '?'));
 
       if (data.done === true) break;
+      const next = (data.markNext !== undefined) ? data.markNext : (offset + LIMIT);
       if (next <= offset) break; // drošības pārbaude
       offset = next;
-      if (marks.length === 0 && logs.length === 0) break;
+      if (marks.length === 0 && logs.length === 0 && offset >= Math.max(totalMarks, totalLog)) break;
     }
 
     console.log('[sync] marks ielādēti. offset=' + offset + ' markTotal=' + totalMarks + ' logTotal=' + totalLog);
@@ -557,6 +573,23 @@ class CareSync {
     this.revision = (this.revision || 0) + 1;
     try { window.dispatchEvent(new CustomEvent('marksLoaded')); } catch (e) {}
     return { markTotal: totalMarks, logTotal: totalLog };
+  }
+
+  // Palūkstīga pieprasījuma atkārtota mēģinājuma ar eksponenciālo atliki
+  async _fetchWithRetry(url, timeout, retries) {
+    let lastErr;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await requestData(url, timeout);
+      } catch (e) {
+        lastErr = e;
+        console.warn('[sync] atkārtota mēģinājuma kļūda (mēģinājums ' + (attempt + 1) + '):', e.message);
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
+      }
+    }
+    throw lastErr;
   }
 
   // Konkrēta klienta dati pēc vajadzības (care_form, control)
@@ -682,7 +715,7 @@ class CareSync {
       onProgress('✓ Klienti ielādēti. Zemtā aprūpes ieraksti...');
 
       // === FAZA 2: atzimes pa blokiem — FONĀ, nebloķē UI ===
-      this._marksLoadingPromise = this._loadMarksPaged(onProgress)
+      this._marksLoadingPromise = this._loadMarksPaged(onProgress, counts)
         .then(r => {
           this._updateSyncStatus('Saglabāts');
           onProgress('✓ Visi aprūpes ieraksti ielādēti');
