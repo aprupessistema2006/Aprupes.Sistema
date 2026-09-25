@@ -1,4 +1,4 @@
-﻿/**
+/**
  * UpdateNotifier - Automātiski pārbauda jaunu versiju un paziņo lietotājam ar vienkāršu pogu.
  * 65+ aprūpētāji: vienkāršs paziņojums ar vienu lielo pogu "Atjaunot".
  * Pēc nospiešanas: notīra visus lokālos datus, aktivizē jauno SW un pārlādē lapu.

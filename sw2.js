@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'aprupes-sistema-v17'; // Dalīta ielāde - atbrīvo veco v16 SW lock
+const CACHE_NAME = 'aprupes-sistema-v17'; // Dalīta ielāde - atbrīvo veco v16 SW lock
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
