@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v21'; // Smaller pages + non-blocking UI
+const CACHE_NAME = 'aprupes-sistema-v22'; // Jauns GAS URL
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
