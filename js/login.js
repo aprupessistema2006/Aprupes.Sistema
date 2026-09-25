@@ -386,9 +386,10 @@ class LoginController {
       const bN = (b.uzvards + ' ' + b.vards).toLowerCase();
       return aN.localeCompare(bN);
     });
-    console.log('[login] loadEmployees: employees =', this.employees.length, 'sample:', this.employees.slice(0, 2).map(e => ({ id: e.id, vards: e.vards, uzvards: e.uzvards, lomas: e.lomas })));
+    console.log('[login] loadEmployees: employees =', this.employees.length, 'sample:', JSON.stringify(this.employees.slice(0, 2).map(e => ({ id: e.id, vards: e.vards, uzvards: e.uzvards, lomas: e.lomas, aktivs: e.aktivs }))));
 
     this.filteredEmployees = [...this.employees];
+    console.log('[login] renderEmployeeList called with', this.filteredEmployees.length, 'employees');
     this.renderEmployeeList();
     const total = this.employees.length;
     const statusMsg = document.getElementById('statusMessage');
@@ -452,6 +453,7 @@ class LoginController {
   renderEmployeeList() {
     const list = document.getElementById('employeeList');
     if (!list) return;
+    console.log('[login] renderEmployeeList: filteredEmployees =', this.filteredEmployees.length, 'employees =', this.employees.length);
     if (this.filteredEmployees.length === 0) {
       list.innerHTML = '<div class="no-results" data-i18n="noEmployees">Nav darbinieku, kas atbilst meklēšanai</div>';
       return;
@@ -471,6 +473,7 @@ class LoginController {
       if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
       return 'var(--accent)';
     };
+    
     list.innerHTML = this.filteredEmployees.map(e => {
       const id = e.id;
       const v = e.vards || '';
