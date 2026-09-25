@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v25'; // 3-phase loading: recent + background
+const CACHE_NAME = 'aprupes-sistema-v23'; // SW cache refresh - klienti pārlāde
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -179,4 +179,5 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
 

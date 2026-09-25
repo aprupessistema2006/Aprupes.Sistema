@@ -54,7 +54,16 @@ class AprupeController {
       syncStatusEl.className = 'sync-badge ' + e.detail.replace(/ /g, '-');
     });
 
-    // DZEST syncComplete listener — neauto renderēt, lai lietotājs nezaudētu fokusu
+    // syncComplete listener — ielādē klientus pēc sync
+    window.addEventListener('syncComplete', async (e) => {
+      const result = e.detail;
+      if (result && !result.offline) {
+        await this.loadClients();
+        this.filteredClients = [...this.clients];
+        this.renderCards();
+        await this.renderTasksTable(this.selectedClientId || null);
+      }
+    });
 
     // Manual sync button handler
     const manualSyncBtn = document.getElementById('manualSyncBtn');
@@ -556,6 +565,8 @@ class AprupeController {
 
   async loadClients() {
     this.clients = await this.db.getAll(CONFIG.STORES.KLIENTI);
+    console.log('[aprupe] loadClients: total in IDB =', this.clients.length,
+      'sample:', this.clients.slice(0, 2).map(c => ({ id: c.id, aktivs: c.aktivs })));
     this.clients = this.clients.filter(c => {
       const aktivs = c.aktivs;
       // Default to active if aktivs is missing (legacy clients without this column)

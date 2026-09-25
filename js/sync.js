@@ -268,11 +268,15 @@ function normalizeRow(raw) {
     if (map[nk]) {
       if (normalizedRow[map[nk]] === undefined) normalizedRow[map[nk]] = row[k];
     } else {
-      normalizedRow[k] = row[k];
+      normalizedRow[nk] = row[k];
     }
   });
 
-  if (row.id) normalizedRow.id = row.id;
+  // Ensure id is set for IndexedDB key — handle 'ID', 'Id', 'id' etc.
+  if (!normalizedRow.id) {
+    const idKey = Object.keys(row).find(k => normalizeKey(k) === 'id');
+    if (idKey) normalizedRow.id = row[idKey];
+  }
   if (eventTime) normalizedRow.eventTime = eventTime;
   if (row.skaits !== undefined) normalizedRow.skaits = row.skaits;
   if (row.notikuma_laiks !== undefined) normalizedRow.notikuma_laiks = row.notikuma_laiks;
