@@ -512,18 +512,17 @@ class CareSync {
   // Faza 2: atzimes + atzimes_log pa blokiem (jaunākie pirmāk). SAPLŪST, netīra.
   async _loadMarksPaged(onProgress, totals) {
     if (!SYNC_URL) return null;
-    const LIMIT = 3000;
-    const totalMarks = (totals && totals.atzimes) || 0;
-    const totalLog = (totals && totals.atzimes_log) || 0;
+    const LIMIT = 2500;
+    let totalMarks = (totals && totals.atzimes) || 0;
+    let totalLog = (totals && totals.atzimes_log) || 0;
 
-    // Jaunākie pirmāk! Pēdējās 60000 rindas (~1 nedēļa pie 500 klientiem) ielādē
-    // pirmāk, lai "šodien" dati būtu pieejami pirms pilnas vēstures.
-    const BUDGET = 60000;
-    const startOffset = Math.max(0, Math.min(totalMarks, totalLog) - BUDGET);
-    let offset = startOffset;
+    // Ielādējam VISUS atzīmes, sākot no JAUNĀKOVI (beigām → sākumam),
+    // lai "šodien" dati kļūtu pieejami pirmie.
+    const end = Math.max(totalMarks, totalLog);
+    let offset = Math.max(0, end - LIMIT);
     let loadedMarks = 0, loadedLog = 0;
     let guard = 0;
-    const MAX_GUARD = 200;
+    const MAX_GUARD = 300; // ~750k rindu drošības klipsis
 
     while (guard++ < MAX_GUARD) {
       const params = new URLSearchParams({
@@ -533,26 +532,25 @@ class CareSync {
       const url = SYNC_URL + '?' + params.toString();
       let data;
       try {
-        data = await this._fetchWithRetry(url, 90000, 3); // 3 retry ar atliki
+        data = await this._fetchWithRetry(url, 90000, 3);
       } catch (e) {
         console.warn('[sync] marks page @offset ' + offset + ' neizdevās pēc retry:', e.message);
-        // neprātīgi pārorietot - turpinām uzpretī
-        offset += LIMIT;
+        offset = Math.max(0, offset - LIMIT); // atpakaļ, lai izmēģinātu vēlreiz
+        if (offset === 0 && guard > 2) break;
         onProgress('⚠️ Pārlejot garš ' + offset);
-        if (offset >= Math.max(totalMarks, totalLog)) break;
         continue;
       }
       if (data.error) {
         console.warn('[sync] marks page kļūda:', data.error);
-        offset += LIMIT;
-        if (offset >= Math.max(totalMarks, totalLog)) break;
+        offset = Math.max(0, offset - LIMIT);
+        if (offset === 0 && guard > 2) break;
         continue;
       }
 
-      const marks = data.atzimes || [];
-      const logs = data.atzimes_log || [];
       totalMarks = data.markTotal || totalMarks;
       totalLog = data.logTotal || totalLog;
+      const marks = data.atzimes || [];
+      const logs = data.atzimes_log || [];
 
       if (marks.length) await this.db.batchPut('atzimes', marks.map(normalizeRow));
       if (logs.length) await this.db.batchPut('atzimes_log', logs.map(normalizeRow));
@@ -562,10 +560,10 @@ class CareSync {
       onProgress('Ielādēju aprūpes ierakstus: ' + loadedMarks + ' / ' + (totalMarks || '?'));
 
       if (data.done === true) break;
-      const next = (data.markNext !== undefined) ? data.markNext : (offset + LIMIT);
-      if (next <= offset) break; // drošības pārbaude
+      const next = Math.max(0, offset - LIMIT); // jaunākie pirmāk → atpakaļ
+      if (next === offset) break; // kļūda kļūst nepārvietojama
       offset = next;
-      if (marks.length === 0 && logs.length === 0 && offset >= Math.max(totalMarks, totalLog)) break;
+      if (marks.length === 0 && logs.length === 0 && offset === 0) break;
     }
 
     console.log('[sync] marks ielādēti. offset=' + offset + ' markTotal=' + totalMarks + ' logTotal=' + totalLog);
