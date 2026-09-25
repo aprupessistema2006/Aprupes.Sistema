@@ -31,3 +31,7 @@ Aprupes_sistema.xlsx
 Apru pes lapas.xlsx
 .vscode/
 .idea/
+
+# Testa datu faili
+Testa_Dati_*.xlsx
+.~lock.*
