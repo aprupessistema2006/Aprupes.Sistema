@@ -56,10 +56,8 @@ class AprupeController {
 
     // syncComplete listener — ielādē klientus pēc sync
     window.addEventListener('syncComplete', async (e) => {
-      console.log('[aprupe] syncComplete fired:', e.detail);
       const result = e.detail;
       if (result && !result.offline) {
-        console.log('[aprupe] syncComplete: Ielādēju klientus...');
         await this.loadClients();
         this.filteredClients = [...this.clients];
         this.renderCards();
@@ -567,8 +565,6 @@ class AprupeController {
 
   async loadClients() {
     this.clients = await this.db.getAll(CONFIG.STORES.KLIENTI);
-    console.log('[aprupe] loadClients: total in IDB =', this.clients.length,
-      'sample:', this.clients.slice(0, 2).map(c => ({ id: c.id, aktivs: c.aktivs, vards: c.vards, uzvards: c.uzvards, allKeys: Object.keys(c) }))));
     this.clients = this.clients.filter(c => {
       const aktivs = c.aktivs;
       // Default to active if aktivs is missing (legacy clients without this column)
@@ -576,7 +572,6 @@ class AprupeController {
       const a = String(aktivs).toLowerCase();
       return a === 'true' || a === '1' || aktivs === true || aktivs === 1;
     });
-    console.log('[aprupe] after filter: clients =', this.clients.length, 'filteredClients =', this.filteredClients.length);
     this.clients.sort((a, b) => {
       const aName = ((a.uzvards || a.Uzvārds || '') + ' ' + (a.vards || a.Vārds || '')).toLowerCase();
       const bName = ((b.uzvards || b.Uzvārds || '') + ' ' + (b.vards || b.Vārds || '')).toLowerCase();
