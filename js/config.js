@@ -164,3 +164,4 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof globalThis !== 'undefined') {
   globalThis.CONFIG = CONFIG;
 }
+
