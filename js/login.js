@@ -406,6 +406,7 @@ class LoginController {
   }
 
   applyFilters(searchTerm) {
+    console.log('[login] applyFilters: searchTerm="' + searchTerm + '" activeRoleFilter="' + this.activeRoleFilter + '" totalEmployees=' + this.employees.length);
     const role = this.activeRoleFilter || 'all';
     let result = this.employees;
     if (role !== 'all') {
@@ -419,17 +420,20 @@ class LoginController {
     }
     if (searchTerm) {
       const term = this._normalizeForSearch(searchTerm.trim());
+      console.log('[login] applyFilters: normalized term="' + term + '" roleFilter="' + role + '" filteredByRole=' + result.length);
       if (term) {
         result = result.filter(e => {
           const v = this._normalizeForSearch(e.vards || '');
           const u = this._normalizeForSearch(e.uzvards || '');
           const roles = e.lomas || [];
           const roleMatch = roles.some(r => this._normalizeForSearch(r).includes(term));
-          // Match if vards or uzvards contains the term OR starts with it (for partial typing like "Git")
-          return v.includes(term) || u.includes(term) || v.startsWith(term) || u.startsWith(term) || roleMatch;
+          const matches = v.includes(term) || u.includes(term) || v.startsWith(term) || u.startsWith(term) || roleMatch;
+          if (matches) console.log('[login] applyFilters: MATCH ' + (e.vards || '') + ' ' + (e.uzvards || '') + ' id=' + e.id);
+          return matches;
         });
       }
     }
+    console.log('[login] applyFilters: final result=' + result.length + ' matches');
     this.filteredEmployees = [...result];
   }
 
