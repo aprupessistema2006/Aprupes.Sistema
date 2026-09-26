@@ -6,7 +6,8 @@ node_modules/
 *.tmp
 *.bak
 *.xlsx
-Aprūpes lapas.xlsx
+# Excel veidne ir publiskā vietnē, to ir jābūvē katram klientam sekosi
+# Aprūpes lapas.xlsx
 Aprūpes sistēma.xlsx
 Aprūpētāja rokasgrāmata.txt
 DUPLICATE_FIX_README.md
