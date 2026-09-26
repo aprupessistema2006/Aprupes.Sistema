@@ -10,7 +10,8 @@ class ExcelExporter {
       const dir = path.dirname(__dirname || __filename);
       return fs.readFileSync(path.join(dir, this.templateUrl));
     }
-    const response = await fetch(this.templateUrl);
+    const encodedUrl = encodeURI(this.templateUrl);
+    const response = await fetch(encodedUrl);
     if (!response.ok) throw new Error('Neizdevās ielādēt MK veidni: ' + this.templateUrl);
     return await response.arrayBuffer();
   }

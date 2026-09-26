@@ -25,6 +25,7 @@ const STATIC_ASSETS = [
   'js/care_form.js',
   'js/tasks.js',
   'js/excel_export.js',
+  'Aprūpes lapas.xlsx',
   'js/xlsx.full.min.js',
   'js/exceljs.bare.min.js',
   'logo/logoDS.png',
