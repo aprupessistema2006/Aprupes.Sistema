@@ -154,6 +154,29 @@ self.addEventListener('fetch', (event) => {
   const urlNoQuery = new URL(event.request.url);
   urlNoQuery.search = '';
   const cacheKey = new Request(urlNoQuery.toString(), { ignoreSearch: true });
+
+  // For .xlsx and other binary assets, prefer network to avoid stale cache
+  const isBinaryAsset = urlNoQuery.pathname.endsWith('.xlsx') ||
+                        urlNoQuery.pathname.endsWith('.xls') ||
+                        urlNoQuery.pathname.endsWith('.png') ||
+                        urlNoQuery.pathname.endsWith('.jpg') ||
+                        urlNoQuery.pathname.endsWith('.jpeg');
+
+  if (isBinaryAsset) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(cacheKey))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(cacheKey).then((cached) => {
       if (cached) return cached;
