@@ -108,6 +108,10 @@ class LoginController {
 
     const loadedEmployees = syncResult && syncResult.count ? syncResult.count.darbinieki : 0;
 
+    // Pārliecinošs savienojuma pierādījums — to izmanto enterSetupMode(),
+    // lai netaisītu setup veidlapu, ja serveris nav sasniedzams.
+    this._serverReachable = hasRemote;
+
     // Pārbaudīt vietējos datus NO JAUNA — pēc neveiksmīga ielādes tie var būt
     // atlicināti (pirms "Atjaunot" nospiešanas tie tika notīrīti).
     if (!hasRemote) {
@@ -341,9 +345,10 @@ class LoginController {
   }
 
   enterSetupMode() {
-    // Bez savienojuma setup veidlapu nerādam — izveidotais administrators
-    // paliktu tikai šajā ierīcē un nevis Google Sheets.
-    if (!navigator.onLine || (this.sync && this.sync._connectionStatus === 'offline')) {
+    // Setup veidlapu rādam TIKAI tad, ja esam pārliecinoši sazinājušies ar
+    // serveri. navigator.onTime nevar balstīties — tas daudzās ierīcēs ir
+    // neprecīzs un var būt false, pat ja serveris ir sasniedzams.
+    if (this._serverReachable === false) {
       this.enterNoConnectionMode(new Error('nav savienojuma'));
       return;
     }

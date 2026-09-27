@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v32'; // offline login + version.json network-first
+const CACHE_NAME = 'aprupes-sistema-v33'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -133,6 +133,16 @@ async function notifyClients(message) {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // ĀRĒJIE pieprasījumi (script.google.com JSONP u.c.) SW NEDRĪKST apkalpot!
+  // SW pārtverot šos pieprasījumus laiž caur fetch() un pārnes JSONP
+  // skriptu uz no-cors režīmu — GAS CORS galvenes neatgriež, tāpēc
+  // skripts neielādējas un JSONP atzvanīšana nekad nenotiek.
+  // Tieši tāpēc datorā strādā, bet telefonā ne.
+  if (url.origin !== self.location.origin) {
+    return; // ļauj pārlūkam apstrādāt pašam
+  }
+
   const isHTML = event.request.headers.get('accept')?.includes('text/html');
 
   // version.json NEVER kešojama. To dēļ uz telefoniem cache-first stratēģija

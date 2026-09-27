@@ -1,7 +1,7 @@
 {
-  "version": "20260927-1620",
+  "version": "20260927-1635",
   "timestamp": 1790548800000,
-  "changes": "Bez savienojuma un bez vietējiem datiem vairs NETIEK rādīta setup veidlapa ('Izveido pirmo administratoru') — administrators, kas izveidots bezsaistē, paliktu tikai telefonā, nevis Google Sheets. Tagad rāda skaidru kļūdas iemeslu, savienojuma diagnostiku un pogu 'Mēģināt vēlreiz'. Bootstrap ielādei pievienoti 3 mēģinājumi (iekšpus tam nebija neviena), rindas iztukšanai pirms ielādes 20s budžets. version.json vairs netiek kešots service workerī (bezgalīga 'Atjaunot' josma).",
+  "changes": "SW v33: SW vairs NEAPKALPO arējos pieprasījumus (url.origin !== self.location.origin), tāpēc JSONP uz script.google.com vairs netiek pārtverts caur SW fetch() un strādā telefonā. Iespriekšējais SW pārtvēra JSONP skriptus, kas tāpēc neielādējās. Bezsaistes režīms, bootstrap atkārtošanas un drošs setup ekrāns (netiek rādīts bez savienojuma).",
   "files": [
     "version.json",
     "js/config.js",
