@@ -737,7 +737,7 @@ class MedicineView {
     return `<div class="medicine-trend-mini">
       ${trend.map(t => {
         const v = t && t.value ? String(t.value) : '-';
-        return `<span class="medicine-trend-day" title="${t.date}">${v}</span>`;
+        return `<span class="medicine-trend-day" title="${t && t.date ? t.date : ''}">${v}</span>`;
       }).join('')}
     </div>`;
   }
@@ -930,11 +930,11 @@ class MedicineView {
   }
 
   openForm(clientId) {
-    window.location.href = 'care_form.html?client=' + clientId;
+    window.location.href = 'aprupe.html?client=' + clientId;
   }
 
   openLog(clientId) {
-    window.location.href = 'care_form.html?client=' + clientId;
+    window.location.href = 'control.html#client-' + clientId;
   }
 
   closeDetail() {
