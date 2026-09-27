@@ -120,15 +120,11 @@ class LoginController {
 
     // Only enter setup mode if BOTH the quick check AND the full load failed
     // to find any data (remote or local).
+    // Bez savienojuma UN bez vietējiem datiem nevar neko ielādēt.
+    // Setup ekrānu šeit RĀDĀT NEDRĪKST — administrators, kas izveidots
+    // bezsaistē, paliktu tikai šajā ierīcē un nevis Google Sheets.
     if (!hasRemote && !hasLocal && !loadedEmployees) {
-      const setupMsg = document.getElementById('statusMessage');
-      if (setupMsg) {
-        setupMsg.textContent = '⚠️ Neizdevās savienoties ar Google Sheets. ' +
-          (loadError ? 'Kļūda: ' + (loadError.message || loadError) : '') +
-          ' Pārbaudiet interneta savienojumu un atkārtoti atveriet lapu.';
-        setupMsg.style.color = '#e74c3c';
-      }
-      this.enterSetupMode();
+      await this.enterNoConnectionMode(loadError);
       return;
     }
 
@@ -141,10 +137,83 @@ class LoginController {
     this.clearOfflineMode();
     await this.loadEmployees();
 
+    // Setup režīms tikai tad, kad esam tieši sazinājušies ar serveri un
+    // serveris patiešām neko neatgriež.
     if (this.employees.length === 0) {
       this.enterSetupMode();
       return;
     }
+  }
+
+  // Nav savienojuma un nav ko rādīt. Rāda skaidru iemeslu un mēģinājuma
+  // pogu, nevis neuzskaitītu setup veidlapu.
+  async enterNoConnectionMode(error) {
+    document.body.classList.remove('online');
+    this.setupMode = false;
+
+    const loginSection = document.getElementById('loginSection');
+    const setupSection = document.getElementById('setupSection');
+    if (loginSection) loginSection.style.display = 'block';
+    if (setupSection) setupSection.style.display = 'none';
+
+    const list = document.getElementById('employeeList');
+    if (list) {
+      list.innerHTML = '<div class="no-results" style="color:#e74c3c;text-align:center;padding:20px;">' +
+        '🔴 Nevar ielādēt darbiniekus — Google Sheets nav sasniedzams un šai ierīcei vēl nav saglabātu datu.</div>';
+    }
+    ['pinInput', 'loginBtn', 'employeeSearch'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = true;
+    });
+
+    const statusMsg = document.getElementById('statusMessage');
+    if (statusMsg) {
+      statusMsg.textContent = '⚠️ Nevar ielādēt datus no Google Sheets' +
+        (error ? ' (' + (error.message || error) + ')' : '') + '.';
+      statusMsg.style.color = '#e74c3c';
+    }
+
+    this.showRetryButton(error);
+    this.runConnectionDiagnostics();
+  }
+
+  // Diagnostika: pārbauda, vai vispār var sasniegt Google serveri, lai
+  // lietotājs (vai atbalsts) varētu nokopēt precīzu iemeslu.
+  async runConnectionDiagnostics() {
+    const old = document.getElementById('connDiagBox');
+    if (old) old.remove();
+
+    const wrap = document.createElement('div');
+    wrap.id = 'connDiagBox';
+    wrap.style.cssText = 'margin-top:14px;padding:12px;border-radius:8px;background:#f8f9fa;' +
+      'border:1px solid #dee2e6;font-size:12px;color:#495057;text-align:left;word-break:break-word;';
+
+    const online = navigator.onLine ? 'ir' : 'NAV';
+    const url = (typeof CONFIG !== 'undefined' && CONFIG.GAS_URL) || 'nav iestatīts';
+    const host = (() => { try { return new URL(url).host; } catch (e) { return 'nepareizs URL'; } })();
+    const lines = ['Internets: ' + online, 'Serveris: ' + host];
+
+    wrap.innerHTML = '<b>Savienojuma pārbaude...</b>';
+    const statusMsg = document.getElementById('statusMessage');
+    if (statusMsg && statusMsg.parentNode) statusMsg.parentNode.appendChild(wrap);
+
+    let pingResult;
+    try {
+      if (!navigator.onLine) {
+        pingResult = 'ierīce bezsaistē';
+      } else {
+        const t0 = Date.now();
+        const res = await this.sync.checkConnection();
+        const ms = Date.now() - t0;
+        pingResult = res.connected
+          ? 'serveris atbildēja (' + ms + ' ms)'
+          : 'serveris neatbildēja (' + ms + ' ms) — ' + (res.message || '');
+      }
+    } catch (e) {
+      pingResult = 'kļūda: ' + (e.message || e);
+    }
+    lines.push('Pārbaude: ' + pingResult);
+    wrap.innerHTML = '<b>Savienojuma diagnostika</b><br>' + lines.join('<br>');
   }
 
   // Bezsaistes režīms: serveris nepieejams, bet vietējie dati ir.
@@ -240,6 +309,8 @@ class LoginController {
     if (result && !result.offline) {
       const wrap = document.getElementById('retrySyncWrap');
       if (wrap) wrap.remove();
+      const diag = document.getElementById('connDiagBox');
+      if (diag) diag.remove();
       document.body.classList.add('online');
       await this.loadEmployees();
       const statusMsg = document.getElementById('statusMessage');
@@ -258,14 +329,24 @@ class LoginController {
     }
     const detail = document.querySelector('#retrySyncWrap div:last-child');
     if (detail) detail.textContent = 'Kļūda: ' + errMsg;
+    // Vēlreiz pārbauda, vai serveris vispār atbild
+    this.runConnectionDiagnostics();
   }
 
   clearOfflineMode() {
-    const wrap = document.getElementById('retrySyncWrap');
-    if (wrap) wrap.remove();
+    ['retrySyncWrap', 'connDiagBox'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
   }
 
   enterSetupMode() {
+    // Bez savienojuma setup veidlapu nerādam — izveidotais administrators
+    // paliktu tikai šajā ierīcē un nevis Google Sheets.
+    if (!navigator.onLine || (this.sync && this.sync._connectionStatus === 'offline')) {
+      this.enterNoConnectionMode(new Error('nav savienojuma'));
+      return;
+    }
     this.setupMode = true;
     const loginSection = document.getElementById('loginSection');
     const setupSection = document.getElementById('setupSection');

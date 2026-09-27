@@ -1,7 +1,7 @@
 {
-  "version": "20260927-1600",
+  "version": "20260927-1620",
   "timestamp": 1790548800000,
-  "changes": "Mobiļajā ierīcē vairs netiek bloķēta reģistrācija, ja Google Sheets nav sasniedzams: ja ierīcē jau ir dati, tiek atvērts bezsaistes režīms ar pogu 'Mēģināt vēlreiz'. Bootstrap ielādei pievienoti 3 mēģinājumi ar atkārtotu pieprasījumu (iekšpus tam nebija neviena), pirmais ar īsāku timeout. Reālā kļūdas ziņa netiek pārrakstīta ar vispārīgu tekstu. version.json vairs netiek kešots service workerī, kas izraisīja bezgalīgu 'Atjaunot' josmu telefonā. SW v32.",
+  "changes": "Bez savienojuma un bez vietējiem datiem vairs NETIEK rādīta setup veidlapa ('Izveido pirmo administratoru') — administrators, kas izveidots bezsaistē, paliktu tikai telefonā, nevis Google Sheets. Tagad rāda skaidru kļūdas iemeslu, savienojuma diagnostiku un pogu 'Mēģināt vēlreiz'. Bootstrap ielādei pievienoti 3 mēģinājumi (iekšpus tam nebija neviena), rindas iztukšanai pirms ielādes 20s budžets. version.json vairs netiek kešots service workerī (bezgalīga 'Atjaunot' josma).",
   "files": [
     "version.json",
     "js/config.js",
