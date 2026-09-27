@@ -164,6 +164,36 @@
       <button id="signBtn" class="sign-btn" data-i18n="signature">Parakstīties</button>
     </div>
 
+    <div class="signature-card" id="attentionCard" style="margin-top:8px;">
+      <div class="signature-card-left">
+        <div class="signature-card-title" style="color:#e74c3c;">⚠️ Pievērst medicīnisko uzmanību</div>
+        <div class="signature-card-info" id="attentionInfo" style="display:none;"></div>
+      </div>
+      <button id="attentionBtn" class="sign-btn" style="background:#fff3cd;color:#856404;border:1px solid #ffc107;" title="Pievienot komentāru par medicīnisko situāciju">
+        Pievienot
+      </button>
+    </div>
+
+    <div id="attentionModal" class="modal-overlay" style="display:none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <button id="attentionModalClose" class="btn-icon">←</button>
+          <h2>Medicīniska atzīme</h2>
+          <div style="width: 38px;"></div>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-weight:600;margin-bottom:4px;">Komentārs medicīniskajam darbiniekam:</label>
+            <textarea id="attentionComment" placeholder="Aprakstiet, kāda palīdzība/vērtība ir vajadzīga..." style="width:100%;min-height:80px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button id="attentionModalCancel" class="btn-secondary">Atcelt</button>
+            <button id="attentionModalSave" class="btn-primary">Saglabāt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="history-card">
       <div class="history-card-header">
         <h3 data-i18n="history">📜 Šodienas vēsture</h3>

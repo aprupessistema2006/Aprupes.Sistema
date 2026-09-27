@@ -194,6 +194,15 @@ function excelSerialToDate(serial) {
   return d;
 }
 
+// Spec 4.1: operationId ir unikāla identitāte, ģenerēta klientā.
+// employeeId iekļauts, lai divi dažāgi lietotāji nevarētu kollīdzinēt operationId.
+// payload_hash NAV iet (divas vienādas pēc satura darbības IR divas dažādas operācijas).
+function generateOperationId(employeeId) {
+  var ts = Date.now();
+  var rand = Math.random().toString(36).substr(2, 9);
+  return 'op_' + (employeeId || 'unknown') + '_' + ts + '_' + rand;
+}
+
 function normalizeKey(h) {
   return String(h)
     .toLowerCase()
@@ -440,6 +449,18 @@ class CareSync {
     }
   }
 
+  async getServerVersion() {
+    if (!SYNC_URL) return null;
+    try {
+      const url = SYNC_URL + '?action=ping&t=' + Date.now();
+      const data = await requestData(url, 15000);
+      if (data && data.version) return data.version;
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   _collectLocalCompletions() {
     // Saglabā vietējos uzdevumu pabeigšanas statusus, pirms DB tīrīšanas.
     // Tādējādi pabeigšana netiek zaudēta, ja sinhronizācija neizdodas
@@ -548,9 +569,11 @@ class CareSync {
     });
   }
 
-  async loadInitialData(onProgress, filters = {}) {
-    return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
-  }
+   async loadInitialData(onProgress, filters = {}) {
+     // Spec: Migrācija pirms datu ielādes
+     try { await this.runMigrations(); } catch (e) { console.warn('[sync] migration failed:', e); }
+     return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
+   }
 
   // Faza 1: nelielās tabulas (darbinieki, klienti, uzdevomi) — ātri, vienā pieprasījumā
   async _loadBootstrap(onProgress) {
@@ -852,19 +875,9 @@ class CareSync {
       this.loaded = true;
       this.revision = (this.revision || 0) + 1;
 
-      // Clear sync_queue after successful data load - server is now source of truth
-      try {
-        const queueItems = await this.db.getAll('sync_queue');
-        if (queueItems.length > 0) {
-          console.log('[sync] Clearing', queueItems.length, 'stale queue items after successful data load');
-          for (const item of queueItems) {
-            await this.db.delete('sync_queue', item.id);
-          }
-        }
-      } catch (e) {
-        console.warn('[sync] Failed to clear stale queue:', e);
-      }
-
+      // sync_queue is NOT cleared after data load — pending operations
+      // may not have been confirmed by the server yet. Each item is only
+      // deleted when the server explicitly accepts it (accepted/already_processed).
       const remaining = await this.getUnsyncedCount();
       this._updateSyncStatus(remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts');
 
@@ -942,6 +955,11 @@ class CareSync {
         item.change.data.actionId === change.data.actionId
       );
       if (duplicate) {
+        // Preserve original operationId — do not overwrite with a new one
+        const originalOpId = duplicate.change.data && duplicate.change.data.operationId;
+        if (originalOpId) {
+          change.data.operationId = originalOpId;
+        }
         duplicate.change.data = change.data;
         duplicate.timestamp = Date.now();
         await this.db.put('sync_queue', duplicate);
@@ -949,12 +967,36 @@ class CareSync {
         return duplicate.id;
       }
     }
+    // Spec 4.1: ģenerē operationId ja klients to nepieciešams
+    // Ģenerējam tikai jauniem itemiem (ne dublikātiem), lai operationId paliktu stabili cauri retry
+    if (change.data && !change.data.operationId) {
+      var empId = change.data.employeeId || change.data.employeeID ||
+        change.data.darbinieksId || (window.currentUser && window.currentUser.id) || 'unknown';
+      change.data.operationId = generateOperationId(empId);
+    }
+    // Spec 12.4: OCC — pievieno recordVersion, ja tiek atjaunināts esošs ieraksts
+    if (change.data && change.data.id && !change.data.recordVersion) {
+      var tableName = change.table;
+      if (tableName && this.db) {
+        try {
+          var record = await this.db.get(tableName, change.data.id);
+          if (record && record.version) {
+            change.data.recordVersion = record.version;
+          }
+        } catch (e) {
+          // Best-effort: OCC nav kritisks
+        }
+      }
+    }
     const queueItem = {
       id: this.db.generateId(),
       change: change,
+      operationId: change.data.operationId,
       timestamp: Date.now(),
       retries: 0,
-      lastError: null
+      lastError: null,
+      status: 'GAIDA',
+      recordVersion: change.data.recordVersion || null
     };
     await this.db.add('sync_queue', queueItem);
     this._scheduleQueueProcessing();
@@ -1016,7 +1058,40 @@ class CareSync {
           summary.permanentlyFailed++;
           continue;
         }
-try {
+        // Spec 11.3: konfliktējoši itemi nav atkārtot automātiski —
+        // lietotājam jārisolvē konflikts (serverVersion ≠ client recordVersion)
+        if (item.status === 'KONFLIKTS') {
+          summary.conflictSkipped = (summary.conflictSkipped || 0) + 1;
+          continue;
+        }
+        // Spec 7: pārējie neattīrītie stāvokļi — izlaidi
+        if (['NEVAR ATKĀRTOT', 'ATCELTS', 'AIZVIETA', 'PIEŅEMTS', 'BLOKKĒTS'].includes(item.status)) {
+          if (item.status === 'NEVAR ATKĀRTOT') summary.permanentlyFailed++;
+          if (item.status === 'BLOKKĒTS') summary.blocked = (summary.blocked || 0) + 1;
+          continue;
+        }
+        // Spec 7: replacement detection — ja jaunāks item ar to pašu recordId jau ir,
+        // atzīmē šo kā AIZVIETA un neapstrādā
+        const itemRecordId = item.change?.data?.id;
+        const itemTs = item.timestamp;
+        if (itemRecordId) {
+          const newerExists = sorted.find(other =>
+            other.id !== item.id &&
+            other.status !== 'AIZVIETA' &&
+            other.status !== 'ATCELTS' &&
+            other.change?.data?.id === itemRecordId &&
+            other.timestamp > itemTs
+          );
+          if (newerExists) {
+            item.status = 'AIZVIETA';
+            item.replacedBy = newerExists.id;
+            await this.db.put('sync_queue', item);
+            continue;
+          }
+        }
+ try {
+            item.status = 'SINHRONIZĀCIJA NOTIEK';
+            await this.db.put('sync_queue', item);
             const action = item.change.action || item.change.type || 'mark';
             const data = item.change.data || item.change;
             const isWriteOp = ['mark', 'createTask', 'updateTask', 'createClient', 'createEmployee', 'updateClient', 'updateEmployee'].includes(action);
@@ -1031,21 +1106,65 @@ try {
               // Request failed (network error/timeout) - re-throw to trigger retry logic
               throw requestErr;
             }
-            // Request reached server (any response) - delete queue item
-            try {
-              await this.db.delete('sync_queue', item.id);
-              console.log('[sync] Queue item DELETED:', item.id);
-            } catch (delErr) {
-              console.warn('[sync] Failed to delete queue item:', delErr);
+            // Delete queue item only when server confirms acceptance.
+            // Spec 10.6: HTTP response received != operation accepted.
+            // Only accepted===true or already_processed===true triggers deletion.
+            const wasAccepted = result && (
+              result.already_processed === true ||
+              result.accepted === true ||
+              (result.success === true && result.blocked !== true)
+            );
+            if (wasAccepted) {
+              // Spec 10: atjaunoj recordVersion no servera atbauves (ja pieejams)
+              if (result && result.recordVersion) {
+                item.recordVersion = result.recordVersion;
+                if (item.change && item.change.data) {
+                  item.change.data.recordVersion = result.recordVersion;
+                }
+              }
+              try {
+                await this.db.delete('sync_queue', item.id);
+                console.log('[sync] Queue item DELETED (accepted):', item.id);
+              } catch (delErr) {
+                console.warn('[sync] Failed to delete queue item:', delErr);
+              }
+              summary.synced++;
+             } else {
+              // Server responded but not accepted — keep item, update status
+              if (result && result.deduplication_valid_until && new Date(result.deduplication_valid_until) <= Date.now()) {
+                item.status = 'NEVAR ATKĀRTOT';
+                item.lastError = 'Deduplication window expired on server';
+                await this._archiveItem(item, 'error');
+              } else if (result && result.retry_not_allowed === true) {
+                item.status = 'NEVAR ATKĀRTOT';
+                item.lastError = result.error || 'Retry not allowed on server';
+                await this._archiveItem(item, 'error');
+              } else if (result && result.blocked === true) {
+                item.status = 'BLOKKĒTS';
+              } else if (result && result.conflict === true) {
+                item.status = 'KONFLIKTS';
+                item.conflictInfo = {
+                  serverVersion: result.serverVersion,
+                  recordId: result.recordId,
+                  deduplicationValidUntil: result.deduplication_valid_until
+                };
+              } else if (result && result.error) {
+                item.status = 'KĻŪDA';
+                item.lastError = result.error;
+              } else {
+                item.status = 'NORAIDĪTS';
+              }
+              await this.db.put('sync_queue', item);
+              summary.failed++;
             }
-            summary.synced++;
         } catch (e) {
-          // Don't retry on permanent errors (network errors that won't resolve)
+          // Spec 11.1: network errors are NOT permanent — retry with same operationId.
+          // isPermanent removed: timeout/DNS/CORS must retry, not be marked permanentlyFailed.
           const errorMsg = e.message || String(e);
-          const isPermanent = errorMsg.includes('Savienojuma kļūda') || errorMsg.includes('Callback neizsaukts');
           item.retries = (item.retries || 0) + 1;
           item.lastError = errorMsg;
-          if (isPermanent || (item.retries || 0) >= MAX_RETRIES) {
+          item.status = 'KĻŪDA';
+          if ((item.retries || 0) >= MAX_RETRIES) {
             summary.permanentlyFailed++;
           }
           await this.db.put('sync_queue', item);
@@ -1067,8 +1186,8 @@ try {
     return this._runExclusive(async () => {
       const queue = await this._processQueueUnlocked();
       const load = await this._loadInitialDataUnlocked(onProgress, false, filters);
-      // Clear any remaining queue items after full sync - server is source of truth
-      await this.clearQueue();
+      // Do NOT clearQueue here — pending operations not yet confirmed by server
+      // must be preserved. Items are only removed when server accepts them.
       const result = { ...load, queue };
       try {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
@@ -1102,6 +1221,70 @@ try {
     const items = await this.db.getAll('sync_queue');
     return items.length;
   }
+
+  // Manuālā atkārtošana — lietotājs spyied "Mēģināt vēlreiz".
+   // Atdatina retry counter un statusu, atkārto ar to pašu operationId/actionId.
+    async retry(itemId) {
+      const item = await this.db.get('sync_queue', itemId);
+      if (!item) return false;
+      // Spec 11.2: pārbauda, vai serveris atļauj atkārtot
+      const opId = item.operationId || item.change?.data?.operationId;
+      if (opId) {
+        const allowed = await this.checkRetryAllowed(opId);
+        if (!allowed || allowed.can_retry === false) {
+          return { retried: false, reason: allowed.reason || 'retry_not_allowed' };
+        }
+      }
+      // Spec 11.3: conflict resolution — refresh recordVersion before retry
+      if (item.status === 'KONFLIKTS' && item.change?.data?.id && item.change?.table) {
+        const record = await this.db.get(item.change.table, item.change.data.id);
+        if (record && record.version) {
+          item.change.data.recordVersion = record.version;
+          item.recordVersion = record.version;
+        }
+      }
+      item.retries = 0;
+      item.lastError = null;
+      item.status = 'GAIDA';
+      delete item.conflictInfo;
+      await this.db.put('sync_queue', item);
+      this._scheduleQueueProcessing();
+      return { retried: true };
+    }
+
+    async _archiveItem(item, outcome) {
+      try {
+        await this.db.put('sync_audit', {
+          id: 'audit_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+          originalItemId: item.id,
+          operationId: item.operationId || item.change?.data?.operationId,
+          action: item.change.action || item.change.type,
+          recordId: item.change.data?.id,
+          employeeId: item.change.data?.employeeId || item.change.data?.employeeID,
+          retries: item.retries || 0,
+          lastError: item.lastError,
+          status: item.status,
+          createdAt: item.timestamp,
+          archivedAt: Date.now(),
+          outcome: outcome
+        });
+        await this.db.delete('sync_queue', item.id);
+        console.log('[sync] Item archived to sync_audit:', item.id, 'outcome:', outcome);
+      } catch (e) {
+        console.warn('[sync] _archiveItem failed, keeping item in queue:', e);
+      }
+    }
+
+   async checkRetryAllowed(operationId) {
+     if (!operationId) return { can_retry: true, reason: 'no_operation_id' };
+     try {
+       const result = await jsonpAction('check_retry_not_allowed', { operationId: operationId });
+       return result;
+     } catch (e) {
+       // Ja nav savienojuma — atkārtošana ir vienīgais variants
+       return { can_retry: true, reason: 'network_error' };
+     }
+   }
 
   async sync() {
     const summary = await this.processQueue();
@@ -1139,10 +1322,54 @@ try {
     const result = await jsonpAction('createEmployee', data);
     return result;
   }
+
+  // Spec: Migrācija actionId → operationId un version kolonnas sākotnējai sync
+  async runMigrations() {
+    const migratedKey = 'migration_v3_complete';
+    try {
+      const meta = await this.db.getAll('meta');
+      const alreadyDone = meta.find(m => m.key === migratedKey);
+      if (alreadyDone) {
+        console.log('[sync] Migration v3 already complete');
+        return;
+      }
+
+      let changes = 0;
+
+      // 1. actionId → operationId mapping for sync_queue items
+      const queueItems = await this.db.getAll('sync_queue');
+      for (const item of queueItems) {
+        if (!item.operationId && item.change && item.change.data && item.change.data.actionId) {
+          const empId = item.change.data.employeeId || item.change.data.employeeID || 'unknown';
+          item.operationId = generateOperationId(empId);
+          item.change.data.operationId = item.operationId;
+          await this.db.put('sync_queue', item);
+          changes++;
+        }
+      }
+
+      // 2. Pievieno version kolonnu ierakstiem (atzimes, klienti, darbinieki, uzdevomi)
+      for (const store of ['atzimes', 'klienti', 'darbinieki', 'uzdevomi']) {
+        const items = await this.db.getAll(store);
+        for (const item of items) {
+          if (!item.version) {
+            item.version = 1;
+            await this.db.put(store, item);
+            changes++;
+          }
+        }
+      }
+
+      await this.db.put('meta', { key: migratedKey, value: Date.now() });
+      console.log('[sync] Migration v3 complete (' + changes + ' changes)');
+    } catch (e) {
+      console.warn('[sync] Migration failed:', e);
+    }
+  }
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { normalizeRow, CareSync };
+  module.exports = { normalizeRow, CareSync, generateOperationId };
 }
 if (typeof globalThis !== 'undefined') {
   globalThis.normalizeRow = normalizeRow;

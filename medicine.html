@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2c3e50">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Medicīniskais skats — Aprūpes sistēma</title>
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/control.css">
+  <link rel="stylesheet" href="css/medicine.css?v=20260927">
+  <link rel="icon" href="logo/logo_admin.png" type="image/png">
+</head>
+<body>
+  <div class="splash-screen" id="splashScreen">
+    <div class="splash-bg">
+      <div class="splash-gradient"></div>
+    </div>
+    <div class="splash-content">
+      <img src="logo/logoDS.png" alt="Aprūpes sistēma" class="splash-logo">
+      <h1 class="splash-title">Aprūpes sistēma</h1>
+      <p class="splash-subtitle">Medicīniskais skats</p>
+    </div>
+  </div>
+
+  <div class="lang-switcher-global">
+    <button data-lang="lv" class="lang-btn active">LV</button>
+    <button data-lang="ru" class="lang-btn">RU</button>
+    <button data-lang="en" class="lang-btn">EN</button>
+  </div>
+
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <button id="btnBack" class="icon-btn" title="Atpakaļ">
+        <span>←</span>
+      </button>
+      <h1 class="top-bar-title">🏥 Medicīniskais skats</h1>
+    </div>
+    <div class="top-bar-right">
+      <button id="manualSyncBtn" class="icon-btn" title="Sinhor." style="display:none;">
+        <span>🔄</span>
+      </button>
+      <button id="logoutBtn" class="icon-btn" title="Iziet">
+        <span>🚪</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="status-message" id="statusMessage"></div>
+
+  <div class="medicine-container">
+    <div class="medicine-main">
+      <div class="medicine-tabs">
+        <button class="medicine-tab active" id="tabFindings" data-tab="findings">🔴 Kritiskie rādījumi</button>
+        <button class="medicine-tab" id="tabTrends" data-tab="trends">📈 Tendence</button>
+        <button class="medicine-tab" id="tabAttention" data-tab="attention">⚠️ Uzmanība</button>
+      </div>
+
+      <div class="medicine-date-filter" style="margin: 12px 0;">
+        <label for="dateFilter">Datums:</label>
+        <input type="date" id="dateFilter">
+      </div>
+
+      <div id="medicineFindingsList" class="medicine-findings"></div>
+      <div id="medicineTrendsContent" class="medicine-trends" style="display:none;"></div>
+      <div id="medicineAttentionContent" class="medicine-attention" style="display:none;"></div>
+    </div>
+
+    <div class="medicine-sidebar">
+      <div class="medicine-search-box">
+        <input type="text" id="clientSearch" placeholder="Meklēt klientu...">
+      </div>
+      <div id="medicineClientList" class="medicine-client-list"></div>
+      <div id="medicineClientDetail" class="medicine-client-detail"></div>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" class="loading-overlay" style="display:flex;">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <div id="loadingText">Ielādēju datus...</div>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=20260927-1720"></script>
+  <script src="js/db.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/timezone.js"></script>
+  <script src="js/logout.js"></script>
+  <script src="js/medicine_view.js"></script>
+</body>
+</html>

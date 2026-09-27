@@ -341,6 +341,55 @@ try {
       this.handleSign();
     });
 
+    const attentionBtn = document.getElementById('attentionBtn');
+    const attentionModal = document.getElementById('attentionModal');
+    const attentionComment = document.getElementById('attentionComment');
+    const attentionModalSave = document.getElementById('attentionModalSave');
+    const attentionModalCancel = document.getElementById('attentionModalCancel');
+    const attentionModalClose = document.getElementById('attentionModalClose');
+
+    if (attentionBtn) {
+      attentionBtn.addEventListener('click', () => {
+        if (attentionModal) attentionModal.style.display = 'flex';
+        if (attentionComment) attentionComment.value = '';
+        if (attentionComment) setTimeout(() => attentionComment.focus(), 100);
+      });
+    }
+
+    const closeAttentionModal = () => {
+      if (attentionModal) attentionModal.style.display = 'none';
+      if (attentionComment) attentionComment.value = '';
+    };
+
+    if (attentionModalSave) {
+      attentionModalSave.addEventListener('click', async () => {
+        const comment = attentionComment ? attentionComment.value.trim() : '';
+        if (!comment) {
+          this.toast('Lūdzu, ievadiet komentāru');
+          return;
+        }
+        await this.flagForMedicalAttention(comment);
+        closeAttentionModal();
+      });
+    }
+    if (attentionModalCancel) {
+      attentionModalCancel.addEventListener('click', closeAttentionModal);
+    }
+    if (attentionModalClose) {
+      attentionModalClose.addEventListener('click', closeAttentionModal);
+    }
+    if (attentionModal) {
+      attentionModal.addEventListener('click', (e) => {
+        if (e.target.id === 'attentionModal') closeAttentionModal();
+      });
+    }
+    if (attentionComment) {
+      attentionComment.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAttentionModal();
+      });
+    }
+
+
     document.querySelectorAll('.category-card').forEach(card => {
       card.addEventListener('click', (e) => {
         const cat = e.currentTarget.dataset.cat;
@@ -2189,6 +2238,71 @@ async handleSign() {
         if (btn) btn.disabled = false;
       }, 500);
     }
+  }
+
+  async flagForMedicalAttention(comment) {
+    const today = this.getToday();
+    const nowRiga = TimezoneUtils.getNowRiga();
+    const timeStr = TimezoneUtils.getTimeRiga();
+    const nowUTC = nowRiga.toISOString();
+    const shift = this.currentShift;
+
+    const mark = {
+      id: this.db.generateId(),
+      clientId: this.clientId,
+      employeeId: this.currentUser.id,
+      date: today,
+      shift: shift,
+      category: 'pievienot',
+      field: 'uzmaniba',
+      value: comment,
+      lastModified: nowUTC,
+      lastBy: this.currentUser.id,
+      mainaTips: this.currentUser.mainaTips || 'diennakts',
+      comment: comment
+    };
+
+    await this.db.put('atzimes', mark);
+    await this.db.add('atzimes_log', {
+      id: this.db.generateId(),
+      markId: mark.id,
+      clientId: this.clientId,
+      employeeId: this.currentUser.id,
+      date: today,
+      time: timeStr,
+      shift: shift,
+      category: 'pievienot',
+      field: 'uzmaniba',
+      value: comment,
+      prevValue: null,
+      type: 'Jauns',
+      created: nowUTC,
+      mainaTips: this.currentUser.mainaTips || 'diennakts'
+    });
+
+    this.sync.enqueueChange({
+      action: 'mark',
+      table: 'atzimes',
+      data: {
+        clientId: this.clientId,
+        employeeId: this.currentUser.id,
+        date: today,
+        shift: shift,
+        category: 'pievienot',
+        field: 'uzmaniba',
+        value: comment,
+        comment: comment,
+        lastModified: nowUTC,
+        actionId: 'attention_' + this.clientId + '_' + today + '_' + (this.currentUser.id || '') + '_' + Math.random().toString(36).substr(2, 6),
+        mainaTips: this.currentUser.mainaTips || 'diennakts'
+      }
+    });
+
+    if (this.allClientLog) {
+      this.allClientLog.unshift(mark);
+    }
+    this.history.unshift(mark);
+    this.toast('✅ Medicīniskā atzīme pievienota');
   }
 
   toast(message) {

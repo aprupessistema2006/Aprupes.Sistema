@@ -23,10 +23,12 @@ const STATIC_ASSETS = [
   'js/aprupe.js',
   'js/control.js',
   'js/care_form.js',
+  'js/medicine_view.js',
   'js/tasks.js',
   'js/excel_export.js',
   'js/xlsx.full.min.js',
   'js/exceljs.bare.min.js',
+  'css/medicine.css',
   'logo/logoDS.png',
   'logo/logo_admin.png'
 ];
