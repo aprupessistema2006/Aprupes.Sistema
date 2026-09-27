@@ -1,18 +1,1 @@
-{
-  "version": "20260927-1720",
-  "timestamp": 1790548800000,
-  "changes": "Atras internets: ierice bez interneta tagad patekams 3 isiem meginajumiem (~3s) vietam 4 ganiem ar 90s timeoutiem (>5 min). Diagnostikas kastite tagad ir ar cietu 6s timeout katram testam un vienmer pabeidzas, skaidri noradot vai vainigs tikls vai Google serveris. Navigator.onLine vairs netiek uzskatits par atbildi.",
-  "files": [
-    "version.json",
-    "js/config.js",
-    "js/sync.js",
-    "js/login.js",
-    "js/update_notifier.js",
-    "sw2.js",
-    "index.html",
-    "aprupetajs.html",
-    "aprupe.html",
-    "control.html",
-    "admin.html"
-  ]
-}
+{"version":"20260927-1720"}
