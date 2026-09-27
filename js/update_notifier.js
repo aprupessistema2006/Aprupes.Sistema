@@ -3,32 +3,35 @@
  * 65+ aprūpētāji: vienkāršs paziņojums ar vienu lielo pogu "Atjaunot".
  * Pēc nospiešanas: notīra visus lokālos datus, aktivizē jauno SW un pārlādē lapu.
  */
-const BUILD_VERSION = '20260927-1635';
+const BUILD_VERSION = '20260927-1650';
 
 class UpdateNotifier {
   constructor() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('force_update') === '1' || urlParams.get('v') === 'force') {
       console.log('[UpdateNotifier] Force update requested via URL param');
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration().then(reg => {
-          if (reg) {
-            console.log('[UpdateNotifier] Unregistering old SW to break cache lock...');
-            reg.unregister().then(() => {
-              console.log('[UpdateNotifier] Old SW unregistered, reloading with new SW...');
-              localStorage.removeItem('appVersion');
-              // Reload without any params to get fresh HTML/JS from server (not SW cache)
-              window.location.href = window.location.origin + window.location.pathname;
-            });
-          } else {
-            console.log('[UpdateNotifier] No SW found, reloading for fresh code...');
-            localStorage.removeItem('appVersion');
-            window.location.href = window.location.origin + window.location.pathname;
-          }
-        });
-      } else {
+      // Pilnīga tīrīšana: SW atsaukšana + kešu iztīrīšana + pārlādēšana.
+      // Bez kešu tīrīšanas pārlūks var 10 minūtes atgriezt vecus JS failus
+      // (GitHub Pages sūta Cache-Control: max-age=600).
+      const hardReset = () => {
         localStorage.removeItem('appVersion');
         window.location.href = window.location.origin + window.location.pathname;
+      };
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          const jobs = (regs || []).map(r => r.unregister().catch(() => {}));
+          if ('caches' in window) {
+            jobs.push(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
+          }
+          return Promise.all(jobs);
+        }).then(hardReset).catch(hardReset);
+      } else {
+        if (typeof caches !== 'undefined') {
+          caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+            .then(hardReset).catch(hardReset);
+        } else {
+          hardReset();
+        }
       }
       return;
     }
@@ -40,29 +43,26 @@ class UpdateNotifier {
   }
 
   init() {
-    if ('serviceWorker' in navigator) {
-      console.log('[UpdateNotifier] Checking for old Service Worker to unregister');
-      // Check for and unregister any old Service Worker that might be caching stale content
-      navigator.serviceWorker.getRegistration().then(reg => {
-        if (reg) {
-          console.log('[UpdateNotifier] Found existing SW registration, unregistering...');
-          reg.unregister().then(() => {
-            console.log('[UpdateNotifier] Old SW unregistered, registering new one...');
-            this.registerNewSW();
-          });
-        } else {
-          console.log('[UpdateNotifier] No existing SW, registering new one...');
-          this.registerNewSW();
-        }
-      });
-    }
+    if (!('serviceWorker' in navigator)) return;
+    console.log('[UpdateNotifier] Reģistrējam service workeru (bez atsaukšanas)');
+    // SVARĪGI: NEDRĪKST katrā ielādē atsaukt un pārreģistrēt SW.
+    // Tas liek lapai nonākt zem jauna SW pārvaldības, kas pārtver arējos
+    // JSONP pieprasījumus uz script.google.com un nogriek datu ielādi.
+    // SW atjaunināšanos pārvalda pats pārlūks.
+    this.registerNewSW();
   }
 
   registerNewSW() {
-    console.log('[UpdateNotifier] Reģistrējam jauno Service Worker (sw2.js):', this.versionParam);
-    // Use sw2.js to bypass any cached sw.js from old Service Worker
+    console.log('[UpdateNotifier] Reģistrējam Service Worker (sw2.js):', this.versionParam);
     navigator.serviceWorker.register('sw2.js' + this.versionParam, { updateViaCache: 'none' })
-      .then(reg => console.log('[UpdateNotifier] Jaunā SW reģistrēta v20:', reg.scope))
+      .then(reg => {
+        console.log('[UpdateNotifier] SW reģistrēta:', reg.scope);
+        // Ja ir gaidījošs SW — aktivē to, lai jaunais kods sāk darboties tūlīt
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        return reg.update().catch(() => {});
+      })
       .catch(err => console.warn('[SW] Registration failed:', err));
 
     navigator.serviceWorker.addEventListener('message', (event) => {
@@ -71,7 +71,7 @@ class UpdateNotifier {
         this.showUpdateBanner();
       }
       if (event.data && event.data.type === 'SW_REPLACED') {
-        console.log('[UpdateNotifier] Vecā SW aizvietota, pārslādē...');
+        console.log('[UpdateNotifier] Vecā SW aizvietota, pārlādē...');
         window.location.reload();
       }
     });

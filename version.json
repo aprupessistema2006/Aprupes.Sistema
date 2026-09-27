@@ -1,7 +1,7 @@
 {
-  "version": "20260927-1635",
+  "version": "20260927-1650",
   "timestamp": 1790548800000,
-  "changes": "SW v33: SW vairs NEAPKALPO arējos pieprasījumus (url.origin !== self.location.origin), tāpēc JSONP uz script.google.com vairs netiek pārtverts caur SW fetch() un strādā telefonā. Iespriekšējais SW pārtvēra JSONP skriptus, kas tāpēc neielādējās. Bezsaistes režīms, bootstrap atkārtošanas un drošs setup ekrāns (netiek rādīts bez savienojuma).",
+  "changes": "SW pašizārstīšanās: ja JSONP uz script.google.com neizdodas, lapa pati noņem service workeru un kešas, tad mēģina vēlreiz (sync.js _teardownServiceWorker). update_notifier.js vairs NEatsaista un pārreģistrē SW katrā lapas ielādē — tas lika lapai nonākt zem jauna SW pārvaldības, kas pārtvēr JSONP. force_update=1 tagad iztīra arī kešas, ne tikai SW. Jaunā versija 20260927-1650.",
   "files": [
     "version.json",
     "js/config.js",

@@ -646,10 +646,37 @@ class CareSync {
       });
   }
 
+  // Ārējiem pieprasījumiem (JSONP uz script.google.com) pārlūks izmanto
+  // JSONP, nevis fetch — tāpēc SW nedrīkst tos pārtvert. Ja tomēr
+  // gadījumā to dara, skripts neielādējas un JSONP atzvanīšana nenotiek.
+  // Šeit noņemam SW un ļaujam pārlūkam strādāt pašam.
+  async _teardownServiceWorker() {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker) return false;
+    try {
+      const controlled = !!navigator.serviceWorker.controller;
+      const regs = navigator.serviceWorker.getRegistrations
+        ? await navigator.serviceWorker.getRegistrations()
+        : [];
+      if (!controlled && (!regs || regs.length === 0)) return false;
+
+      await Promise.all((regs || []).map(r => r.unregister().catch(() => {})));
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      console.log('[sync] Service Workers noņemti, mēģinu vēlreiz bez SW');
+      return true;
+    } catch (e) {
+      console.warn('[sync] SW noņemšana neizdevās:', e);
+      return false;
+    }
+  }
+
   // Palūkstīga pieprasījuma atkārtota mēģinājuma ar eksponenciālo atliki
   async _fetchWithRetry(url, timeout, retries, options = {}) {
     const { onRetry, loadTimeout } = options;
     let lastErr;
+    let swTried = false;
     const backoff = [1000, 3000, 8000]; // Ātrāk atjauno GAS pēc cold start
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -659,6 +686,13 @@ class CareSync {
         lastErr = e;
         // Server atbildēja ar kļūdu (piem. GAS kvota) — atkārtošana neatbūs palīdzēt
         if (e && e.permanent) throw e;
+
+        // Vienu reizi mēģinām noņemt SW — tas bieži novērš JSONP nokļūšanu
+        if (!swTried && attempt === 0) {
+          const removed = await this._teardownServiceWorker();
+          if (removed) swTried = true;
+        }
+
         console.warn('[sync] atkārtota mēģinājuma kļūda (mēģinājums ' + (attempt + 1) + '/' + (retries + 1) + '):', e.message);
         if (attempt < retries) {
           if (onRetry) {

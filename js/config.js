@@ -1,6 +1,6 @@
 const CONFIG = {
   APP_NAME: 'Aprūpes sistēma',
-  VERSION: '20260927-1635',
+  VERSION: '20260927-1650',
 
   GAS_URL: 'https://script.google.com/macros/s/AKfycbzuLLIfX6rXYBXTduYnhb5sarF10KGFYTyt-qDVJZOgwuI5q4KgpaYSVpuE4ce7XAhn-Q/exec',
 
