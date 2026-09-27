@@ -49,12 +49,18 @@ class LoginController {
 
     let hasRemote = false;
     let hasLocal = false;
+    let remoteError = null;
 
+    // Quick connection check (short timeout) — informational only.
+    // We ALWAYS proceed to loadInitialData afterwards because GAS cold-start
+    // can exceed the quick ping timeout on mobile networks.
     try {
       const conn = await this.sync.checkConnection();
       hasRemote = conn.connected;
+      if (!hasRemote) remoteError = conn.message || 'Nav savienojuma';
     } catch (e) {
       console.error('[login] remote check failed', e);
+      remoteError = e.message;
     }
 
     if (!hasRemote) {
@@ -65,15 +71,13 @@ class LoginController {
       }
     }
 
-    if (!hasRemote && !hasLocal) {
-      hideLoading();
-      this.enterSetupMode();
-      return;
-    }
-
+    // Always attempt the full data load — it has its own retries and a long
+    // timeout (120s). The quick ping above is just an early signal.
     showLoading('Ielādēju datus no Google...');
+    let syncResult = null;
+    let loadError = null;
     try {
-      const syncResult = await this.sync.loadInitialData((msg) => {
+      syncResult = await this.sync.loadInitialData((msg) => {
         showLoading(msg);
       });
       if (syncResult && syncResult.offline) {
@@ -86,6 +90,7 @@ class LoginController {
           hasLocal = true;
         }
       } else {
+        hasRemote = true;
         if (statusMsg) {
           statusMsg.textContent = '✓ Savienojums ar Google aktīvs • ' + syncResult.count.darbinieki + ' darbinieki';
           statusMsg.style.color = '#27ae60';
@@ -93,6 +98,7 @@ class LoginController {
         document.body.classList.add('online');
       }
     } catch (e) {
+      loadError = e;
       if (statusMsg) {
         statusMsg.textContent = '⚠️ Neizdevās ielādēt no Google Sheets';
         statusMsg.style.color = '#e74c3c';
@@ -101,6 +107,21 @@ class LoginController {
     }
 
     hideLoading();
+
+    // Only enter setup mode if BOTH the quick check AND the full load failed
+    // to find any data (remote or local).
+    const loadedEmployees = syncResult && syncResult.count ? syncResult.count.darbinieki : 0;
+    if (!hasRemote && !hasLocal && !loadedEmployees) {
+      const setupMsg = document.getElementById('statusMessage');
+      if (setupMsg) {
+        setupMsg.textContent = '⚠️ Neizdevās savienoties ar Google Sheets. ' +
+          (remoteError || loadError ? 'Kļūda: ' + (loadError || remoteError) : '') +
+          ' Pārbaudiet interneta savienojumu un atkārtoti atveriet lapu.';
+        setupMsg.style.color = '#e74c3c';
+      }
+      this.enterSetupMode();
+      return;
+    }
 
     if (!hasRemote) {
       const statusMsg = document.getElementById('statusMessage');
@@ -117,6 +138,10 @@ class LoginController {
       if (employeeSearch) employeeSearch.disabled = true;
       const list = document.getElementById('employeeList');
       if (list) list.innerHTML = '<div class="no-results" style="color:#e74c3c;text-align:center;padding:20px;">🔴 Nav savienojuma ar serveri. Nevar rādīt darbinieku sarakstu, jo dati var būt novecojuši vai nekorekti.</div>';
+      // Still try to show local data if available
+      if (hasLocal) {
+        await this.loadEmployees();
+      }
       return;
     }
 
