@@ -27,9 +27,49 @@ async function fetchWithTimeout(url, timeout = 8000, options = {}) {
   }
 }
 
-// JSONP request — primary transport for Google Apps Script
-// GAS does not send CORS headers, so fetch with mode:'cors' always fails.
-// JSONP works without CORS since <script> tags bypass the same-origin policy.
+// Primārais transports: fetch() + tīrs JSON.
+//
+// IEPRIEKŠĒJAIS KOMENTS KODS BIJA NEPAREIZS — GAS /exec nosūta
+// "Access-Control-Allow-Origin: *", tāpēc fetch ar mode:'cors' strādā.
+// Izmantojot JSONP (<script> tagu), dažas ierīces (telefoni, reklāmu
+// bloķētāji, DNS filtrēšana) skriptu noraida un dati neielādējas.
+// fetch nav atkarīgs no <script> tagu ielādes un dod īstas kļūdas.
+async function fetchRequest(url, timeout) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'follow',
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('Serveris atbildēja ar HTTP ' + res.status);
+    const text = await res.text();
+    const trimmed = text.trim();
+    if (!trimmed) throw new Error('Serveris atgrieza tukšu atbildi');
+    try {
+      return JSON.parse(trimmed);
+    } catch (e) {
+      // Ja tomēr atgriezts JSONP, izpakojam to
+      const m = /^[^({]*\(([\s\S]*)\)\s*;?\s*$/.exec(trimmed);
+      if (m) {
+        try { return JSON.parse(m[1]); } catch (e2) { /* tālāk */ }
+      }
+      throw new Error('Neatpazīsta servera atbildi');
+    }
+  } catch (e) {
+    clearTimeout(timer);
+    if (e && e.name === 'AbortError') throw new Error('Timeout');
+    if (e && e.permanent) throw e;
+    throw new Error(e && e.message ? e.message : 'Savienojuma kļūda');
+  }
+}
+
+// Rezerves transports — JSONP, ja fetch neizdevās
 function jsonpRequest(url, timeout = 60000) {
   return new Promise((resolve, reject) => {
     const callbackName = 'jsonp_cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -83,17 +123,28 @@ function jsonpRequest(url, timeout = 60000) {
   });
 }
 
-// Primary request function — uses JSONP for Google Apps Script
-// GAS web apps don't send CORS headers for the exec endpoint, so fetch with mode:'cors' always fails.
-// JSONP works reliably without CORS since <script> tags bypass the same-origin policy.
+// Galvenais pieprasījumu funkcija.
+// Primāri — fetch() (CORS droši, dod īstas kļūdas).
+// Ja tas neizdodas — JSONP kā rezinē (dažas ierīces bloķē <script>).
 async function requestData(url, timeout = 60000, loadTimeoutOverride) {
   // Add cache buster to prevent stale redirect URLs from GAS
   const separator = url.includes('?') ? '&' : '?';
-  const urlWithCacheBuster = url + separator + '_t=' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  const stamp = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  const urlWithCacheBuster = url + separator + '_t=' + stamp;
   // Load action (action=load) goes through redirect URL, needs more time
   const isLoadAction = url.includes('action=load');
   const effectiveTimeout = isLoadAction ? (loadTimeoutOverride || 120000) : timeout;
-  return jsonpRequest(urlWithCacheBuster, effectiveTimeout);
+
+  // fetch ceļš neizmanto callback parametru — GAS tad atgriež tīru JSON
+  const jsonUrl = url.replace(/([?&])callback=[^&]*&?/, '$1').replace(/[?&]$/, '');
+
+  try {
+    return await fetchRequest(jsonUrl, effectiveTimeout);
+  } catch (err) {
+    console.warn('[sync] fetch transports neizdevās (' + err.message + '), mēģinu JSONP');
+    // jsonpRequest() pats pievieno callback parametru
+    return jsonpRequest(urlWithCacheBuster, effectiveTimeout);
+  }
 }
 
 // Request deduplication — prevent parallel identical requests

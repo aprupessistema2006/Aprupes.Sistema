@@ -201,23 +201,32 @@ class LoginController {
     const statusMsg = document.getElementById('statusMessage');
     if (statusMsg && statusMsg.parentNode) statusMsg.parentNode.appendChild(wrap);
 
-    let pingResult;
-    try {
-      if (!navigator.onLine) {
-        pingResult = 'ierīce bezsaistē';
-      } else {
-        const t0 = Date.now();
-        const res = await this.sync.checkConnection();
-        const ms = Date.now() - t0;
-        pingResult = res.connected
-          ? 'serveris atbildēja (' + ms + ' ms)'
-          : 'serveris neatbildēja (' + ms + ' ms) — ' + (res.message || '');
+    const render = () => {
+      wrap.innerHTML = '<b>Savienojuma diagnostika</b><br>' + lines.join('<br>');
+    };
+    render();
+
+    // Kontroles tests: vai vispār strādā āriešu pieprasījumi uz citu vietni.
+    // Ja arī tas neizdodas — problēma ir tīklā, nevis Google'a serverī.
+    const probe = async (label, probeUrl) => {
+      const t0 = Date.now();
+      try {
+        const res = await fetch(probeUrl, { mode: 'cors', cache: 'no-store', credentials: 'omit' });
+        return label + ': HTTP ' + res.status + ' (' + (Date.now() - t0) + ' ms)';
+      } catch (e) {
+        return label + ': NEIZDEVĀS (' + (Date.now() - t0) + ' ms) — ' + (e && e.message ? e.message : e);
       }
-    } catch (e) {
-      pingResult = 'kļūda: ' + (e.message || e);
+    };
+
+    lines.push(await probe('Kontrole (jsdelivr)', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/package.json'));
+    render();
+
+    if (!navigator.onLine) {
+      lines.push('Google: ierīce bezsaistē');
+    } else {
+      lines.push(await probe('Google (fetch)', url + '?action=ping&_t=' + Date.now()));
     }
-    lines.push('Pārbaude: ' + pingResult);
-    wrap.innerHTML = '<b>Savienojuma diagnostika</b><br>' + lines.join('<br>');
+    render();
   }
 
   // Bezsaistes režīms: serveris nepieejams, bet vietējie dati ir.

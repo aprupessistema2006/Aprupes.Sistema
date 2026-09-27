@@ -1,7 +1,7 @@
 {
-  "version": "20260927-1650",
+  "version": "20260927-1700",
   "timestamp": 1790548800000,
-  "changes": "SW pašizārstīšanās: ja JSONP uz script.google.com neizdodas, lapa pati noņem service workeru un kešas, tad mēģina vēlreiz (sync.js _teardownServiceWorker). update_notifier.js vairs NEatsaista un pārreģistrē SW katrā lapas ielādē — tas lika lapai nonākt zem jauna SW pārvaldības, kas pārtvēr JSONP. force_update=1 tagad iztīra arī kešas, ne tikai SW. Jaunā versija 20260927-1650.",
+  "changes": "Transporta maina: sync.js tagad primaari lieto fetch() nevis JSONP. Ieksprieksjas koda koments bija nepareizs - GAS /exec galiga atbilde nosuta Access-Control-Allow-Origin: *, tapec fetch ar mode:cors strada, un bez callback parametra GAS atgriez tiru JSON. JSONP (<script> tags) tika noraidits telefona ierice (kluda Savienojuma kluda no script.onerror), tapec neviens pieprasijums neizpildijas. JSONP paliek ka rezine. Diagnostika tagad parbauda divas adreses (kontroles CDN + Google), lai atrastu vai vainigs tikls vai Google. Parbaudits pret dzivo serveri: 21 darbinieks, 4 klienti, 4.5s. Versija 20260927-1700.",
   "files": [
     "version.json",
     "js/config.js",
