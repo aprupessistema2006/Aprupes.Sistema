@@ -859,7 +859,7 @@ class MedicineView {
             return `<div class="medicine-trend-field">
               <span class="medicine-trend-field-label">${f.label}</span>
               <span class="medicine-trend-values">${trendValues.map(t => {
-                return `<span title="${t.date}">${t && t.value ? String(t.value) : '-'}</span>`;
+                return `<span title="${t && t.date ? t.date : ''}">${t && t.value ? String(t.value) : '-'}</span>`;
               }).join(' → ')}</span>
             </div>`;
           }).filter(h => h).join('')}
