@@ -86,6 +86,8 @@ class MedicineView {
       console.error('[medicine] init error:', e);
     } finally {
       if (overlay) overlay.style.display = 'none';
+      const splash = document.getElementById('splashScreen');
+      if (splash) splash.style.display = 'none';
     }
 
     window.addEventListener('syncComplete', (e) => {
