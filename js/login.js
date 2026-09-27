@@ -71,8 +71,8 @@ class LoginController {
       }
     }
 
-    // Always attempt the full data load — it has its own retries and a long
-    // timeout (120s). The quick ping above is just an early signal.
+    // Vienmēr censties ielādēt pilnos datus — ping ir tikai agrīns signāls,
+    // savukārt loadInitialData iekšpusmē atkārto pieprasījumus.
     showLoading('Ielādēju datus no Google...');
     let syncResult = null;
     let loadError = null;
@@ -81,14 +81,12 @@ class LoginController {
         showLoading(msg);
       });
       if (syncResult && syncResult.offline) {
+        loadError = syncResult.error || remoteError || 'Nav savienojuma';
         if (statusMsg) {
-          statusMsg.textContent = '⚠️ ' + (syncResult.error || 'Nav savienojuma ar Google Sheets');
+          statusMsg.textContent = '⚠️ ' + loadError;
           statusMsg.style.color = '#e74c3c';
         }
         document.body.classList.remove('online');
-        if (!(hasLocal || (syncResult && syncResult.count && syncResult.count.darbinieki > 0))) {
-          hasLocal = true;
-        }
       } else {
         hasRemote = true;
         if (statusMsg) {
@@ -108,14 +106,25 @@ class LoginController {
 
     hideLoading();
 
+    const loadedEmployees = syncResult && syncResult.count ? syncResult.count.darbinieki : 0;
+
+    // Pārbaudīt vietējos datus NO JAUNA — pēc neveiksmīga ielādes tie var būt
+    // atlicināti (pirms "Atjaunot" nospiešanas tie tika notīrīti).
+    if (!hasRemote) {
+      try {
+        hasLocal = await this.sync.hasLocalData();
+      } catch (e) {
+        console.error('[login] local re-check failed', e);
+      }
+    }
+
     // Only enter setup mode if BOTH the quick check AND the full load failed
     // to find any data (remote or local).
-    const loadedEmployees = syncResult && syncResult.count ? syncResult.count.darbinieki : 0;
     if (!hasRemote && !hasLocal && !loadedEmployees) {
       const setupMsg = document.getElementById('statusMessage');
       if (setupMsg) {
         setupMsg.textContent = '⚠️ Neizdevās savienoties ar Google Sheets. ' +
-          (remoteError || loadError ? 'Kļūda: ' + (loadError || remoteError) : '') +
+          (loadError ? 'Kļūda: ' + (loadError.message || loadError) : '') +
           ' Pārbaudiet interneta savienojumu un atkārtoti atveriet lapu.';
         setupMsg.style.color = '#e74c3c';
       }
@@ -124,33 +133,136 @@ class LoginController {
     }
 
     if (!hasRemote) {
-      const statusMsg = document.getElementById('statusMessage');
-      if (statusMsg) {
-        statusMsg.textContent = '⚠️ Nav savienojuma ar Google Sheets. Dati nevar tikt atjaunoti. Lūdzu, pārbaudiet interneta savienojumu un atkārtoti atveriet lapu.';
-        statusMsg.style.color = '#e74c3c';
-      }
-      document.body.classList.remove('online');
-      const loginBtn = document.getElementById('loginBtn');
-      if (loginBtn) loginBtn.disabled = true;
-      const pinInput = document.getElementById('pinInput');
-      if (pinInput) pinInput.disabled = true;
-      const employeeSearch = document.getElementById('employeeSearch');
-      if (employeeSearch) employeeSearch.disabled = true;
-      const list = document.getElementById('employeeList');
-      if (list) list.innerHTML = '<div class="no-results" style="color:#e74c3c;text-align:center;padding:20px;">🔴 Nav savienojuma ar serveri. Nevar rādīt darbinieku sarakstu, jo dati var būt novecojuši vai nekorekti.</div>';
-      // Still try to show local data if available
-      if (hasLocal) {
-        await this.loadEmployees();
-      }
+      // Reģistrēšana NAV jābloķē — ierīcē jau ir dati, strādājam bezsaistē.
+      await this.enterOfflineMode(loadError);
       return;
     }
 
+    this.clearOfflineMode();
     await this.loadEmployees();
 
     if (this.employees.length === 0) {
       this.enterSetupMode();
       return;
     }
+  }
+
+  // Bezsaistes režīms: serveris nepieejams, bet vietējie dati ir.
+  // Darbinieku saraksts un PIN ievade paliek iespējami, jo dati var būt
+  // nedaudā novecojuši, bet tie noteikti ir pilnīgāki nekā nekas.
+  async enterOfflineMode(error) {
+    document.body.classList.remove('online');
+    await this.loadEmployees();
+
+    const total = this.employees.length;
+    const lastSync = await this.sync.getLastSyncTime();
+    let when = 'šai ierīcei';
+    if (lastSync) {
+      try {
+        const d = new Date(lastSync);
+        when = d.toLocaleDateString('lv-LV') + ' ' +
+               String(d.getHours()).padStart(2, '0') + ':' +
+               String(d.getMinutes()).padStart(2, '0');
+      } catch (e) {
+        when = new Date(lastSync).toISOString().slice(0, 16).replace('T', ' ');
+      }
+    }
+
+    const statusMsg = document.getElementById('statusMessage');
+    const reason = error ? (' (' + (error.message || error) + ')') : '';
+    if (statusMsg) {
+      statusMsg.textContent = total > 0
+        ? '⚠️ Bez savienojuma ar Google Sheets' + reason + ' — darbi pēdējoreiz atjaunināti ' + when +
+          '. Darbi tiks saglabāti un nosūtīti, kad savienojums atgriezīsies.'
+        : '⚠️ Nav savienojuma ar Google Sheets' + reason + '. Pārbaudi interneta savienojumu un mēģini vēlreiz.';
+      statusMsg.style.color = '#f39c12';
+    }
+
+    if (total === 0) {
+      const list = document.getElementById('employeeList');
+      if (list) {
+        list.innerHTML = '<div class="no-results" style="color:#e74c3c;text-align:center;padding:20px;">' +
+          '🔴 Nevar ielādēt darbiniekus — nav savienojuma ar serveri un šai ierīcei vēl nav saglabātu datu.</div>';
+      }
+    }
+
+    this.showRetryButton(error);
+  }
+
+  // Poga "Mēģināt vēlreiz" — atkārto ielādi bez pilnas lapas pārlādēšanas
+  showRetryButton(error) {
+    const statusMsg = document.getElementById('statusMessage');
+    if (!statusMsg || !statusMsg.parentNode) return;
+    if (document.getElementById('retrySyncBtn')) return;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'retrySyncWrap';
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:12px;';
+
+    const btn = document.createElement('button');
+    btn.id = 'retrySyncBtn';
+    btn.textContent = '🔄 Mēģināt vēlreiz';
+    btn.style.cssText = 'background:#2196F3;color:#fff;border:none;padding:12px 28px;border-radius:8px;' +
+      'font-size:16px;font-weight:600;cursor:pointer;width:100%;max-width:280px;';
+    btn.addEventListener('click', () => this.retryInitialLoad());
+
+    const detail = document.createElement('div');
+    detail.textContent = error ? ('Kļūda: ' + (error.message || error)) : '';
+    detail.style.cssText = 'font-size:12px;color:#7f8c8d;word-break:break-word;text-align:center;';
+
+    wrap.appendChild(btn);
+    wrap.appendChild(detail);
+    statusMsg.parentNode.insertBefore(wrap, statusMsg.nextSibling);
+  }
+
+  async retryInitialLoad() {
+    const btn = document.getElementById('retrySyncBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Pārbaudu...';
+    }
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    if (loadingOverlay) loadingOverlay.style.display = 'flex';
+    if (loadingText) loadingText.textContent = 'Pārbaudu savienojumu ar Google...';
+
+    let result = null;
+    try {
+      result = await this.sync.loadInitialData((msg) => {
+        if (loadingText) loadingText.textContent = msg;
+      });
+    } catch (e) {
+      console.warn('[login] retry failed', e);
+    }
+
+    if (loadingOverlay) loadingOverlay.style.display = 'none';
+
+    if (result && !result.offline) {
+      const wrap = document.getElementById('retrySyncWrap');
+      if (wrap) wrap.remove();
+      document.body.classList.add('online');
+      await this.loadEmployees();
+      const statusMsg = document.getElementById('statusMessage');
+      if (statusMsg) {
+        statusMsg.textContent = '✓ Savienojums ar Google atjaunots • ' + this.employees.length + ' darbinieki';
+        statusMsg.style.color = '#27ae60';
+      }
+      this.sync.processQueue().catch(() => {});
+      return;
+    }
+
+    const errMsg = (result && result.error) || 'Nav savienojuma';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Mēģināt vēlreiz';
+    }
+    const detail = document.querySelector('#retrySyncWrap div:last-child');
+    if (detail) detail.textContent = 'Kļūda: ' + errMsg;
+  }
+
+  clearOfflineMode() {
+    const wrap = document.getElementById('retrySyncWrap');
+    if (wrap) wrap.remove();
   }
 
   enterSetupMode() {

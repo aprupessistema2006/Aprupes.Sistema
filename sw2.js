@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v31'; // login.js fix + version bump
+const CACHE_NAME = 'aprupes-sistema-v32'; // offline login + version.json network-first
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -134,6 +134,16 @@ async function notifyClients(message) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const isHTML = event.request.headers.get('accept')?.includes('text/html');
+
+  // version.json NEVER kešojama. To dēļ uz telefoniem cache-first stratēģija
+  // atgrieza veco versiju, "Atjaunot" josma parādījās bezgalīgi un
+  // neizraisīja nekādu atjauninājumu.
+  if (url.pathname.endsWith('version.json')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+    );
+    return;
+  }
 
   if (isHTML) {
     // For HTML, always fetch fresh from network (bypass all caches)

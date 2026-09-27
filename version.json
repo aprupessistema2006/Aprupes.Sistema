@@ -1,7 +1,7 @@
 {
-  "version": "20260927-1534",
-  "timestamp": 1790545600000,
-  "changes": "login.js: Always attempt full data load (120s timeout + retries) even when quick 15s ping fails. Fixes phone showing setup screen when data exists in Google Sheets. SW v31.",
+  "version": "20260927-1600",
+  "timestamp": 1790548800000,
+  "changes": "Mobiļajā ierīcē vairs netiek bloķēta reģistrācija, ja Google Sheets nav sasniedzams: ja ierīcē jau ir dati, tiek atvērts bezsaistes režīms ar pogu 'Mēģināt vēlreiz'. Bootstrap ielādei pievienoti 3 mēģinājumi ar atkārtotu pieprasījumu (iekšpus tam nebija neviena), pirmais ar īsāku timeout. Reālā kļūdas ziņa netiek pārrakstīta ar vispārīgu tekstu. version.json vairs netiek kešots service workerī, kas izraisīja bezgalīgu 'Atjaunot' josmu telefonā. SW v32.",
   "files": [
     "version.json",
     "js/config.js",
@@ -16,27 +16,3 @@
     "admin.html"
   ]
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

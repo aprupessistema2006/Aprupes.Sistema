@@ -86,13 +86,13 @@ function jsonpRequest(url, timeout = 60000) {
 // Primary request function — uses JSONP for Google Apps Script
 // GAS web apps don't send CORS headers for the exec endpoint, so fetch with mode:'cors' always fails.
 // JSONP works reliably without CORS since <script> tags bypass the same-origin policy.
-async function requestData(url, timeout = 60000) {
+async function requestData(url, timeout = 60000, loadTimeoutOverride) {
   // Add cache buster to prevent stale redirect URLs from GAS
   const separator = url.includes('?') ? '&' : '?';
   const urlWithCacheBuster = url + separator + '_t=' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   // Load action (action=load) goes through redirect URL, needs more time
   const isLoadAction = url.includes('action=load');
-  const effectiveTimeout = isLoadAction ? 120000 : timeout;
+  const effectiveTimeout = isLoadAction ? (loadTimeoutOverride || 120000) : timeout;
   return jsonpRequest(urlWithCacheBuster, effectiveTimeout);
 }
 
@@ -506,10 +506,27 @@ class CareSync {
     const params = new URLSearchParams({ action: 'load', mode: 'bootstrap', t: Date.now() });
     const url = SYNC_URL + '?' + params.toString();
     console.log('[sync] bootstrap SENDING:', url);
-    const data = await requestData(url, 60000);
-    console.log('[sync] bootstrap RECEIVED:', 'darbinieki=' + (data.darbinieki || []).length,
+    // Retries are essential on mobile: a single dropped request used to fail the
+    // whole app. Each retry also gets a fresh URL (timestamp) so a cached GAS
+    // 302/error response cannot poison every attempt.
+    // Pirmais mēģinājums ir īsāks (45s), lai vāja tīkla lietotājs nenosaka
+    // gaidīt bezgalīgi; atkārtojumiem 90s (GAS var būt aizvēsts).
+    let lastAttempt = 0;
+    const data = await this._fetchWithRetry(url, 60000, 3, {
+      loadTimeout: (attempt) => (attempt === 0 ? 45000 : 90000),
+      onRetry: (attempt) => {
+        lastAttempt = attempt;
+        if (onProgress) onProgress('Pārbaudu savienojumu ar Google... (mēģinājums ' + attempt + ')');
+      }
+    });
+    console.log('[sync] bootstrap RECEIVED (attempt ' + lastAttempt + '):',
+      'darbinieki=' + (data.darbinieki || []).length,
       'klienti=' + (data.klienti || []).length, 'counts=', JSON.stringify(data.counts || {}));
-    if (data.error) throw new Error(data.error);
+    if (data.error) {
+      const err = new Error(data.error);
+      err.permanent = true;
+      throw err;
+    }
     return data;
   }
 
@@ -630,16 +647,23 @@ class CareSync {
   }
 
   // Palūkstīga pieprasījuma atkārtota mēģinājuma ar eksponenciālo atliki
-  async _fetchWithRetry(url, timeout, retries) {
+  async _fetchWithRetry(url, timeout, retries, options = {}) {
+    const { onRetry, loadTimeout } = options;
     let lastErr;
     const backoff = [1000, 3000, 8000]; // Ātrāk atjauno GAS pēc cold start
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        return await requestData(url, timeout);
+        const lt = typeof loadTimeout === 'function' ? loadTimeout(attempt) : loadTimeout;
+        return await requestData(url, timeout, lt);
       } catch (e) {
         lastErr = e;
-        console.warn('[sync] atkārtota mēģinājuma kļūda (mēģinājums ' + (attempt + 1) + '):', e.message);
+        // Server atbildēja ar kļūdu (piem. GAS kvota) — atkārtošana neatbūs palīdzēt
+        if (e && e.permanent) throw e;
+        console.warn('[sync] atkārtota mēģinājuma kļūda (mēģinājums ' + (attempt + 1) + '/' + (retries + 1) + '):', e.message);
         if (attempt < retries) {
+          if (onRetry) {
+            try { onRetry(attempt + 2); } catch (cbErr) {}
+          }
           const delay = backoff[Math.min(attempt, backoff.length - 1)];
           await new Promise(r => setTimeout(r, delay));
         }
@@ -700,7 +724,8 @@ class CareSync {
     // Tikai viens mēģinājums — ātri, bez murgiem
     try {
       if (processQueueFirst) {
-        await this._processQueueUnlocked();
+        // Rindas nosūtīšanai atvēlam tikai 20s — dati jāielādē ātrāk!
+        await this._processQueueUnlocked(20000);
       }
 
       // === FAZA 1: nelielās tabulas (ātri) ===
@@ -860,7 +885,7 @@ class CareSync {
     return this._runExclusive(() => this._processQueueUnlocked());
   }
 
-  async _processQueueUnlocked() {
+  async _processQueueUnlocked(maxMs) {
     const summary = { synced: 0, failed: 0, remaining: 0, permanentlyFailed: 0 };
     if (!SYNC_URL) {
       this._updateSyncStatus('Nav savienojuma');
@@ -868,6 +893,10 @@ class CareSync {
     }
     this._queueProcessing = true;
     this._updateSyncStatus('Sinhronizē...');
+    // Grafiks: uz telefona bez savienojuma katrs rakstīšanas pieprasījums
+    // var kavēties līdz timeoutam. Bez šī ierobežojuma rinda varētu aizturēt
+    // lāpu ielādi desmitiem minūšu pirms datu ielādes sākas.
+    const deadline = maxMs ? Date.now() + maxMs : 0;
     try {
       const items = await this.db.getAll('sync_queue');
       if (items.length === 0) {
@@ -878,6 +907,12 @@ class CareSync {
       const MAX_RETRIES = 5;
       const sorted = items.slice().sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
+        if (deadline && Date.now() > deadline) {
+          console.log('[sync] processQueue: laika budžets izlietots, pārlejot pārējos ' +
+            (sorted.length - summary.synced - summary.failed) + ' ierakstus uz vēlāku');
+          summary.skipped = true;
+          break;
+        }
         // Skip permanently failed items (exceeded max retries)
         if ((item.retries || 0) >= MAX_RETRIES) {
           summary.permanentlyFailed++;
@@ -891,8 +926,8 @@ try {
             let result;
             try {
               result = isWriteOp
-                ? await postAction(action, data)
-                : await jsonpAction(action, data);
+                ? await postAction(action, data, 45000)
+                : await jsonpAction(action, data, 45000);
               console.log('[sync] processQueue RESULT:', action, 'success:', result?.success, 'error:', result?.error, 'already_processed:', result?.already_processed);
             } catch (requestErr) {
               // Request failed (network error/timeout) - re-throw to trigger retry logic
@@ -981,9 +1016,24 @@ try {
   async hasLocalData() {
     try {
       const darbinieki = await this.db.getAll('darbinieki');
-      return darbinieki.length > 0;
+      if (darbinieki.length > 0) return true;
+      // Dārbnieku var nebūt, bet klienti/uzdevomi jābūt — tad dati nav jāielādē no servera
+      const klienti = await this.db.getAll('klienti');
+      return klienti.length > 0;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Kad pēdējoreiz veiksmīgi ielādēti dati no Google (0 = nekad šajā ierīcē)
+  async getLastSyncTime() {
+    try {
+      const meta = await this.db.getAll('meta');
+      const row = (meta || []).find(m => m && m.key === 'lastSync');
+      const ts = row && row.value ? Number(row.value) : 0;
+      return isNaN(ts) ? 0 : ts;
+    } catch (e) {
+      return 0;
     }
   }
 

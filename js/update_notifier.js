@@ -3,6 +3,8 @@
  * 65+ aprūpētāji: vienkāršs paziņojums ar vienu lielo pogu "Atjaunot".
  * Pēc nospiešanas: notīra visus lokālos datus, aktivizē jauno SW un pārlādē lapu.
  */
+const BUILD_VERSION = '20260927-1600';
+
 class UpdateNotifier {
   constructor() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -31,7 +33,7 @@ class UpdateNotifier {
       return;
     }
 
-    this.versionParam = '?v=20260927-1534';
+    this.versionParam = '?v=' + BUILD_VERSION;
     console.log('[UpdateNotifier] Initializing with version param:', this.versionParam);
     this.init();
     this.checkVersionOnPageLoad();
@@ -78,15 +80,16 @@ class UpdateNotifier {
   
   // Pārbaudīt jaunu versiju lapas ielādes brīdī (pirmais, kas dari, atverot programmu)
   async checkVersionOnPageLoad() {
+    const BUILD = BUILD_VERSION;
     try {
-      const response = await fetch('version.json?v=20260927-1534');
+      const response = await fetch('version.json?v=' + BUILD, { cache: 'no-store' });
       console.log('[UpdateNotifier] Fetching version.json, response status:', response.status);
       if (!response.ok) {
         console.warn('[UpdateNotifier] version.json fetch failed:', response.status);
         // Fallback: Always show banner if version.json unavailable
         // This ensures users get the update even if version.json is cached or unavailable
         const storedVersion = localStorage.getItem('appVersion') || '';
-        if (!storedVersion || storedVersion !== '20260927-1534') {
+        if (!storedVersion || storedVersion !== BUILD) {
           this.showUpdateBanner();
         }
         return;
@@ -106,7 +109,7 @@ class UpdateNotifier {
       console.warn('[UpdateNotifier] Versijas pārbaude neizdevās:', e);
       // Fallback: Show banner on error
       const storedVersion = localStorage.getItem('appVersion') || '';
-      if (!storedVersion || storedVersion !== '20260927-1534') {
+      if (!storedVersion || storedVersion !== BUILD) {
         this.showUpdateBanner();
       }
     }
@@ -201,7 +204,7 @@ class UpdateNotifier {
     await this.clearAllLocalData();
 
     console.log('[UpdateNotifier] Pārlādē lapu...');
-    window.location = window.location.href.split('?')[0] + '?v=20260927-1534';
+    window.location = window.location.href.split('?')[0] + '?v=' + BUILD_VERSION;
   }
 
   async clearAllLocalData() {
