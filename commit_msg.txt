@@ -1,0 +1,27 @@
+v20260927-1720: Bez interneta lapa patekas straujak un diagnostika pabeidzas
+
+Lietotaja konstatēja, ka īstais iemesls bija — telefonam nebija interneta.
+Kods to nevarēja novērst, un mana SW/JSONP teorija bija nepareiza.
+
+Tomēr atklāju divus reālus kļūdas, ko šis gadījums izgāja:
+
+1. Bez interneta lietotājs gaidīja 4 mēģinājumus ar 45s + 3x90s timeoutiem
+   (>5 minūtes), lai iegūtu tādu pašu rezultātu kā uzreiz. Es to padarīju
+   ilgāku ar saviem atkārtošanas pirkstiem.
+
+   sync.js _fetchWithRetry(): ātra tīkla kļūda (DNS, "Failed to fetch",
+   skripta kļūda) nozīmē, ka nav tīkla, nevis ka serveris ir lēns.
+   Tagad ir 3 īsie mēģinājumi (~3s) un pēc tam apstājas, nevis 4 gani
+   ar 90s timeoutiem. 2 īsie mēģinājumi tomēr paliek, lai izārstu arī
+   vienu nejaušu zaudētu paketi.
+
+2. Diagnostikas kastīte nekad nepabeidzās. runConnectionDiagnostics()
+   izmantoja checkConnection(), kas iet caur visiem mēģinājumiem, tāpēc
+   bez interneta tā palika tukša gandrīz 5 minūtes.
+
+   Tagad katrai pārbaudei ir ciets 6s timeout, tā pabeidzās vienmēr un
+   izdara secinājumu: "nav interneta" vai "internets ir, bet Google
+   serveris nav pieejams". navigator.onLine vairs netiek uzskatīts par
+   atbildi — tas daudzās ierīcēs guļ pat bez interneta.
+
+Testi: 16 sync + 4 login + 6 live pret dzīvo serveri. Visi iziet.

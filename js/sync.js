@@ -730,13 +730,26 @@ class CareSync {
     let swTried = false;
     const backoff = [1000, 3000, 8000]; // Ātrāk atjauno GAS pēc cold start
     for (let attempt = 0; attempt <= retries; attempt++) {
+      const started = Date.now();
       try {
         const lt = typeof loadTimeout === 'function' ? loadTimeout(attempt) : loadTimeout;
         return await requestData(url, timeout, lt);
       } catch (e) {
+        const spent = Date.now() - started;
         lastErr = e;
         // Server atbildēja ar kļūdu (piem. GAS kvota) — atkārtošana neatbūs palīdzēt
         if (e && e.permanent) throw e;
+
+        // Ātri nokrātis (DNS kļūda, "Failed to fetch", skripta kļūda) nozīmē,
+        // ka nav tīkla, nevis ka serveris ir lēns. Bez tīkla katrs mēģinājums
+        // kļūst par dažām sekundēm, tāpēc 2 ātri mēģinājumi ir lēti un izārst
+        // arī vienu nejaušu zaudētu paketi. Bet turpmākos ar 90s timeoutiem
+        // neizmaksā gaidīt — lietotājs beidz redzēt tikai mirkli.
+        const fastNetErr = spent < 6000 && /Failed to fetch|NetworkError|load failed|ERR_|Savienojuma kļūda/i.test(String(e && e.message));
+        if (fastNetErr && attempt >= 2) {
+          console.warn('[sync] ātrs tīkla kļūdas (' + spent + 'ms) — tīkla nav, pārtraucu');
+          throw e;
+        }
 
         // Vienu reizi mēģinām noņemt SW — tas bieži novērš JSONP nokļūšanu
         if (!swTried && attempt === 0) {
@@ -744,7 +757,7 @@ class CareSync {
           if (removed) swTried = true;
         }
 
-        console.warn('[sync] atkārtota mēģinājuma kļūda (mēģinājums ' + (attempt + 1) + '/' + (retries + 1) + '):', e.message);
+        console.warn('[sync] atkārtota mēģinājuma kļūda (mēģinājums ' + (attempt + 1) + '/' + (retries + 1) + ', ' + spent + 'ms):', e.message);
         if (attempt < retries) {
           if (onRetry) {
             try { onRetry(attempt + 2); } catch (cbErr) {}

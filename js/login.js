@@ -192,39 +192,48 @@ class LoginController {
     wrap.style.cssText = 'margin-top:14px;padding:12px;border-radius:8px;background:#f8f9fa;' +
       'border:1px solid #dee2e6;font-size:12px;color:#495057;text-align:left;word-break:break-word;';
 
-    const online = navigator.onLine ? 'ir' : 'NAV';
     const url = (typeof CONFIG !== 'undefined' && CONFIG.GAS_URL) || 'nav iestatīts';
     const host = (() => { try { return new URL(url).host; } catch (e) { return 'nepareizs URL'; } })();
-    const lines = ['Internets: ' + online, 'Serveris: ' + host];
+    const lines = ['Serveris: ' + host];
 
-    wrap.innerHTML = '<b>Savienojuma pārbaude...</b>';
+    wrap.innerHTML = '<b>Pārbaudu...</b>';
     const statusMsg = document.getElementById('statusMessage');
     if (statusMsg && statusMsg.parentNode) statusMsg.parentNode.appendChild(wrap);
-
     const render = () => {
       wrap.innerHTML = '<b>Savienojuma diagnostika</b><br>' + lines.join('<br>');
     };
     render();
 
-    // Kontroles tests: vai vispār strādā āriešu pieprasījumi uz citu vietni.
-    // Ja arī tas neizdodas — problēma ir tīklā, nevis Google'a serverī.
+    // Katrai pārbaudei ir CIETS timeout — kastīte vienmēr pabeidzies,
+    // pat ja tīkla nav. Agrākā versija atkārtoja caur visiem mēģinājumiem,
+    // tāpēc kastīte palika tukša gandrīz 5 minūtes.
     const probe = async (label, probeUrl) => {
       const t0 = Date.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
       try {
-        const res = await fetch(probeUrl, { mode: 'cors', cache: 'no-store', credentials: 'omit' });
+        const res = await fetch(probeUrl, { mode: 'cors', cache: 'no-store', credentials: 'omit', signal: controller.signal });
         return label + ': HTTP ' + res.status + ' (' + (Date.now() - t0) + ' ms)';
       } catch (e) {
+        if (e && e.name === 'AbortError') return label + ': nav atbildes 6s laikā';
         return label + ': NEIZDEVĀS (' + (Date.now() - t0) + ' ms) — ' + (e && e.message ? e.message : e);
+      } finally {
+        clearTimeout(timer);
       }
     };
 
-    lines.push(await probe('Kontrole (jsdelivr)', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/package.json'));
+    // navigator.onLine norāda tikai tīkla interfeisu un bieži guļ pat bez
+    // interneta, tāpēc to neuzskatām par atbildi — pārbaudām faktiski.
+    lines.push(await probe('Kontroles vietne', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/package.json'));
     render();
 
-    if (!navigator.onLine) {
-      lines.push('Google: ierīce bezsaistē');
-    } else {
-      lines.push(await probe('Google (fetch)', url + '?action=ping&_t=' + Date.now()));
+    lines.push(await probe('Google serveris', url + '?action=ping&_t=' + Date.now()));
+    render();
+
+    const reachable = lines.some(l => /HTTP 2/.test(l));
+    if (!reachable) lines.push('Secinājums: nav interneta vai serveri nevar sasniegt.');
+    else if (lines.some(l => /Google serveris: NEIZDEVĀS|Google serveris: nav atbildes/.test(l))) {
+      lines.push('Secinājums: internets ir, bet Google serveris nav pieejams.');
     }
     render();
   }

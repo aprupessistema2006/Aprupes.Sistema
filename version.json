@@ -1,7 +1,7 @@
 {
-  "version": "20260927-1700",
+  "version": "20260927-1720",
   "timestamp": 1790548800000,
-  "changes": "Transporta maina: sync.js tagad primaari lieto fetch() nevis JSONP. Ieksprieksjas koda koments bija nepareizs - GAS /exec galiga atbilde nosuta Access-Control-Allow-Origin: *, tapec fetch ar mode:cors strada, un bez callback parametra GAS atgriez tiru JSON. JSONP (<script> tags) tika noraidits telefona ierice (kluda Savienojuma kluda no script.onerror), tapec neviens pieprasijums neizpildijas. JSONP paliek ka rezine. Diagnostika tagad parbauda divas adreses (kontroles CDN + Google), lai atrastu vai vainigs tikls vai Google. Parbaudits pret dzivo serveri: 21 darbinieks, 4 klienti, 4.5s. Versija 20260927-1700.",
+  "changes": "Atras internets: ierice bez interneta tagad patekams 3 isiem meginajumiem (~3s) vietam 4 ganiem ar 90s timeoutiem (>5 min). Diagnostikas kastite tagad ir ar cietu 6s timeout katram testam un vienmer pabeidzas, skaidri noradot vai vainigs tikls vai Google serveris. Navigator.onLine vairs netiek uzskatits par atbildi.",
   "files": [
     "version.json",
     "js/config.js",
