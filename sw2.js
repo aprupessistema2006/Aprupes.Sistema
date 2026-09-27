@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v30'; // SW cache refresh - klienti pārlāde
+const CACHE_NAME = 'aprupes-sistema-v31'; // login.js fix + version bump
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',

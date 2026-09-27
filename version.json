@@ -1,12 +1,12 @@
 {
-  "version": "20260925-1673",
-  "timestamp": 1790373090000,
-  "changes": "Sync.js paging - jaunākās pirmāk līdz offset=0. GAS URL jaunināts. SW v30.",
+  "version": "20260927-1534",
+  "timestamp": 1790545600000,
+  "changes": "login.js: Always attempt full data load (120s timeout + retries) even when quick 15s ping fails. Fixes phone showing setup screen when data exists in Google Sheets. SW v31.",
   "files": [
     "version.json",
     "js/config.js",
     "js/sync.js",
-    "js/care_form.js",
+    "js/login.js",
     "js/update_notifier.js",
     "sw2.js",
     "index.html",
