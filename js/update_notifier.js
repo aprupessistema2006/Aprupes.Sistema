@@ -3,7 +3,7 @@
  * 65+ aprūpētāji: vienkāršs paziņojums ar vienu lielo pogu "Atjaunot".
  * Pēc nospiešanas: notīra visus lokālos datus, aktivizē jauno SW un pārlādē lapu.
  */
-const BUILD_VERSION = '20260927-1730';
+const BUILD_VERSION = '20260927-1740';
 
 class UpdateNotifier {
   constructor() {
