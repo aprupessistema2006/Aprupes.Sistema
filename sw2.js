@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v43'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v44'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -42,31 +42,31 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20260928-2430';
+const BUILD_VERSION = '20260928-2520';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>
   /\.(?:js|css)$/.test(path) ? path + '?v=' + BUILD_VERSION : path;
 
 self.addEventListener('install', (event) => {
-  console.log('[SW-v43] Installing new service worker (cache:', CACHE_NAME, ')');
+  console.log('[SW-v44] Installing new service worker (cache:', CACHE_NAME, ')');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW-v43] Precaching static assets (BUILD', BUILD_VERSION + ')');
+      console.log('[SW-v44] Precaching static assets (BUILD', BUILD_VERSION + ')');
       return cache.addAll(STATIC_ASSETS.map(withVersion).map(url => new Request(url, { cache: 'reload' })));
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW-v43] Activating new service worker');
+  console.log('[SW-v44] Activating new service worker');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[SW-v43] Deleting old cache:', name);
+            console.log('[SW-v44] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
@@ -85,7 +85,7 @@ self.addEventListener('activate', (event) => {
         // "Atjaunot" — tāpēc viņš jau ir beidzis darbu un neko
         // nezaudē. clients.claim() augstāk joprojām nodrošina, ka
         // jaunais kods sāk darboties tūlīt nākamajā navigācijā.
-        console.log('[SW-v43] Aktivizācija pabeigta. Klienti netiek pārlādēti —' +
+        console.log('[SW-v44] Aktivizācija pabeigta. Klienti netiek pārlādēti —' +
           ' atjauninājumu lietotājs apstiprina pats (skat. UpdateNotifier).');
       })
   );
@@ -158,11 +158,16 @@ async function notifyClients(message) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // ĀRĒJIE pieprasījumi (script.google.com JSONP u.c.) SW NEDRĪKST apkalpot!
-  // SW pārtverot šos pieprasījumus laiž caur fetch() un pārnes JSONP
-  // skriptu uz no-cors režīmu — GAS CORS galvenes neatgriež, tāpēc
-  // skripts neielādējas un JSONP atzvanīšana nekad nenotiek.
-  // Tieši tāpēc datorā strādā, bet telefonā ne.
+// ĀRĒJIE pieprasījumi (script.google.com JSONP u.c.) SW NEDRĪKST apkalpot!
+// SW pārtverot šos pieprasījumus laiž caur fetch() un pārnes JSONP
+// skriptu uz no-cors režīmu — tad skripts neielādējas un JSONP
+// atzvanīšana nekad nenotiek. Tieši tāpēc darbojas datorā, bet ne telefonā.
+//
+// ⚠️ Šeit NEBĪJA rakstīts, ka GAS neatgriež CORS galvenes — tas ir nepareizi.
+// Mērījums 2026-09-28: GAS /exec atgriež `Access-Control-Allow-Origin: *`
+// un `Content-Type: application/json`, tāpēc tamdēļ arī fetch strādā.
+// Ārējos pieprasījumus tomēr nedrīkst ļaut SW apkalpot, jo pārtveršana
+// no-cors režīmā nogriež skripta ielādēšanos.
   if (url.origin !== self.location.origin) {
     return; // ļauj pārlūkam apstrādāt pašam
   }

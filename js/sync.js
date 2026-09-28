@@ -77,6 +77,16 @@ async function fetchWithTimeout(url, timeout = 8000, options = {}) {
 // Rezultāts: 404 parādās konsolē divas reizes, nevis desmitiem, un katrs
 // mēģinājums ir ar stingru, īsu laika budžetu.
 // ───────────────────────────────────────────────────────────────────────────
+const TRANSPORT_DEAD_KEY = 'aprupes.fetchDead';
+
+// localStorage ne vienmēr ir pieejams (privātais režīms, ierīču politika).
+// Tāpēc lasīšana ir aizsargāta — transports nedrīkst būt iemesls, kāpēc
+// lietotājs nevar strādāt.
+function readTransportDead() {
+  try { return localStorage.getItem(TRANSPORT_DEAD_KEY) === '1'; }
+  catch (e) { return false; }
+}
+
 const Transport = {
   mode: 'fetch',              // 'fetch' | 'jsonp'
   fetchFailures: 0,
@@ -84,6 +94,9 @@ const Transport = {
   jsonpOk: 0,
   failedModes: new Map(),     // modeKey -> kļūdu skaits
   lastError: null,
+  // Iegultā atmiņa pārdzīvo lapas pārlādēšanai. Bez tā katra ielāde
+  // no jauna mēģina fetch un maksā 15s, ja tas neizdodas.
+  fetchKnownDead: readTransportDead(),
 
     FETCH_TIMEOUT: 20000,       // bija 120000 — GAS aukstais starts ir 3–10s
     JSONP_TIMEOUT: 25000,       // bija 120000
@@ -102,8 +115,32 @@ const Transport = {
 
   shouldSkipFetch(url) {
     if (this.mode === 'jsonp') return true;
+    // ⚠️ IZMEKLĒŠANAS CENA. Katrs fetch mēģinājums, kas neizdodas, maksā
+    // līdz FETCH_PROBE_TIMEOUT (15s lasīšanai) tukšas gaidīšanas. Bez
+    // atmiņas katrs pārlādējums to maksā no jauna, un lietotājs redz
+    // 34.7s auksto sākumu, kurā 15s ir mirkļa laiks.
+    //
+    // Mērījums 2026-09-28 no servera puses: 4.44 / 4.53 / 4.54 / 4.92s un
+    // HTTP 200 ar Access-Control-Allow-Origin: * — tātad fetch ŠAI adresē
+    // strādā. Pārlūkā tas reizēm atgriež 404.
+    //
+    // LĒMUMS: atmiņā saglabājam, nevis izmēģinām katru reizi. Kad fetch
+    // ir pierādījis, ka strādā, izmantojam to ar pilnu timeout. Kad tas ir
+    // FETCH_FAILURES_BEFORE_STICKY reizes neizdevies, vairs to nemēģinām
+    // NEBUDU — ne šai sesijai, ne visās nākamajās.
+    if (this.fetchKnownDead) return true;
     const n = this.failedModes.get(this._modeKey(url)) || 0;
     return n >= this.FETCH_FAILURES_BEFORE_STICKY;
+  },
+
+  // localStorage var nebūt pieejams (privātais režīms, ierīču politika).
+  // Tāpēc katrai lasīšanai/rakstīšanai ir aizsargājums — transports nedrīkst
+  // būt iemesls, kāpēc lietotājs nevar strādāt.
+  _persist(key, value) {
+    try {
+      if (value === null || value === undefined) localStorage.removeItem(key);
+      else localStorage.setItem(key, String(value));
+    } catch (e) { /* ignorējam */ }
   },
 
   _modeKey(url) {
@@ -112,8 +149,13 @@ const Transport = {
   },
 
   noteSuccess(usedFetch) {
-    if (usedFetch) this.fetchOk++;
-    else this.jsonpOk++;
+    if (usedFetch) {
+      this.fetchOk++;
+      this.fetchKnownDead = false;
+      this._persist(TRANSPORT_DEAD_KEY, null);
+    } else {
+      this.jsonpOk++;
+    }
   },
 
   noteFetchFailure(url, err) {
@@ -123,10 +165,13 @@ const Transport = {
     this.failedModes.set(key, (this.failedModes.get(key) || 0) + 1);
     if (this.fetchFailures >= this.FETCH_FAILURES_BEFORE_STICKY && this.mode !== 'jsonp') {
       this.mode = 'jsonp';
+      this.fetchKnownDead = true;
+      this._persist(TRANSPORT_DEAD_KEY, '1');
       console.warn(
-        '[sync] 🔁 TRANSPORTS: pārejos uz JSONP visai sesijai (fetch neizdevās ' +
+        '[sync] 🔁 TRANSPORTS: pārejos uz JSONP (fetch neizdevās ' +
         this.fetchFailures + ' reizes: ' + this.lastError + '). ' +
-        'Vairāk nebūs 404 → JSONP → 126s ķēdes.'
+        'Šis lēmums ir SAGLABĀTS — vairs nemēģināsim fetch ne šajā, ne ' +
+        'turpmākajās sesijās, tāpēc ielāde vairs neapmaksās 15s zondi.'
       );
     }
   },
@@ -137,6 +182,9 @@ const Transport = {
     this.fetchOk = 0;
     this.jsonpOk = 0;
     this.failedModes.clear();
+    // `reset()` nozīmē "sākt no jauna", tāpēc arī iekšējo un ārējo atmiņu.
+    this.fetchKnownDead = false;
+    this._persist(TRANSPORT_DEAD_KEY, null);
   },
 
   stats() {
@@ -145,6 +193,7 @@ const Transport = {
       fetchOk: this.fetchOk,
       jsonpOk: this.jsonpOk,
       fetchFailures: this.fetchFailures,
+      fetchKnownDead: this.fetchKnownDead,
       failedModes: Array.from(this.failedModes.entries()),
       lastError: this.lastError
     };
@@ -152,6 +201,16 @@ const Transport = {
 };
 
 if (typeof globalThis !== 'undefined') globalThis.Transport = Transport;
+
+// Atjaunotais lēmums jābūt redzams, nevis neredzams. Lietotājs redzēs
+// vienu rindu, un tā paskaidro, kāpēc ielāde neapmaksā 15s zondi.
+if (Transport.fetchKnownDead) {
+  console.log(
+    '[sync] ⏩ TRANSPORTS: atjaunota atmiņa — fetch šai ierīcei neizdodas, ' +
+    'tāpēc sākam ar JSONP. Ielāde neapmaksās 15s izmeklēšanu. ' +
+    '(Lai aizmirstu: localStorage.removeItem("' + TRANSPORT_DEAD_KEY + '"))'
+  );
+}
 
 // Primārais transports: fetch() + tīrs JSON.
 async function fetchRequest(url, timeout) {
