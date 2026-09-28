@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#2c3e50">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Medicīniskais skats — Aprūpes sistēma</title>
-  <link rel="stylesheet" href="css/index.css?v=20260928-1315">
-  <link rel="stylesheet" href="css/medicine.css?v=20260928-1315">
+  <link rel="stylesheet" href="css/index.css?v=20260928-1700">
+  <link rel="stylesheet" href="css/medicine.css?v=20260928-1700">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
@@ -47,49 +47,49 @@
 
   <div class="status-message" id="statusMessage"></div>
 
-  <div class="medicine-container">
-    <div class="medicine-main">
-      <div class="medicine-tabs">
-        <button class="medicine-tab active" id="tabFindings" data-tab="findings">🔴 Kritiskie rādījumi</button>
-        <button class="medicine-tab" id="tabTrends" data-tab="trends">📈 Tendence</button>
-        <button class="medicine-tab" id="tabAttention" data-tab="attention">⚠️ Uzmanība</button>
+  <!-- ═══════════════════════════════════════════════════════════════════
+       MEDICĪNA kā FILTRS (spec §2, §11).
+
+       Pirmajā ekrānā, bez ritināšanas:
+         🏥 MEDICĪNA
+         🔴 Uzmanība — X klienti
+         📈 Tendence — X klienti
+         🔎 Meklēt klientu
+         👥 Visi klienti (aizvākti līdz apzinātai atvēršanai)
+
+       Nevis "parādi visus datus", bet "parādi, kam šobrīd jāpievērš
+       uzmanība un kāpēc".
+       ═══════════════════════════════════════════════════════════════════ -->
+  <main class="med-container">
+
+    <section class="med-view" id="medListView">
+      <h1 class="med-title">🏥 Medicīna</h1>
+
+      <div id="medHeadline" class="med-headline"></div>
+
+      <div class="med-toolbar">
+        <input type="search" id="clientSearch" class="med-search" placeholder="🔎 Meklēt klientu...">
+        <input type="date" id="dateFilter" class="med-date">
       </div>
 
-      <div class="medicine-date-filter" style="margin: 12px 0;">
-        <label for="dateFilter">Datums:</label>
-        <input type="date" id="dateFilter">
-      </div>
+      <div id="medClientList" class="med-client-list"></div>
+    </section>
 
-      <div id="medicineFindingsList" class="medicine-findings"></div>
-      <div id="medicineTrendsContent" class="medicine-trends" style="display:none;"></div>
-      <div id="medicineAttentionContent" class="medicine-attention" style="display:none;"></div>
-    </div>
+    <section class="med-view" id="medDetailView" style="display:none;">
+      <div id="medDetail" class="med-detail"></div>
+    </section>
 
-    <div class="medicine-sidebar">
-      <div class="medicine-search-box">
-        <input type="text" id="clientSearch" placeholder="Meklēt klientu...">
-      </div>
-      <div id="medicineClientList" class="medicine-client-list"></div>
-      <div id="medicineClientDetail" class="medicine-client-detail"></div>
-    </div>
-  </div>
+  </main>
 
-  <div id="loadingOverlay" class="loading-overlay" style="display:flex;">
-    <div class="loading-content">
-      <div class="spinner"></div>
-      <div id="loadingText">Ielādēju datus...</div>
-    </div>
-  </div>
-
-  <script src="js/config.js?v=20260928-1315"></script>
-  <script src="js/db.js?v=20260928-1315"></script>
-  <script src="js/i18n.js?v=20260928-1315"></script>
-  <script src="js/sync.js?v=20260928-1315"></script>
-  <script src="js/timezone.js?v=20260928-1315"></script>
-  <script src="js/logout.js?v=20260928-1315"></script>
-  <script src="js/medicine_view.js?v=20260928-1315"></script>
-  <script src="js/update_notifier.js?v=20260928-1315"></script>
+  <script src="js/config.js?v=20260928-1700"></script>
+  <script src="js/db.js?v=20260928-1700"></script>
+  <script src="js/i18n.js?v=20260928-1700"></script>
+  <script src="js/perf.js?v=20260928-1700"></script>
+  <script src="js/operation_registry.js?v=20260928-1700"></script>
+  <script src="js/sync.js?v=20260928-1700"></script>
+  <script src="js/timezone.js?v=20260928-1700"></script>
+  <script src="js/logout.js?v=20260928-1700"></script>
+  <script src="js/medicine_view.js?v=20260928-1700"></script>
+  <script src="js/update_notifier.js?v=20260928-1700"></script>
 </body>
 </html>
-
-

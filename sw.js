@@ -17,6 +17,8 @@ const STATIC_ASSETS = [
   'js/timezone.js',
   'js/db.js',
   'js/sync.js',
+  'js/perf.js',
+  'js/operation_registry.js',
   'js/login.js',
   'js/logout.js',
   'js/admin.js',
@@ -133,6 +135,16 @@ async function notifyClients(message) {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // ĀRĒJIE pieprasījumi (script.google.com API, JSONP) SW NEDRĪKST
+  // apkalpot. Ja SW pārtver šo pieprasījumu, tas pārnes JSONP skriptu uz
+  // no-cors režīmu, GAS CORS galvenes neatgriež, skripts neielādējas un
+  // JSONP atzvanīšana nenotiek. Tāpēc datorā strādā, bet telefonā ne.
+  // Turklāt keš-mešana rāda ievērojamu 404, kuru nevar iztaisīt.
+  if (url.origin !== self.location.origin) {
+    return; // pārlūks apstrādā pašs
+  }
+
   const isHTML = event.request.headers.get('accept')?.includes('text/html');
 
   if (isHTML) {

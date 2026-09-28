@@ -1,421 +1,558 @@
-.medicine-container {
-  display: flex;
-  gap: 20px;
-  padding: 16px;
-  max-width: 1400px;
+/* ═══════════════════════════════════════════════════════════════════════════
+   Medicīniskais skats — sadaļa kā FILTRS, nevis datu izgāztuve.
+
+   Pirmajā ekrānā, bez ritināšanas:
+     🏥 Medicīna → 🔴 Uzmanība → 📈 Tendence → 🔎 Meklēt → 👥 Visi klienti
+
+   Klienta skats ir VIENMĒR četri bloki vienā secībā (🌡 🍽 💧 🚽),
+   lai pirksts un acs zina, kur skatīties. Nav plašu tabulu, nav 50
+   klientu gara saraksta bez prioritātes, minimāli teksti.
+
+   DESKTOP versija ir pielāgojums telefona loģikai, nevis otrādi.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --med-crit: #e74c3c;
+  --med-crit-bg: #fdf0ef;
+  --med-warn: #f39c12;
+  --med-warn-bg: #fff8ec;
+  --med-trend: #2980b9;
+  --med-trend-bg: #eef4fb;
+  --med-ok: #27ae60;
+  --med-ok-bg: #eef9f2;
+  --med-ink: #1f2d3d;
+  --med-mute: #7b8794;
+  --med-line: #e6eaef;
+}
+
+/* Lieli, viegli nospiežami elementi (spec §10) */
+.med-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--med-ink);
+  margin: 4px 0 12px;
+  letter-spacing: -.2px;
+}
+
+
+.med-container {
+  max-width: 900px;
   margin: 0 auto;
+  padding: 12px 12px 96px;
 }
 
-.medicine-main {
-  flex: 2;
-  min-width: 0;
-}
+/* ── 1. Kopsavilkums ─────────────────────────────────────────────────────── */
 
-.medicine-sidebar {
-  flex: 1;
-  min-width: 280px;
-  max-width: 340px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 12px;
-  overflow-y: auto;
-  height: calc(100vh - 160px);
-}
+.med-headline { margin-bottom: 12px; }
 
-.medicine-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  border-bottom: 2px solid #e9ecef;
-}
+.med-headline { margin-bottom: 12px; }
 
-.medicine-tab {
-  flex: 1;
-  padding: 10px 12px;
-  border: none;
-  background: #f1f3f5;
-  cursor: pointer;
-  font-weight: 600;
-  border-radius: 6px 6px 0 0;
-  transition: all 0.2s;
-}
-
-.medicine-tab.active {
-  background: #2196F3;
-  color: white;
-}
-
-.medicine-findings {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.medicine-finding-card {
-  background: white;
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  border-left: 4px solid #e0e0e0;
-}
-
-.medicine-finding-card.high {
-  border-left-color: #e74c3c;
-  background: #fef5f5;
-}
-
-.medicine-finding-card.medium {
-  border-left-color: #f39c12;
-  background: #fffaf0;
-}
-
-.medicine-finding-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.medicine-finding-icon {
-  font-size: 18px;
-}
-
-.medicine-finding-title {
-  font-weight: 600;
-  flex: 1;
-}
-
-.medicine-finding-type {
-  font-size: 13px;
-  color: #6c757d;
-  font-weight: 500;
-}
-
-.medicine-finding-body {
-  margin: 8px 0;
-}
-
-.medicine-finding-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #2c3e50;
-}
-
-.medicine-prev-value {
-  font-size: 13px;
-  color: #6c757d;
-  margin-top: 4px;
-}
-
-.medicine-trend {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
-}
-
-.medicine-finding-author {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
-}
-
-.medicine-finding-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.medicine-small-btn {
-  padding: 4px 12px;
-  font-size: 12px;
-  border: 1px solid #dee2e6;
-  background: #f8f9fa;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.medicine-small-btn:hover {
-  background: #e9ecef;
-}
-
-.medicine-empty {
-  text-align: center;
-  padding: 40px;
-  color: #27ae60;
-  font-size: 16px;
-}
-
-.medicine-client-list {
-  max-height: calc(100vh - 280px);
-  overflow-y: auto;
-}
-
-.medicine-client-item {
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.medicine-client-item:hover {
-  background: #e9f0ff;
-}
-
-.medicine-client-item:last-child {
-  border-bottom: none;
-}
-
-.medicine-client-name {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.medicine-client-meta {
-  font-size: 12px;
-  color: #6c757d;
-}
-
-.medicine-client-detail {
-  margin-top: 12px;
-  padding: 16px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-}
-
-.medicine-client-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.medicine-client-header h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.medicine-hospital-badge {
-  background: #fff3e0;
-  color: #e65100;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.medicine-meta-item {
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.medicine-section-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 16px 0 8px;
-  color: #495057;
-  border-bottom: 1px solid #e9ecef;
-  padding-bottom: 4px;
-}
-
-.medicine-fields-grid {
+/* ── KPI — tikai trīs, uz klientu līmeni (spec §7) ───────────────────────
+   Katrs KPI ir arī FILTRA pārslēdzis: nospiežot uz "Uzmanība" tiek
+   atvērta TIKAI šī klientu grupa.                                  */
+.med-kpis {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-bottom: 12px;
 }
 
-.medicine-field-row {
+.med-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 64px;              /* liels nospiešanas mērķis telefonā */
+  padding: 10px 6px;
+  background: #fff;
+  border: 2px solid var(--med-line);
+  border-radius: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform .08s, border-color .15s;
+}
+.med-kpi:active { transform: scale(.97); }
+
+.med-kpi-num {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--med-ink);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.med-kpi-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--med-mute);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+.med-kpi.attn  { border-color: var(--med-crit);  background: var(--med-crit-bg); }
+.med-kpi.attn  .med-kpi-num { color: var(--med-crit); }
+.med-kpi.trend { border-color: var(--med-trend); background: var(--med-trend-bg); }
+.med-kpi.trend .med-kpi-num { color: var(--med-trend); }
+.med-kpi.all   { border-color: var(--med-line); }
+
+/* ── Grupas: 🔴 Uzmanība / 📈 Tendence / 👥 Visi klienti ───────────────── */
+.med-group { margin-bottom: 6px; }
+
+.med-group-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px;
-  background: #f8f9fa;
-  border-radius: 6px;
-}
-
-.medicine-field-label {
-  font-size: 12px;
-  min-width: 100px;
-  color: #495057;
-}
-
-.medicine-field-value {
+  padding: 10px 4px 8px;
   font-size: 14px;
-  font-weight: 600;
-  flex: 1;
+  font-weight: 800;
+  color: var(--med-ink);
+  border-bottom: 1px solid var(--med-line);
+  margin: 14px 0 10px;
+  cursor: pointer;
+  user-select: none;
 }
-
-.medicine-field-value.critical {
-  color: #e74c3c;
+.med-group-head .med-group-title { flex: 1; }
+.med-group-count {
+  min-width: 26px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef1f5;
+  color: var(--med-mute);
+  font-size: 13px;
+  font-weight: 800;
 }
+.med-group[data-group="attn"]  .med-group-head { color: var(--med-crit); }
+.med-group[data-group="attn"]  .med-group-count { background: var(--med-crit-bg); color: var(--med-crit); }
+.med-group[data-group="trend"] .med-group-head { color: var(--med-trend); }
+.med-group[data-group="trend"] .med-group-count { background: var(--med-trend-bg); color: var(--med-trend); }
+.med-group-head::after { content: '⌄'; color: var(--med-mute); font-size: 15px; }
+.med-group.collapsed .med-group-head::after { content: '›'; }
+.med-group.collapsed .med-group-body,
+.med-group.collapsed .med-more { display: none; }
 
-.medicine-change {
+.med-group-body { display: flex; flex-direction: column; gap: 8px; }
+
+.med-more {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 8px;
+  background: #fff;
+  border: 1px dashed var(--med-line);
+  border-radius: 12px;
+  color: var(--med-mute);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.med-more:active { background: #f4f6f9; }
+
+.med-hint {
+  font-size: 12px;
+  color: var(--med-mute);
+  padding: 6px 4px 0;
+}
+.med-hint.small { font-size: 11px; padding-top: 2px; }
+
+/* ── Klienta kartē: nosaukums + 4 kategorijas + iemesls ─────────────────── */
+.med-client-sum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 6px 0 4px;
+}
+.med-sum {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--med-ink);
+  background: #f2f5f8;
+  border-radius: 8px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.med-sum.crit { background: var(--med-crit-bg); color: var(--med-crit); }
+.med-sum.none { background: transparent; color: var(--med-mute); font-weight: 600; }
+
+.med-client-reasons { display: flex; flex-direction: column; gap: 3px; }
+.med-reason {
   font-size: 12px;
   font-weight: 600;
-  min-width: 50px;
-  text-align: right;
+  line-height: 1.35;
+  color: var(--med-ink);
 }
+.med-reason.crit { color: var(--med-crit); }
+.med-reason.warn { color: #b9770e; }
+.med-reason.ok   { color: var(--med-ok); }
 
-.medicine-change.increase {
-  color: #e74c3c;
-}
-
-.medicine-change.decrease {
-  color: #3498db;
-}
-
-.medicine-change.no-change {
-  color: #999;
-}
-
-.medicine-change.changed {
-  color: #f39c12;
-}
-
-.medicine-trend-mini {
-  display: flex;
-  gap: 4px;
-  font-size: 11px;
-  color: #999;
-  min-width: 120px;
-  justify-content: flex-end;
-}
-
-.medicine-attention-list {
-  margin: 8px 0;
-}
-
-.medicine-attention-item {
-  padding: 8px;
-  background: #fff3cd;
-  border-radius: 6px;
-  border-left: 3px solid #ffc107;
-  margin-bottom: 4px;
-}
-
-.medicine-attion-text {
-  font-size: 13px;
-  color: #856404;
-}
-
-.medicine-missing-list {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0;
-}
-
-.medicine-missing-item {
-  padding: 6px 8px;
-  margin-bottom: 4px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.medicine-missing-item.high {
-  background: #fee;
-  color: #e74c3c;
-}
-
-.medicine-missing-item.medium {
-  background: #fffaf0;
-  color: #f39c12;
-}
-
-.medicine-btn {
-  padding: 8px 16px;
-  border-radius: 6px;
+.med-ok {
+  background: #eafaf0;
+  border: 1px solid #bfe8ce;
+  color: #1e7a46;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 15px;
   font-weight: 600;
+  text-align: center;
+}
+.med-ok.big { margin: 12px 0; }
+
+
+/* ── Rīki ────────────────────────────────────────────────────────────────── */
+
+.med-toolbar {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 10px;
+}
+
+.med-search {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 14px;
+  font-size: 15px;
+  border: 1px solid var(--med-line);
+  border-radius: 10px;
+  background: #fff;
+  -webkit-appearance: none;
+}
+.med-search:focus { outline: 2px solid #3498db33; border-color: #3498db; }
+
+.med-date {
+  padding: 11px 10px;
+  font-size: 14px;
+  border: 1px solid var(--med-line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+/* ── 2. Klientu saraksts ────────────────────────────────────────────────── */
+
+.med-client-list { display: flex; flex-direction: column; gap: 8px; }
+
+.med-client {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--med-line);
+  border-left: 4px solid #dfe5eb;
+  border-radius: 10px;
+  padding: 11px 13px;
   cursor: pointer;
-  margin-right: 8px;
+  font: inherit;
+  transition: border-color .12s, box-shadow .12s, transform .06s;
 }
+.med-client:active { transform: scale(.995); }
+.med-client.has-problem { border-left-color: var(--med-crit); }
+.med-client:hover { box-shadow: 0 2px 8px rgba(31, 45, 61, .1); }
 
-.medicine-btn.primary {
-  background: #2196F3;
-  color: white;
-  border: none;
-}
-
-.medicine-btn.secondary {
-  background: #f8f9fa;
-  color: #495057;
-  border: 1px solid #dee2e6;
-}
-
-.medicine-trends-grid {
+.med-client-row {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
 }
 
-.medicine-trend-client {
-  background: white;
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.medicine-trend-client h3 {
-  margin: 0 0 8px;
+.med-client-name {
   font-size: 16px;
-}
-
-.medicine-trend-fields {
+  font-weight: 700;
+  color: var(--med-ink);
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 6px;
 }
 
-.medicine-trend-field {
-  display: flex;
-  justify-content: space-between;
+.med-hosp { font-size: 13px; }
+
+.med-client-meta {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--med-mute);
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+
+.med-badge {
   font-size: 13px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
+.med-badge.crit  { background: var(--med-crit-bg);  color: var(--med-crit); }
+.med-badge.warn  { background: var(--med-warn-bg);  color: #b9770e; }
+.med-badge.trend { background: var(--med-trend-bg); color: var(--med-trend); }
 
-.medicine-trend-field-label {
-  color: #6c757d;
-}
+/* ── 3. Klienta skats ───────────────────────────────────────────────────── */
 
-.medicine-trend-values {
-  font-family: monospace;
-  font-size: 12px;
-  color: #495057;
-}
+.med-detail { max-width: 780px; margin: 0 auto; }
 
-.medicine-attention-card {
-  background: #fff3cd;
+.med-detail-head { display: flex; gap: 10px; align-items: flex-start; }
+
+.med-back {
+  border: 1px solid var(--med-line);
+  background: #fff;
+  color: var(--med-ink);
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  border-left: 3px solid #ffc107;
-}
-
-.medicine-attention-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.medicine-attention-comment {
+  padding: 8px 12px;
   font-size: 14px;
-  margin: 6px 0;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
 }
+.med-back:active { background: #f2f5f8; }
 
-.medicine-attention-author {
+.med-detail-id h2 {
+  margin: 0;
+  font-size: 22px;
+  color: var(--med-ink);
+  line-height: 1.2;
+}
+.med-detail-meta { font-size: 13px; color: var(--med-mute); margin-top: 2px; }
+.med-detail-contact { font-size: 13px; color: var(--med-mute); margin-top: 2px; }
+
+.med-detail-date {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--med-mute);
+  margin: 10px 0 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--med-line);
 }
 
-@media (max-width: 768px) {
-  .medicine-container {
-    flex-direction: column;
-  }
-  .medicine-sidebar {
-    max-width: 100%;
-    height: auto;
-    max-height: 400px;
-  }
-  .medicine-fields-grid {
-    grid-template-columns: 1fr;
-  }
+/* ── Klienta skats: 4 fiksēti bloki vienā secībā (spec §6) ─────────────── */
+.med-block {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid var(--med-line);
+  border-left: 5px solid var(--med-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.med-block.crit  { border-left-color: var(--med-crit);  background: var(--med-crit-bg); }
+.med-block.attn  { border-left-color: var(--med-warn);  background: var(--med-warn-bg); }
+.med-block.ok    { border-left-color: var(--med-ok); }
+.med-block.none  { border-left-color: var(--med-line); background: #fafbfc; }
+
+.med-block h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--med-ink);
+  letter-spacing: -.01em;
+}
+.med-block.crit h3 { color: var(--med-crit); }
+.med-block.attn h3 { color: #b9770e; }
+.med-state { font-size: 15px; }
+
+/* Lielā vērtība — tā ir tā, ko mediķis nolasa pirmo */
+.med-big {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--med-ink);
+}
+.med-big.crit { color: var(--med-crit); }
+.med-big small { font-size: 16px; font-weight: 700; opacity: .75; }
+.med-n {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--med-ok-bg);
+  color: var(--med-ok);
+  font-size: 14px;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+.med-when { font-size: 12px; color: var(--med-mute); margin-top: 3px; }
+.med-author { font-size: 11px; color: var(--med-mute); margin-top: 4px; }
+.med-none { font-size: 13px; color: var(--med-mute); font-style: italic; }
+
+/* Secinājumi ar "kāpēc" */
+.med-findings { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.med-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .75);
+  border-left: 3px solid var(--med-warn);
+}
+.med-finding.crit { border-left-color: var(--med-crit); }
+.med-finding-label { font-size: 13px; font-weight: 800; color: var(--med-ink); }
+.med-finding-reason { font-size: 13px; font-weight: 600; color: var(--med-ink); line-height: 1.35; }
+.med-finding-detail,
+.med-finding-author { font-size: 11px; color: var(--med-mute); }
+
+.med-trend-line {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--med-trend);
+}
+
+/* Ēšanas diennakšu apjoms "½ → ½ → ½" */
+.med-series {
+  margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--med-ink);
+  background: #ffffffa8;
+  border-radius: 8px;
+  padding: 5px 8px;
+  letter-spacing: .02em;
+}
+
+/* 🍽 Ēšanas 4 ēdienreizes */
+.med-meals {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.med-meal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 2px;
+  border-radius: 10px;
+  background: var(--med-ok-bg);
+}
+.med-meal.ate     { background: var(--med-ok-bg); }
+.med-meal.half    { background: var(--med-warn-bg); }
+.med-meal.refused { background: var(--med-crit-bg); }
+.med-meal.patst   { background: #eef1f5; }
+.med-meal.empty   { background: #f2f4f7; }
+.med-meal-name { font-size: 10px; color: var(--med-mute); font-weight: 700; text-align: center; }
+.med-meal-val  { font-size: 20px; font-weight: 800; color: var(--med-ink); }
+.med-meal.refused .med-meal-val { color: var(--med-crit); }
+.med-meal.half .med-meal-val    { color: #b9770e; }
+.med-meal.patst .med-meal-val   { color: var(--med-mute); }
+.med-meal.empty .med-meal-val   { color: #c3cad3; }
+
+/* 💧 Šķidrumi */
+.med-fluids { display: flex; flex-direction: column; gap: 6px; }
+.med-fluid {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f6f8fa;
+}
+.med-fluid.crit { background: var(--med-crit-bg); }
+.med-fluid.attn { background: var(--med-warn-bg); }
+.med-fluid-name { font-size: 13px; font-weight: 700; color: var(--med-mute); min-width: 78px; }
+.med-fluid-val  { font-size: 20px; font-weight: 800; color: var(--med-ink); }
+.med-fluid.crit .med-fluid-val { color: var(--med-crit); }
+.med-fluid-val small { font-size: 12px; font-weight: 700; opacity: .7; }
+.med-fluid.none .med-fluid-val { font-size: 13px; color: var(--med-mute); font-weight: 600; }
+
+.med-card {
+  background: #fff;
+  border: 1px solid var(--med-line);
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin-bottom: 8px;
+}
+.med-card.crit  { border-left: 4px solid var(--med-crit);  background: var(--med-crit-bg); }
+.med-card.warn  { border-left: 4px solid var(--med-warn);  background: var(--med-warn-bg); }
+.med-card.trend { border-left: 4px solid var(--med-trend); background: var(--med-trend-bg); }
+
+
+.med-card-label { font-size: 14px; font-weight: 600; color: var(--med-ink); }
+
+/* "KĀPĒC šis ir šajā sarakstā" — bez tādu skaidrojumu saraksts ir bezjēdzīgs */
+.med-card-reason {
+  font-size: 12.5px;
+  color: #4a5b6b;
+  margin-top: 5px;
+  line-height: 1.35;
+}
+.med-card-reason b { color: var(--med-ink); }
+
+.med-delta { font-size: 13px; font-weight: 800; white-space: nowrap; }
+.med-delta.up   { color: var(--med-crit); }
+.med-delta.down { color: var(--med-trend); }
+
+.med-card-author { font-size: 11.5px; color: var(--med-mute); margin-top: 5px; }
+
+.med-history {
+  font-size: 12px;
+  color: var(--med-mute);
+  background: #f5f7f9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 4px;
+}
+
+.med-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--med-line);
+}
+
+.med-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.med-btn.primary { background: #2c3e50; color: #fff; }
+.med-btn.primary:active { background: #22303e; }
+.med-btn.secondary { background: #fff; color: var(--med-ink); border-color: var(--med-line); }
+
+/* ── Fona sinhronizācijas josla ────────────────────────────────────────────
+   Lietotājs redz, ka dati atjauninās, bet var strādāt tālāk.                  */
+
+.med-status {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  font-size: 12px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: #2c3e50;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+  display: none;
+  max-width: 88vw;
+  text-align: center;
+}
+.med-status.on { display: block; }
+
+.med-empty {
+  text-align: center;
+  color: var(--med-mute);
+  padding: 32px 12px;
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .med-container { padding: 10px 8px 96px; }
+  .med-title { font-size: 19px; }
+  .med-big { font-size: 26px; }
+  .med-kpi { min-height: 58px; }
+  .med-kpi-num { font-size: 18px; }
+  .med-kpi-label { font-size: 10px; }
+  .med-meal-name { font-size: 9px; }
+  .med-meal-val { font-size: 17px; }
+  .med-fluid-name { min-width: 66px; }
+  .med-fluid-val { font-size: 17px; }
+  .med-detail-id h2 { font-size: 19px; }
+  .med-detail-actions { flex-direction: column; }
+  .med-btn { width: 100%; }
 }

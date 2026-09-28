@@ -76,18 +76,28 @@ class AdminPanel {
     this.setupLanguageSwitcher();
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
-    if (overlay) overlay.style.display = 'flex';
+    if (overlay) overlay.style.display = 'none';
+    // UI no lokālajiem datiem tūlīt, Google fonā. Skatīt sync.js bootstrapUI.
     try {
-      await this.sync.loadInitialData((msg) => {
-        if (loadingText) loadingText.textContent = msg;
+      await this.sync.bootstrapUI({
+        onLocalReady: async () => {
+          await this.loadData();
+          this.renderDashboard();
+          this.renderClientList();
+          this.renderEmployeeList();
+          await this.populateExportDropdowns();
+          this.setExportDateDefaults();
+        },
+        onServerData: async () => {
+          await this.loadData();
+          this.renderDashboard();
+          this.renderClientList();
+          this.renderEmployeeList();
+        },
+        onProgress: (msg) => { if (loadingText) loadingText.textContent = msg; }
       });
-      await this.loadData();
-      this.renderDashboard();
-      this.renderClientList();
-      this.renderEmployeeList();
-      await this.populateExportDropdowns();
-      this.setExportDateDefaults();
     } catch (e) {
+      console.error(e);
     } finally {
       if (overlay) overlay.style.display = 'none';
     }

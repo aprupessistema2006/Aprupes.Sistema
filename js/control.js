@@ -43,12 +43,10 @@ class ControlPanel {
         }
         manualSyncBtn.disabled = true;
         manualSyncBtn.innerHTML = '<span>⏳</span> <span data-i18n="syncing">Sinhronizē...</span>';
-        const overlay = document.getElementById('loadingOverlay');
-        const loadingText = document.getElementById('loadingText');
-        if (overlay) overlay.style.display = 'flex';
+        this._setBackgroundSyncNote('Sinhronizēju ar Google Sheets...');
         try {
           const result = await this.sync.forceFullSync((msg) => {
-            if (loadingText) loadingText.textContent = msg;
+            this._setBackgroundSyncNote(msg);
           });
           if (result.offline) {
             this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
@@ -63,7 +61,7 @@ class ControlPanel {
         } finally {
           manualSyncBtn.disabled = false;
           manualSyncBtn.innerHTML = '<span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span>';
-          if (overlay) overlay.style.display = 'none';
+          this._setBackgroundSyncNote(null);
           if (typeof applyLanguage === 'function') applyLanguage();
         }
       });
@@ -74,20 +72,65 @@ class ControlPanel {
 
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
-    if (overlay) overlay.style.display = 'flex';
+    if (overlay) overlay.style.display = 'none';
 
+    // ─────────────────────────────────────────────────────────────────────
+    // UI PIRMS, SINHRONIZĀCIJA PĒC
+    //
+    // Iepriekš šeit bija: ieslēgt bloķējošo ekrānu → gaidīt, kamēr Google
+    // atgriež → tikai tad zīmēt. Tāpēc "Ielādēju klientus un darbiniekus..."
+    // karājās ekrānā 10–120 sekundes, pat ja ierīcē jau bija pilni dati.
+    //
+    // Tagad: 1) lasām IndexedDB ( milisisekundes), 2) zīmējam, 3) slēpjam
+    // ekrānu, 4) atjauninām no Google FONĀ. Ja Google nepasniedz, lietotājs
+    // joprojām strādā ar pēdējiem datiem.
+    // ─────────────────────────────────────────────────────────────────────
     try {
-      await this.sync.loadInitialData((msg) => {
-        if (loadingText) loadingText.textContent = msg;
+      await this.sync.bootstrapUI({
+        onLocalReady: async () => {
+          await this.loadData();
+          this.renderAll();
+          await this.setupTasksUI();
+          await this.renderTasksList();
+        },
+        onServerData: async () => {
+          await this.loadData();
+          this.renderAll();
+          await this.renderTasksList();
+          Perf.markUI('UI atjaunināts pēc servera datiem');
+        },
+        onProgress: (msg) => {
+          // Paziņojums, nevis bloķējošs ekrāns
+          if (loadingText) loadingText.textContent = msg;
+          this._setBackgroundSyncNote(msg);
+        }
       });
-      await this.loadData();
-      this.renderAll();
-      await this.setupTasksUI();
-      await this.renderTasksList();
     } catch (e) {
       console.error(e);
     } finally {
       if (overlay) overlay.style.display = 'none';
+      this._setBackgroundSyncNote(null);
+    }
+  }
+
+  // Neliela josla, kas parāda fonā notiekošo sinhronizāciju, nevis aizsegot
+  // visu ekrānu. Lietotājs var strādāt, kamēr dati atjauninās.
+  _setBackgroundSyncNote(msg) {
+    let el = document.getElementById('bgSyncNote');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'bgSyncNote';
+      el.style.cssText =
+        'position:fixed;bottom:12px;right:12px;z-index:9998;font-size:12px;' +
+        'padding:8px 12px;border-radius:6px;background:#2c3e50;color:#fff;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,.25);max-width:320px;';
+      document.body.appendChild(el);
+    }
+    if (msg) {
+      el.textContent = '🔄 ' + msg;
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
     }
   }
 
@@ -157,13 +200,11 @@ class ControlPanel {
     if (refreshBtn) {
       refreshBtn.addEventListener('click', async () => {
         const btn = document.getElementById('refreshBtn');
-        const overlay = document.getElementById('loadingOverlay');
-        const loadingText = document.getElementById('loadingText');
         if (btn) btn.disabled = true;
-        if (overlay) overlay.style.display = 'flex';
+        this._setBackgroundSyncNote('Atjaunoju datus no Google Sheets...');
         try {
           const result = await this.sync.forceFullSync((msg) => {
-            if (loadingText) loadingText.textContent = msg;
+            this._setBackgroundSyncNote(msg);
           });
           if (result.offline) {
             this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
@@ -177,7 +218,7 @@ class ControlPanel {
           this.toast && this.toast('⚠️ Kļūda: ' + e.message, 4000);
         } finally {
           if (btn) btn.disabled = false;
-          if (overlay) overlay.style.display = 'none';
+          this._setBackgroundSyncNote(null);
         }
       });
     }
@@ -829,17 +870,22 @@ class ControlPanel {
 
     try {
       const exporter = new ExcelExporter();
-      const overlay = document.getElementById('loadingOverlay');
-      const loadingText = document.getElementById('loadingText');
-      if (overlay) overlay.style.display = 'flex';
-      
-      // ALWAYS force full sync from Google Sheets before export
-      // Google Sheets is the ONLY source of truth
+    const overlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    if (overlay) overlay.style.display = 'flex';
+      // Google Sheets ir vienīgais patiesības avots. Bet mēs NELĀDĒJAM visu
+      // vēsturi — ielādējam tikai šī klienta izvēlēto mēnesi. Tas ir 100× mazāk
+      // datu nekā pilnā vēsture, un tieši tas, ko lietotājs patiešām skata.
       if (window.careSync && navigator.onLine) {
         if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets pirms eksporta...';
         await window.careSync.forceFullSync((msg) => {
           if (loadingText) loadingText.textContent = msg;
         });
+        const from = year + '-' + String(month).padStart(2, '0') + '-01';
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const to = year + '-' + String(month).padStart(2, '0') + '-' + String(daysInMonth).padStart(2, '0');
+        if (loadingText) loadingText.textContent = 'Ielādēju klienta vēsturi...';
+        await window.careSync.loadClientRange(client.id || client.ID, from, to);
       }
       
       // Reload fresh data from IndexedDB (now updated from Google Sheets)
@@ -891,12 +937,18 @@ class ControlPanel {
     const loadingText = document.getElementById('loadingText');
     if (overlay) overlay.style.display = 'flex';
     try {
-      // ALWAYS force full sync from Google Sheets before rendering
+      // Tikai šī klienta izvēlētā mēneša vēsture — nevis visas ielādētās
+      // vēstures. Skatīt konkrētu klientu ir ātrāk nekā skanēt visu.
       if (window.careSync && navigator.onLine) {
         if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets...';
         await window.careSync.forceFullSync((msg) => {
           if (loadingText) loadingText.textContent = msg;
         });
+        const from = year + '-' + String(month).padStart(2, '0') + '-01';
+        const daysInMonthM = new Date(year, month, 0).getDate();
+        const to = year + '-' + String(month).padStart(2, '0') + '-' + String(daysInMonthM).padStart(2, '0');
+        if (loadingText) loadingText.textContent = 'Ielādēju klienta vēsturi...';
+        await window.careSync.loadClientRange(client.id || client.ID, from, to);
       }
       
       // Reload fresh data from IndexedDB (now updated from Google Sheets)

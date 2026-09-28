@@ -1,12 +1,57 @@
 const CONFIG = {
   APP_NAME: 'Aprūpes sistēma',
-  VERSION: '20260928-1315',
+  VERSION: '20260928-1700',
 
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbwNFLLhs0zdjgncYHCK6mCzVJk2UGciFLa3unSUHbAacmpw7AOmuiOkip0Wh1qgJBOFeg/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbw6MZ5RGgnRSQg3GBWo8OFsa0d5WBHwRwuds0AxzqJYQB1dAFgTtKGWQC5XKnFw2G69HQ/exec',
 
   SHEET_ID: '1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E',
 
   TIMEZONE: 'Europe/Riga',
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // VĒRTĪBU LEĢENDA — VIENS AUTENTISKAIS AVOTS
+  //
+  // Visas zīmīgas un skaitliskās vērtības, ko lietotājs var ierakstīt.
+  // Šeit tās ir definētas vienreiz, lai medicīnas skats, aprūpes forma
+  // un eksporta atskite nevar atšķirīties.
+  //
+  // ⚠️  Vērtība "S" parādās divās vietās — tas NAV viena un tā pati vērtība:
+  //      • vēdera izejā  S = Svecīte   (normāls stāvoklis)
+  //      • klienta statuss  "Slimnīca" ir TEKSTS laukā `statuss`
+  //        (`hospitalizēts slimnīcā`, `atgriezies SAC`), nevis burtis "S".
+  //      Tāpēc "S" Medicīnā nozīmē TIKAI "Svecīte". Ja kāds ieraksta
+  //      burtu "S" vēdera izejas laukā, tas tiek lasīts kā Svecīte.
+  // ═══════════════════════════════════════════════════════════════════════
+  VALUE_LEGEND: {
+
+    // Vispārējie atzīmēšanas kritēriji (pārslēdzamie lauki: X izpildīts,
+    // P patstāvīgi, A atteicās)
+    MARK: {
+      X: 'Izpildīts',
+      P: 'Patstāvīgi',
+      A: 'Atteicās'
+    },
+
+    // 🍽 ēdināšana: X – visa porcija; ½ – puse porcijas; A – atteicās;
+    //                P – patstāvīgi (atzīts, bet NEmērīts porciju punktos)
+    ĒDIŠANA: {
+      X: 'Visa porcija',
+      '½': 'Puse porcijas',
+      A: 'Atteicās',
+      P: 'Patstāvīgi'
+    },
+
+    // 🚽 vēdera izeja: N – normāla; A – aizcietējumi; S – svecīte;
+    //                 C – caureja; K – klizma
+    // ⚠️ "Slimnīca" NAV šeit — tā ir klienta statuss, nevis izkārnīšanas veids.
+    VEDERA_IZEJA: {
+      N: 'Normāla',
+      A: 'Aizcietējumi',
+      S: 'Svecīte',
+      C: 'Caureja',
+      K: 'Klizma'
+    }
+  },
 
   SHIFTS: {
     R: 'Rīts',

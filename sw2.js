@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v35'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v36'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -17,6 +17,8 @@ const STATIC_ASSETS = [
   'js/timezone.js',
   'js/db.js',
   'js/sync.js',
+  'js/perf.js',
+  'js/operation_registry.js',
   'js/login.js',
   'js/logout.js',
   'js/admin.js',

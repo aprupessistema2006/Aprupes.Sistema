@@ -1,5 +1,34 @@
 const SYNC_URL = typeof CONFIG !== 'undefined' ? CONFIG.GAS_URL : null;
 
+// Mērīšanas fasāde.
+//
+// js/perf.js nav iekļauts visur, kur sync.js tiek izmantots (Node testi,
+// minimālās HTML lapas). Tāpēc mēs NEDRĪKST uz to tieši atsaukties —
+// lai nejaužas ar ReferenceError un iekšējā loģika paliek tīra.
+const _nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+const PERF = (typeof Perf !== 'undefined' && Perf) ? Perf : {
+  measure: (_label, fn) => fn(),
+  sub: () => {},
+  skipped: () => {},
+  note: () => {},
+  markUI: () => {},
+  autoSummary: () => {},
+  net: (_label, fn) => fn({ onSent: () => {}, onResponse: () => {} })
+};
+
+// Vienreizēju brīdinājumu logs. Izmanto reģistru, ja tā ielādēta, un
+// vienkāršu atmiņas kešu citādi (Node testi, atsevišķas lapas).
+const _throttleCache = new Map();
+function _throttleLog(key, windowMs) {
+  if (typeof opRegistry !== 'undefined' && opRegistry && typeof opRegistry.throttle === 'function') {
+    return opRegistry.throttle(key, windowMs);
+  }
+  const now = Date.now();
+  if (_throttleCache.has(key) && now - _throttleCache.get(key) < windowMs) return false;
+  _throttleCache.set(key, now);
+  return true;
+}
+
 const CACHE_BUSTER = () => Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
 function getSyncStatusClass(status) {
@@ -27,13 +56,93 @@ async function fetchWithTimeout(url, timeout = 8000, options = {}) {
   }
 }
 
-// Primārais transports: fetch() + tīrs JSON.
+// ───────────────────────────────────────────────────────────────────────────
+// VIENĪGAIS TRANSPORTS
 //
-// IEPRIEKŠĒJAIS KOMENTS KODS BIJA NEPAREIZS — GAS /exec nosūta
-// "Access-Control-Allow-Origin: *", tāpēc fetch ar mode:'cors' strādā.
-// Izmantojot JSONP (<script> tagu), dažas ierīces (telefoni, reklāmu
-// bloķētāji, DNS filtrēšana) skriptu noraida un dati neielādējas.
-// fetch nav atkarīgs no <script> tagu ielādes un dod īstas kļūdas.
+// Situācija, kas tika novērotra uz telefoniem: pirmais pieprasījums
+// (bootstrap) atgrieja 200, bet pārējie atgrieza HTTP 404 — pat lai pats
+// GAS /exec URL atbildēja kārtīgi (pārbaudīts ar ārēju pieprasījumu).
+// Tas nozīmē, ka 404 nerada serveris, bet kaut kas starp pārlūku un GAS:
+// reklāmu bloķētājs, DNS filtrēšana vai service worker. JSONP (<script>)
+// šīs barjeras apiet, tāpēc dati tomēr ielādējās — bet katrs mēģinājums
+// maksāja līdz 126 sekundēm, un lietotājs visu laiku skatīja
+// "Ielādēju klientus un darbiniekus...".
+//
+// LĒMUMS: viens transports, nevis divi pārslēdzami katrā pieprasījumā.
+//   1. Mēģinām fetch (ātrāks, dod īstas kļūdas).
+//   2. Ja kāds konkrēts ceļš (mode=marks, mode=range, ...) neizdodas
+//      FETCH_FAILURES_BEFORE_STICKY reizes, tas ceļš uz sesiju paliek
+//      JSONP — mēs vairs nemēģinām fetch tam.
+//   3. Kopējā kļūdu skaita līdzstarp → pārejam uz JSONP visai sesijai.
+// Rezultāts: 404 parādās konsolē divas reizes, nevis desmitiem, un katrs
+// mēģinājums ir ar stingru, īsu laika budžetu.
+// ───────────────────────────────────────────────────────────────────────────
+const Transport = {
+  mode: 'fetch',              // 'fetch' | 'jsonp'
+  fetchFailures: 0,
+  fetchOk: 0,
+  jsonpOk: 0,
+  failedModes: new Map(),     // modeKey -> kļūdu skaits
+  lastError: null,
+
+  FETCH_TIMEOUT: 20000,       // bija 120000 — GAS aukstais starts ir 3–10s
+  JSONP_TIMEOUT: 25000,       // bija 120000
+  FETCH_FAILURES_BEFORE_STICKY: 2,
+
+  shouldSkipFetch(url) {
+    if (this.mode === 'jsonp') return true;
+    const n = this.failedModes.get(this._modeKey(url)) || 0;
+    return n >= this.FETCH_FAILURES_BEFORE_STICKY;
+  },
+
+  _modeKey(url) {
+    const m = /[?&]mode=([^&]*)/.exec(url);
+    return m ? 'mode=' + m[1] : 'action';
+  },
+
+  noteSuccess(usedFetch) {
+    if (usedFetch) this.fetchOk++;
+    else this.jsonpOk++;
+  },
+
+  noteFetchFailure(url, err) {
+    this.fetchFailures++;
+    this.lastError = err && err.message;
+    const key = this._modeKey(url);
+    this.failedModes.set(key, (this.failedModes.get(key) || 0) + 1);
+    if (this.fetchFailures >= this.FETCH_FAILURES_BEFORE_STICKY && this.mode !== 'jsonp') {
+      this.mode = 'jsonp';
+      console.warn(
+        '[sync] 🔁 TRANSPORTS: pārejos uz JSONP visai sesijai (fetch neizdevās ' +
+        this.fetchFailures + ' reizes: ' + this.lastError + '). ' +
+        'Vairāk nebūs 404 → JSONP → 126s ķēdes.'
+      );
+    }
+  },
+
+  reset() {
+    this.mode = 'fetch';
+    this.fetchFailures = 0;
+    this.fetchOk = 0;
+    this.jsonpOk = 0;
+    this.failedModes.clear();
+  },
+
+  stats() {
+    return {
+      mode: this.mode,
+      fetchOk: this.fetchOk,
+      jsonpOk: this.jsonpOk,
+      fetchFailures: this.fetchFailures,
+      failedModes: Array.from(this.failedModes.entries()),
+      lastError: this.lastError
+    };
+  }
+};
+
+if (typeof globalThis !== 'undefined') globalThis.Transport = Transport;
+
+// Primārais transports: fetch() + tīrs JSON.
 async function fetchRequest(url, timeout) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -47,7 +156,11 @@ async function fetchRequest(url, timeout) {
       signal: controller.signal
     });
     clearTimeout(timer);
-    if (!res.ok) throw new Error('Serveris atbildēja ar HTTP ' + res.status);
+    if (!res.ok) {
+      const err = new Error('Serveris atbildēja ar HTTP ' + res.status);
+      err.httpStatus = res.status;
+      throw err;
+    }
     const text = await res.text();
     const trimmed = text.trim();
     if (!trimmed) throw new Error('Serveris atgrieza tukšu atbildi');
@@ -65,16 +178,32 @@ async function fetchRequest(url, timeout) {
     clearTimeout(timer);
     if (e && e.name === 'AbortError') throw new Error('Timeout');
     if (e && e.permanent) throw e;
-    throw new Error(e && e.message ? e.message : 'Savienojuma kļūda');
+    const err = new Error(e && e.message ? e.message : 'Savienojuma kļūda');
+    if (e && e.httpStatus) err.httpStatus = e.httpStatus;
+    throw err;
   }
 }
 
-// Rezerves transports — JSONP, ja fetch neizdevās
-function jsonpRequest(url, timeout = 60000) {
+// Rezerves transports — JSONP (<script>), ja fetch neizdevās.
+function jsonpRequest(url, timeout = Transport.JSONP_TIMEOUT) {
   return new Promise((resolve, reject) => {
     const callbackName = 'jsonp_cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     let script;
     let resolved = false;
+
+    const cleanup = () => {
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      // Timeout gadījumā GAS var vēl atsaukties mūsu callback — nomet to
+      // nevis uzreiz, bet pēc 30s, lai callback function nepaliek atmiņā
+      // mūžīgi un nevartu pārņemt nākamo pieprasījumu.
+      if (resolved && window[callbackName]) {
+        const drop = () => { delete window[callbackName]; };
+        setTimeout(drop, 30000);
+        resolved = false; // neļauj atkārtotu drop
+      }
+    };
 
     const done = (fn, arg) => {
       if (resolved) return;
@@ -84,17 +213,7 @@ function jsonpRequest(url, timeout = 60000) {
       fn(arg);
     };
 
-    const cleanup = () => {
-      if (script && script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-      // NEVER delete callback on timeout - GAS might still call it later
-      // Only delete on success (in the callback itself via done)
-    };
-
     const timer = setTimeout(() => {
-      // On timeout, don't delete callback - GAS cold start can take 30-60s
-      // Just reject, leave callback registered
       resolved = true;
       clearTimeout(timer);
       if (script && script.parentNode) {
@@ -104,7 +223,6 @@ function jsonpRequest(url, timeout = 60000) {
     }, timeout);
 
     window[callbackName] = function (data) {
-      // Success - now safe to delete callback
       delete window[callbackName];
       done(resolve, data);
     };
@@ -117,40 +235,52 @@ function jsonpRequest(url, timeout = 60000) {
       delete window[callbackName];
       done(reject, new Error('Savienojuma kļūda'));
     };
-    // Use document.head or fallback to document.documentElement for early initialization
     const target = document.head || document.documentElement;
     target.appendChild(script);
   });
 }
 
-// Galvenais pieprasījumu funkcija.
-// Primāri — fetch() (CORS droši, dod īstas kļūdas).
-// Ja tas neizdodas — JSONP kā rezinē (dažas ierīces bloķē <script>).
-async function requestData(url, timeout = 60000, loadTimeoutOverride) {
-  // Add cache buster to prevent stale redirect URLs from GAS
-  const separator = url.includes('?') ? '&' : '?';
+// Galvenais pieprasījumu funkcija. Vienā vietā izvēlas transportu, lai
+// katrs izsaukētais nezinātu par JSONP atkārtošanos.
+async function requestData(url, timeout) {
+  const sep = url.includes('?') ? '&' : '?';
   const stamp = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-  const urlWithCacheBuster = url + separator + '_t=' + stamp;
-  // Load action (action=load) goes through redirect URL, needs more time
-  const isLoadAction = url.includes('action=load');
-  const effectiveTimeout = isLoadAction ? (loadTimeoutOverride || 120000) : timeout;
+  const urlWithCacheBuster = url + sep + '_t=' + stamp;
+  const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
   // fetch ceļš neizmanto callback parametru — GAS tad atgriež tīru JSON
   const jsonUrl = url.replace(/([?&])callback=[^&]*&?/, '$1').replace(/[?&]$/, '');
 
-  try {
-    return await fetchRequest(jsonUrl, effectiveTimeout);
-  } catch (err) {
-    console.warn('[sync] fetch transports neizdevās (' + err.message + '), mēģinu JSONP');
-    // jsonpRequest() pats pievieno callback parametru
-    return jsonpRequest(urlWithCacheBuster, effectiveTimeout);
+  if (!Transport.shouldSkipFetch(url)) {
+    try {
+      const result = await fetchRequest(jsonUrl, timeout || Transport.FETCH_TIMEOUT);
+      Transport.noteSuccess(true);
+      PERF.sub('transport', 'fetch', (_nowMs() - t0));
+      return result;
+    } catch (err) {
+      Transport.noteFetchFailure(url, err);
+      // Par to pašu ceļu brīdinām ne vairāk kā reizi 30 sekundēs, lai
+      // konsolē nerādītos desmiti identisku 404 rindu.
+      if (_throttleLog('jsonp-fallback:' + Transport._modeKey(url), 30000)) {
+        console.warn(
+          '[sync] fetch neizdevās (' + err.message + ') → pāreju uz JSONP. ' +
+          'Pēc ' + Transport.FETCH_FAILURES_BEFORE_STICKY + ' kļūdām transports tiks fiksēts uz JSONP visai sesijai.'
+        );
+      }
+    }
   }
+
+  // jsonpRequest() pats pievieno callback parametru
+  const data = await jsonpRequest(urlWithCacheBuster, timeout || Transport.JSONP_TIMEOUT);
+  Transport.noteSuccess(false);
+  PERF.sub('transport', 'jsonp', (_nowMs() - t0));
+  return data;
 }
 
 // Request deduplication — prevent parallel identical requests
 const pendingActions = new Map();
 
-async function jsonpAction(action, data, timeout = 120000) {
+async function jsonpAction(action, data, timeout = 30000) {
   const actionKey = action + ':' + JSON.stringify(data);
 
   if (pendingActions.has(actionKey)) {
@@ -182,7 +312,7 @@ async function jsonpAction(action, data, timeout = 120000) {
 // POST-based action for write operations
 // Uses JSONP (GET) since GAS doesn't support CORS for fetch POST.
 // This is equivalent to jsonpAction but with a distinct key prefix.
-async function postAction(action, data, timeout = 120000) {
+async function postAction(action, data, timeout = 30000) {
   return jsonpAction(action, data, timeout);
 }
 
@@ -389,13 +519,59 @@ class CareSync {
     this._loading = false;
     this._syncTail = Promise.resolve();
     this._connectionStatus = 'unknown';
+    // Kad pēdējoreiz veiksmīgi ielādēti dati no Google (ms epoch, 0 = nekad)
+    this._lastGoodLoad = 0;
+    // Cik sekundes datus uzskatām par svaigiem — lietotājs, kas divreiz
+    // nospieda "Sinhronizēt" vai atvērt divas sadaļas, nedrīkst palaist
+    // otru identisku bootstrap.
+    this.FRESH_MS = 60000;
+    // Cik dienu aprūpes ierakstus ielādēt sākuma ekrānam. Tas ir
+    // vienīgais papildus datu ielādes ceļš; pārējo vēsturi ielādē tikai
+    // konkrēta klienta atvēršanai.
+    this.RECENT_DAYS = 3;
     this._setupOfflineDetection();
+  }
+
+  // Reģistra saīsne. Ja js/operation_registry.js nav ielādēts (piem. testi),
+  // izmazgājam ar vienkāršu in-line fallback, lai nekas neuzlūdz.
+  get _registry() {
+    if (typeof opRegistry !== 'undefined' && opRegistry) return opRegistry;
+    if (!this.__fallbackRegistry) {
+      const entries = new Map();
+      this.__fallbackRegistry = {
+        run(key, fn) {
+          if (entries.has(key)) return { started: false, promise: entries.get(key) };
+          const p = Promise.resolve().then(fn);
+          entries.set(key, p);
+          p.finally(() => entries.delete(key));
+          return { started: true, promise: p };
+        },
+        throttle: () => true,
+        isActive: (k) => entries.has(k),
+        stats: () => [],
+        logSummary: () => {}
+      };
+    }
+    return this.__fallbackRegistry;
+  }
+
+  isFresh() {
+    return !!this._lastGoodLoad && (Date.now() - this._lastGoodLoad) < this.FRESH_MS;
   }
 
   _runExclusive(operation) {
     const run = this._syncTail.then(operation, operation);
     this._syncTail = run.catch(() => {});
     return run;
+  }
+
+  // Vienas un tās pašas darbības izpilde — vienu reizi.
+  //
+  // atslēga: piem. 'load:initial' vai 'load:marks'
+  // atgriež pašu Promise, ja darbība jau izpildās. Tas ir galvenais
+  // mehānisms, kas novērš "viena darbība = 3 sinhronizācijas".
+  _runOnce(key, fn) {
+    return this._registry.run(key, fn);
   }
 
   _setupOfflineDetection() {
@@ -408,7 +584,14 @@ class CareSync {
     updateStatus();
     window.addEventListener('online', () => {
       updateStatus();
-      this.forceFullSync().catch(() => {});
+      // Savienojums atgriezies — atjaunini, TIKAI ja dati nav svaigi.
+      // Agrāk šeit bija forceFullSync(), kas pēc katra "online"
+      // notikuma dzināja pilnu bootstrap, pat ja dati jau bija ielādēti.
+      if (this.isFresh()) {
+        console.log('[sync] ⏭ Savienojums atgriezies, bet dati jau svaigi — neielādēju atkārtoti.');
+        return;
+      }
+      this.loadInitialData().catch(() => {});
     });
     window.addEventListener('offline', updateStatus);
   }
@@ -569,10 +752,34 @@ class CareSync {
     });
   }
 
-   async loadInitialData(onProgress, filters = {}) {
-     // Spec: Migrācija pirms datu ielādes
-     try { await this.runMigrations(); } catch (e) { console.warn('[sync] migration failed:', e); }
-     return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
+   // ───────────────────────────────────────────────────────────────────────
+   // VIENĀS ielādes ceļš
+   //
+   // loadInitialData() ir VIENS publisks ieejas punkts visām lapām.
+   // Tas nozīmē, ka neviens cits kods nedrīkst pa tiekām izsaukt
+   // forceFullSync()/reloadFromSheets() — viss iet caur šeit, un šeit
+   // reģistrs pārliecinās, ka tā pati ielāde notiek tikai vienu reizi.
+   // ───────────────────────────────────────────────────────────────────────
+   async loadInitialData(onProgress, filters = {}, opts = {}) {
+     const options = opts || {};
+     const force = !!options.force;
+     const key = 'load:initial';
+
+     // 1) Svaņi? — pārraksta nav vajadzīgas.
+     if (!force && this.isFresh()) {
+       const age = Math.round((Date.now() - this._lastGoodLoad) / 1000);
+       PERF.skipped(key, 'dati jau svaigi (' + age + 's veci)');
+       console.log('[sync] ⏭ Dati jau aktuāli (' + age + 's veci) — bootstrap izlaista.');
+       return { offline: false, connected: true, cached: true, count: this._serverCounts || {}, pending: await this.getUnsyncedCount(), revision: this.revision };
+     }
+
+     // 2) Jau izpildās? — atgriež to pašu darbību, nevis sāk otru.
+     const { started, promise } = this._runOnce(key, async () => {
+       try { await this.runMigrations(); } catch (e) { console.warn('[sync] migration failed:', e); }
+       return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
+     });
+     if (!started) PERF.skipped(key, 'ielāde jau izpildās');
+     return promise;
    }
 
   // Faza 1: nelielās tabulas (darbinieki, klienti, uzdevomi) — ātri, vienā pieprasījumā
@@ -580,20 +787,23 @@ class CareSync {
     const params = new URLSearchParams({ action: 'load', mode: 'bootstrap', t: Date.now() });
     const url = SYNC_URL + '?' + params.toString();
     console.log('[sync] bootstrap SENDING:', url);
-    // Retries are essential on mobile: a single dropped request used to fail the
-    // whole app. Each retry also gets a fresh URL (timestamp) so a cached GAS
-    // 302/error response cannot poison every attempt.
-    // Pirmais mēģinājums ir īsāks (45s), lai vāja tīkla lietotājs nenosaka
-    // gaidīt bezgalīgi; atkārtojumiem 90s (GAS var būt aizvēsts).
-    let lastAttempt = 0;
-    const data = await this._fetchWithRetry(url, 60000, 3, {
-      loadTimeout: (attempt) => (attempt === 0 ? 45000 : 90000),
-      onRetry: (attempt) => {
-        lastAttempt = attempt;
-        if (onProgress) onProgress('Pārbaudu savienojumu ar Google... (mēģinājums ' + attempt + ')');
-      }
+    // Īss, kontrolēts mēģinājums. Nevis 3× 90 sekundēm — GAS aukstais
+    // starts izmērīts 3–10s, tāpēc 2 mēģinājumi ar 1s/2s atkāpi ir
+    // 40 reizes ātrāks nekā iepriekšējais 126s gaidišana.
+    const data = await this._requestWithRetry(url, {
+      label: 'bootstrap',
+      attempts: 2,
+      // ⚠️ Timeout ir izmērīts, nevis uzminēts. 2026-09-28 mērījumi pret
+      // jauno deploy URL (6 mēģinājumi): 4.6 / 5.2 / 5.7 / 5.9 / 12.1 / 12.3 s
+      // (silts serveris, vidēji 7.6s). PIRMS tam bija viena AUKSTĀ sākuma
+      // reize 34.7s. Ar 25s timeoutu tā nogrieztos un sāktu no jauna, tāpēc
+      // bootstrapam 35s — tā aptver visu novēroto diapazonu VIENĀ mēģinājumā.
+      // Fona atzīmju ielāde paliek 25s: tas notiek PĒC bootstrapa, kad
+      // serveris jau silts.
+      timeout: 35000,
+      onProgress
     });
-    console.log('[sync] bootstrap RECEIVED (attempt ' + lastAttempt + '):',
+    console.log('[sync] bootstrap RECEIVED:',
       'darbinieki=' + (data.darbinieki || []).length,
       'klienti=' + (data.klienti || []).length, 'counts=', JSON.stringify(data.counts || {}));
     if (data.error) {
@@ -607,186 +817,173 @@ class CareSync {
   // Faza 2: atzimes + atzimes_log pa blokiem (jaunākie pirmāk). SAPLŪST, netīra.
   async _loadMarksPaged(onProgress, totals) {
     if (!SYNC_URL) return null;
-    onProgress = onProgress || function() {}; // Fons: neatjaudājams console.log iekšā
-    const LIMIT = 500; // Mazāk — ātrāk GAS atmoderas, mazāk timeoutu
-    let totalMarks = (totals && totals.atzimes) || 0;
-    let totalLog = (totals && totals.atzimes_log) || 0;
+     onProgress = onProgress || function() {}; // Fons: neatjaudājams console.log iekšā
+     const LIMIT = 500; // Mazāk — ātrāk GAS atmoderas, mazāk timeoutu
+     let totalMarks = (totals && totals.atzimes) || 0;
+     let totalLog = (totals && totals.atzimes_log) || 0;
 
-    // Ielādējam VISUS atzīmes, sākot no JAUNĀKOVI (beigām → sākumam),
-    // lai "šodien" dati kļūtu pieejami pirmie.
-    const end = Math.max(totalMarks, totalLog);
-    let offset = Math.max(0, end - LIMIT);
-    let loadedMarks = 0, loadedLog = 0;
-    let guard = 0;
-    const MAX_GUARD = 2000; // 500-row lapas → ~452 lapas
+     // Ielādējam VISUS atzīmes, sākot no JAUNĀKOVI (beigām → sākumam),
+     // lai "šodien" dati kļūtu pieejami pirmie.
+     const end = Math.max(totalMarks, totalLog);
+     let offset = Math.max(0, end - LIMIT);
+     let loadedMarks = 0, loadedLog = 0;
+     let guard = 0;
+     const MAX_GUARD = 2000; // 500-row lapas → ~452 lapas
 
-    while (guard++ < MAX_GUARD) {
-      const params = new URLSearchParams({
-        action: 'load', mode: 'marks', t: Date.now(),
-        offset: String(offset), limit: String(LIMIT)
-      });
-      const url = SYNC_URL + '?' + params.toString();
+     while (guard++ < MAX_GUARD) {
+       const params = new URLSearchParams({
+         action: 'load', mode: 'marks', t: Date.now(),
+         offset: String(offset), limit: String(LIMIT)
+       });
+       const url = SYNC_URL + '?' + params.toString();
 
-      // GAS atgriež atzimes + atzimes_log vienā atbildē (vienā pieprasījumā)
-      let data;
-      try {
-        data = await this._fetchWithRetry(url, 120000, 3);
-      } catch (e) {
-        console.warn('[sync] marks page @offset ' + offset + ' neizdevās pēc retry:', e.message);
-        offset = Math.max(0, offset - LIMIT);
-        if (offset === 0 && guard > 2) break;
-        onProgress('⚠️ Pārlejot garš ' + offset);
-        await new Promise(r => setTimeout(r, 0)); // Atladīg UI
-        continue;
-      }
-      if (data.error) {
-        console.warn('[sync] marks page kļūda:', data.error);
-        offset = Math.max(0, offset - LIMIT);
-        if (offset === 0 && guard > 2) break;
-        await new Promise(r => setTimeout(r, 0));
-        continue;
-      }
+       // GAS atgriež atzimes + atzimes_log vienā atbildē (vienā pieprasījumā)
+       let data;
+       try {
+         data = await this._requestWithRetry(url, { label: 'marks@' + offset, attempts: 2, timeout: 25000 });
+       } catch (e) {
+         console.warn('[sync] marks page @offset ' + offset + ' neizdevās pēc retry:', e.message);
+         break;
+       }
+       if (data.error) {
+         console.warn('[sync] marks page kļūda:', data.error);
+         break;
+       }
 
-      totalMarks = data.markTotal || totalMarks;
-      totalLog = data.logTotal || totalLog;
-      const marks = data.atzimes || [];
-      const logs = data.atzimes_log || [];
+       totalMarks = data.markTotal || totalMarks;
+       totalLog = data.logTotal || totalLog;
+       const marks = data.atzimes || [];
+       const logs = data.atzimes_log || [];
 
-      if (marks.length) await this.db.batchPut('atzimes', marks.map(normalizeRow));
-      if (logs.length) await this.db.batchPut('atzimes_log', logs.map(normalizeRow));
+       if (marks.length) await this.db.batchPut('atzimes', marks.map(normalizeRow));
+       if (logs.length) await this.db.batchPut('atzimes_log', logs.map(normalizeRow));
 
-      loadedMarks += marks.length;
-      loadedLog += logs.length;
-      onProgress('Ielādēju aprūpes ierakstus: ' + loadedMarks + ' / ' + (totalMarks || '?'));
+       loadedMarks += marks.length;
+       loadedLog += logs.length;
+       onProgress('Ielādēju aprūpes ierakstus: ' + loadedMarks + ' / ' + (totalMarks || '?'));
 
-      // Newest-first paging: stop when we've paged all the way down to offset 0.
-      if (offset === 0) break;
-      const next = Math.max(0, offset - LIMIT); // jaunākie pirmāk → atpakaļ
-      if (next === offset) break;
-      offset = next;
-      await new Promise(r => setTimeout(r, 0)); // Atlaide UI starp lapām
-    }
+       // Newest-first paging: stop when we've paged all the way down to offset 0.
+       if (offset === 0) break;
+       const next = Math.max(0, offset - LIMIT); // jaunākie pirmāk → atpakaļ
+       if (next === offset) break;
+       offset = next;
+       await new Promise(r => setTimeout(r, 0)); // Atlaide UI starp lapām
+     }
 
-    console.log('[sync] marks ielādēti. offset=' + offset + ' markTotal=' + totalMarks + ' logTotal=' + totalLog);
-    this._marksLoaded = true;
-    this.revision = (this.revision || 0) + 1;
-    try { window.dispatchEvent(new CustomEvent('marksLoaded')); } catch (e) {}
-    return { markTotal: totalMarks, logTotal: totalLog };
-  }
+     console.log('[sync] vēsture ielādēta: ' + loadedMarks + ' atzīmes, ' + loadedLog + ' logi (kopā ' + totalMarks + '/' + totalLog + ')');
+     this._marksLoaded = true;
+     this.revision = (this.revision || 0) + 1;
+     try { window.dispatchEvent(new CustomEvent('marksLoaded')); } catch (e) {}
+     return { markTotal: totalMarks, logTotal: totalLog, loaded: loadedMarks, loadedLog: loadedLog };
+   }
 
-  // Ātra ielāde — tikai vakardiena + šodiena + rītdiena (3 dienas)
-  // Ielādējas pirmos ~5 sekundes, UI nav bloķēts
-  async _loadRecentMarks(onProgress) {
-    const now = new Date();
-    const dates = [];
-    for (let i = -1; i <= 1; i++) { // -1=vakardiena, 0=šodiena, +1=rītdiena
-      const d = new Date(now);
-      d.setDate(d.getDate() + i);
-      dates.push(d.toISOString().slice(0, 10)); // "yyyy-mm-dd"
-    }
+   // Aktuālie ieraksti sākuma ekrānam: vakardiena + šodiena + rītdiena.
+   //
+   // TIE ir vienīgie ieraksti, kas nepieciešami, lai lietotājs var sākt
+   // darbu uzreiz. Vēsture netiek ielādēta līdz brīdim, kad konkrētais
+   // klients tiek atvērts (loadClientRange) vai lietotājs to izvēlas
+   // pats (sync.loadHistory()).
+   async _loadRecentMarks(onProgress, days) {
+     const span = days || this.RECENT_DAYS || 3;
+     const dates = [];
+     for (let i = -(span - 1); i <= 0; i++) {
+       dates.push(TimezoneUtils ? TimezoneUtils.offsetDaysRiga(i) : new Date(Date.now() + i * 86400000).toISOString().slice(0, 10));
+     }
 
-    // Vienā pieprasījumā filtrēt pēc datuma diapazonam
-    const params = new URLSearchParams({
-      action: 'load', mode: 'range', t: Date.now(),
-      dateFrom: dates[0], dateTo: dates[2], limit: '2000'
-    });
-    const url = SYNC_URL + '?' + params.toString();
-    const data = await this._fetchWithRetry(url, 60000, 2);
+     const params = new URLSearchParams({
+       action: 'load', mode: 'range', t: Date.now(),
+       dateFrom: dates[0], dateTo: dates[dates.length - 1], limit: '2000'
+     });
+     const url = SYNC_URL + '?' + params.toString();
+     const data = await this._requestWithRetry(url, { label: 'atzīmes (' + span + ' dienas)', attempts: 2, timeout: 25000 });
 
-    const marks = (data.atzimes || []).map(normalizeRow);
-    const logs = (data.atzimes_log || []).map(normalizeRow);
-    if (marks.length) await this.db.batchPut('atzimes', marks);
-    if (logs.length) await this.db.batchPut('atzimes_log', logs);
+     const tProcess = _nowMs();
+     const marks = (data.atzimes || []).map(normalizeRow);
+     const logs = (data.atzimes_log || []).map(normalizeRow);
+     if (marks.length) await this.db.batchPut('atzimes', marks);
+     if (logs.length) await this.db.batchPut('atzimes_log', logs);
+     PERF.sub('atzīmes (' + span + ' dienas)', 'datu apstrāde (IndexedDB)', (_nowMs() - tProcess));
 
-    console.log('[sync] ielādēti aktuālie ieraksti: ' + marks.length + ' atzimes, ' + logs.length + ' logi');
-    try { window.dispatchEvent(new CustomEvent('recentMarksLoaded')); } catch (e) {}
-  }
+     console.log('[sync] aktuālie ieraksti ielādēti: ' + marks.length + ' atzīmes, ' + logs.length + ' logi (' + dates[0] + ' → ' + dates[dates.length - 1] + ')');
+     try { window.dispatchEvent(new CustomEvent('recentMarksLoaded')); } catch (e) {}
+     return { marks: marks.length, logs: logs.length, from: dates[0], to: dates[dates.length - 1] };
+   }
 
-  // Fonā ielādē visus pārējos atzimes (500/rindura lapām)
-  // Neprasina await — turpinās neatkarībā no UI
-  _loadMarksBackground(onProgress, counts) {
-    const bgProgress = onProgress || function() {}; // Fons: klusi konsolē
-    this._marksLoadingPromise = this._loadMarksPaged(bgProgress, counts)
-      .then(r => {
-        this._updateSyncStatus('Saglabāts');
-        if (onProgress) onProgress('✓ Visi aprūpes ieraksti ielādēti');
-        return r;
-      })
-      .catch(e => {
-        console.warn('[sync] fona atzīmju ielāde neizdevās:', e.message);
-        this._updateSyncStatus('Saglabāts');
-        if (onProgress) onProgress('⚠️ Daži ieraksti netika ielādēti, bet varat turpināt darbu');
-        return null;
-      });
-  }
+   // FONĀ ielādē jaunākos ierakstus. Tas ir VIENS datu ielādes ceļš pēc
+   // bootstrap — nevis divi paralēli (_loadMarksPaged + _loadRecentMarks),
+   // kas dublēja katru ierakstu un kāpināja slodzi GAS serverim.
+   _loadRecentMarksBackground(onProgress) {
+     const { started, promise } = this._runOnce('load:recent', () => this._loadRecentMarks(null, this.RECENT_DAYS));
+     if (!started) return this._recentLoadingPromise || promise;
+     this._recentLoadingPromise = promise
+       .then(r => {
+         this.revision = (this.revision || 0) + 1;
+         this._updateSyncStatus('Saglabāts');
+         return r;
+       })
+       .catch(e => {
+         console.warn('[sync] aktuālo ierakstu fona ielāde neizdevās:', e.message);
+         return null;
+       });
+     return this._recentLoadingPromise;
+   }
 
-  // Ārējiem pieprasījumiem (JSONP uz script.google.com) pārlūks izmanto
-  // JSONP, nevis fetch — tāpēc SW nedrīkst tos pārtvert. Ja tomēr
-  // gadījumā to dara, skripts neielādējas un JSONP atzvanīšana nenotiek.
-  // Šeit noņemam SW un ļaujam pārlūkam strādāt pašam.
-  async _teardownServiceWorker() {
-    if (!('serviceWorker' in navigator) || !navigator.serviceWorker) return false;
-    try {
-      const controlled = !!navigator.serviceWorker.controller;
-      const regs = navigator.serviceWorker.getRegistrations
-        ? await navigator.serviceWorker.getRegistrations()
-        : [];
-      if (!controlled && (!regs || regs.length === 0)) return false;
+   // Pilnā vēsture — TIKAI pēc pieprasījuma (klienta atvēršana vai
+   // manuāla darbība). Sākuma ekrānam tas nav vajadzīgs.
+   loadHistory(onProgress) {
+     const { started, promise } = this._runOnce('load:history', async () => {
+       const counts = this._serverCounts || {};
+       return PERF.measure('vēsture (fonā)', () => this._loadMarksPaged(onProgress || null, counts));
+     });
+     this._marksLoadingPromise = promise;
+     return promise;
+   }
 
-      await Promise.all((regs || []).map(r => r.unregister().catch(() => {})));
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
-      console.log('[sync] Service Workers noņemti, mēģinu vēlreiz bez SW');
-      return true;
-    } catch (e) {
-      console.warn('[sync] SW noņemšana neizdevās:', e);
-      return false;
-    }
-  }
-
-  // Palūkstīga pieprasījuma atkārtota mēģinājuma ar eksponenciālo atliki
-  async _fetchWithRetry(url, timeout, retries, options = {}) {
-    const { onRetry, loadTimeout } = options;
+  // ─────────────────────────────────────────────────────────────────────────
+  // ĪSS, KONTROLĒTS MĒĒINĀJUMS
+  //
+  // Vecā loģika: 3–4 mēģinājumi × 60–120s = līdz 5 minūtēm gaidīšanas
+  // vienam pieprasījumam, un katrs mēģinājums atkārtoja to pašu 404→JSONP
+  // ķēdi. Rezultāts bija 126 sekundes tukša ekrāna.
+  //
+  // Jaunā loģika: 2 mēģinājumi, 25s timeout, 800ms/2000ms atkāpe,
+  // kopējā ceļa izmaksas ierobežotas. Nevis tā vietā mēģināt ilgāk —
+  // ātrāk atdot kļūdu un strādāt ar vietējiem datiem.
+  // ─────────────────────────────────────────────────────────────────────────
+  async _requestWithRetry(url, options = {}) {
+    const {
+      label = 'pieprasījums',
+      attempts = 2,
+      timeout = 25000,
+      onProgress = null
+    } = options;
+    const backoff = [800, 2000];
     let lastErr;
-    let swTried = false;
-    const backoff = [1000, 3000, 8000]; // Ātrāk atjauno GAS pēc cold start
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      const started = Date.now();
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const started = _nowMs();
       try {
-        const lt = typeof loadTimeout === 'function' ? loadTimeout(attempt) : loadTimeout;
-        return await requestData(url, timeout, lt);
+        return await PERF.net(label, (hooks) => {
+          hooks.onSent();
+          return requestData(url, timeout);
+        });
       } catch (e) {
-        const spent = Date.now() - started;
+        const spent = _nowMs() - started;
         lastErr = e;
-        // Server atbildēja ar kļūdu (piem. GAS kvota) — atkārtošana neatbūs palīdzēt
+        // Serveris pats atbildēja ar kļūdu (piem. GAS kvota) — atkārtošana
+        // neatbūs palīdzēt, un mēs nezaudējam laiku.
         if (e && e.permanent) throw e;
 
-        // Ātri nokrātis (DNS kļūda, "Failed to fetch", skripta kļūda) nozīmē,
-        // ka nav tīkla, nevis ka serveris ir lēns. Bez tīkla katrs mēģinājums
-        // kļūst par dažām sekundēm, tāpēc 2 ātri mēģinājumi ir lēti un izārst
-        // arī vienu nejaušu zaudētu paketi. Bet turpmākos ar 90s timeoutiem
-        // neizmaksā gaidīt — lietotājs beidz redzēt tikai mirkli.
-        const fastNetErr = spent < 6000 && /Failed to fetch|NetworkError|load failed|ERR_|Savienojuma kļūda/i.test(String(e && e.message));
-        if (fastNetErr && attempt >= 2) {
-          console.warn('[sync] ātrs tīkla kļūdas (' + spent + 'ms) — tīkla nav, pārtraucu');
-          throw e;
-        }
+        console.warn(
+          '[sync] ' + label + ' neizdevās (mēģinājums ' + (attempt + 1) + '/' + attempts +
+          ', ' + Math.round(spent) + 'ms): ' + (e && e.message)
+        );
 
-        // Vienu reizi mēģinām noņemt SW — tas bieži novērš JSONP nokļūšanu
-        if (!swTried && attempt === 0) {
-          const removed = await this._teardownServiceWorker();
-          if (removed) swTried = true;
-        }
-
-        console.warn('[sync] atkārtota mēģinājuma kļūda (mēģinājums ' + (attempt + 1) + '/' + (retries + 1) + ', ' + spent + 'ms):', e.message);
-        if (attempt < retries) {
-          if (onRetry) {
-            try { onRetry(attempt + 2); } catch (cbErr) {}
+        if (attempt < attempts - 1) {
+          if (onProgress) {
+            try { onProgress('Pārbaudu savienojumu ar Google... (mēģinājums ' + (attempt + 2) + ')'); } catch (cbErr) {}
           }
-          const delay = backoff[Math.min(attempt, backoff.length - 1)];
-          await new Promise(r => setTimeout(r, delay));
+          await new Promise(r => setTimeout(r, backoff[Math.min(attempt, backoff.length - 1)]));
         }
       }
     }
@@ -809,15 +1006,15 @@ class CareSync {
         dateFrom: dateFrom || '', dateTo: dateTo || '',
         offset: String(offset), limit: String(LIMIT)
       });
-      const url = SYNC_URL + '?' + params.toString();
-      let data;
-      try {
-        data = await requestData(url, 30000); // Ātrāk timeout — 30s
-      } catch (e) {
-        console.warn('[sync] loadClientRange neizdevās:', e.message);
-        break;
-      }
-      if (data.error) break;
+       const url = SYNC_URL + '?' + params.toString();
+       let data;
+       try {
+         data = await this._requestWithRetry(url, { label: 'klients ' + clientId, attempts: 2, timeout: 20000 });
+       } catch (e) {
+         console.warn('[sync] loadClientRange neizdevās:', e.message);
+         break;
+       }
+       if (data.error) break;
 
       const marks = (data.atzimes || []).map(normalizeRow);
       const logs = (data.atzimes_log || []).map(normalizeRow);
@@ -845,13 +1042,16 @@ class CareSync {
     // Tikai viens mēģinājums — ātri, bez murgiem
     try {
       if (processQueueFirst) {
-        // Rindas nosūtīšanai atvēlam tikai 20s — dati jāielādē ātrāk!
-        await this._processQueueUnlocked(20000);
+        // Rindas nosūtīšanai atvēlam tikai 10s — dati jāielādē ātrāk!
+        await this._processQueueUnlocked(10000);
       }
 
       // === FAZA 1: nelielās tabulas (ātri) ===
-      onProgress('Ielādēju klientus un darbiniekus...');
-      const base = await this._loadBootstrap(onProgress);
+      onProgress('Atjaunoju klientus un darbiniekus...');
+      const tReq = _nowMs();
+      const base = await PERF.measure('kopējā sinhronizācija', () => this._loadBootstrap(onProgress), { group: 'serveris' });
+      const tResp = _nowMs();
+      PERF.sub('kopējā sinhronizācija', 'servera atbilde', tResp - tReq);
       const lastSync = Date.now();
 
       // Saglabāt vietējos pabeigšanas statusus un klientu izmaiņas pirms DB tīrīšanas
@@ -873,11 +1073,15 @@ class CareSync {
       await this._applyLocalCompletions(localCompletions);
       await this._applyLocalClientChanges(localClientChanges);
 
+      const tProc = _nowMs();
+      PERF.sub('kopējā sinhronizācija', 'datu apstrāde (IndexedDB)', tProc - tResp);
+
       const counts = base.counts || {};
       this._serverCounts = counts;
 
       this.loaded = true;
       this.revision = (this.revision || 0) + 1;
+      this._lastGoodLoad = Date.now();
 
       // sync_queue is NOT cleared after data load — pending operations
       // may not have been confirmed by the server yet. Each item is only
@@ -907,15 +1111,13 @@ class CareSync {
       try {
         window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
       } catch (e) {}
-      onProgress('✓ Klienti ielādēti. Zemtā aprūpes ieraksti...');
+      onProgress('✓ Klienti ielādēti.');
 
-      // === FAZA 2: FONĀ — ielādē pārējos atzimes, bet nebloķē UI ===
-      // Fona ielāde ir klusa — tikai konsolē, neredzams lietotājam
-      this._loadMarksBackground(null, counts);
-
-      // === FAZA 3: Ātra ierakveida ielāde — tikai 3 dienas ===
-      // Pilnīgi klusi — neredzams lietotājam, tikai konsolē
-      this._loadRecentMarks(null);
+      // === FAZA 2: FONĀ — jaunākie aprūpes ieraksti (nevis pilnā vēsture) ===
+      // VIENS datu ielādes ceļš, nevis divi paralēli. Reģistrs garantē, ka pat
+      // ja forceFullSync() nokļuva šeit vairākas reizes, fona ielāde notiek
+      // vienu reizi, nevis trīs.
+      this._loadRecentMarksBackground(null);
 
       return result;
     } catch (err) {
@@ -929,21 +1131,73 @@ class CareSync {
     }
   }
 
-  // Gaidīt, kamēr fona atzīmju ielāde beidzās
+  // ───────────────────────────────────────────────────────────────────────
+  // LOKĀLIE DATI PIRMS — galvenais veiktspējas lēmums.
+  //
+  // UI jāparādās no IndexedDB, nevis jāgaida Google. Servera kļūme vairs
+  // nenoblokē programmu: ja GOOGLE nepasniedz, lietotājs joprojām strādā
+  // ar pēdējiem datiem un var sākt darbu.
+  // ───────────────────────────────────────────────────────────────────────
+  async loadFromLocal() {
+    const has = await this.hasLocalData();
+    if (!has) {
+      console.log('[sync] Lokālie dati nav pieejami — UI tiks parādīts pēc sinhronizācijas.');
+      return false;
+    }
+    const lastSync = await this.getLastSyncTime();
+    const age = lastSync ? Math.round((Date.now() - lastSync) / 1000) : null;
+    console.log(
+      '[sync] 💾 Lokālie dati pieejami' +
+      (age !== null
+        ? ' (pēdējoreiz sinhronizēts pirms ' + (age < 90 ? age + 's' : Math.round(age / 60) + ' min') + ')'
+        : '')
+    );
+    return { has: true, lastSync, ageSec: age };
+  }
+
+  // Pilna "parādi lokāli, tad atjaunini fonā" plūsma, ko izmanto visas lapas.
+  async bootstrapUI(options = {}) {
+    const opts = options || {};
+    const onProgress = opts.onProgress || null;
+
+    // 1) Vietējie dati — acumērātiem.
+    await PERF.measure('lokālie dati (IndexedDB)', async () => { await this.loadFromLocal(); });
+    if (opts.onLocalReady) {
+      await opts.onLocalReady();
+      PERF.markUI('UI parādīts no lokālajiem datiem');
+    }
+
+    // 2) Serveris — fonā, ar paziņojumu, nevis ar bloķējošu ekrānu.
+    const t0 = _nowMs();
+    const result = await this.loadInitialData(onProgress, {}, { force: !!opts.force });
+    PERF.sub('kopējā sinhronizācija', 'līdz datiem ierīcē',
+      _nowMs() - t0);
+
+    if (!result.offline && opts.onServerData) {
+      await opts.onServerData();
+    }
+    PERF.autoSummary();
+    return result;
+  }
+
+  // Gaidīt, kamēr fona ielāde (jaunākie ieraksti vai vēsture) beidzās
   async waitForMarks() {
-    if (this._marksLoadingPromise) {
-      try { await this._marksLoadingPromise; } catch (e) {}
+    const p = this._marksLoadingPromise || this._recentLoadingPromise;
+    if (p) {
+      try { await p; } catch (e) {}
     }
     return this._marksLoaded;
   }
 
-  // Atjauno datus no GS — izsaukt, kad lietotājs pāriet uz citu sadaļu
+  // Atjauno datus no GS. Šis ir TIKAI API sasaitei — tā izmanto to pašu
+  // ielādes ceļu un tā pašu reģistru, tāpēc nevar izraisīt dubultu ielādi.
   async reloadFromSheets(onProgress) {
     if (this._loading) {
-      console.log('[sync] jau ielādē, nē dzēst');
-      return;
+      console.log('[sync] ⏭ jau ielādē — papildu reload nav vajadzīgs');
+      PERF.skipped('load:initial', 'ielāde jau notiek');
+      return { offline: false, cached: true };
     }
-    return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, false, {}));
+    return this.loadInitialData(onProgress, {});
   }
 
   async enqueueChange(change) {
@@ -1026,7 +1280,10 @@ class CareSync {
   }
 
   async processQueue() {
-    return this._runExclusive(() => this._processQueueUnlocked());
+    // Rindu apstrāde arī ir operācija — ja tā jau notiek, izmantojam to pašu.
+    const { promise } = this._runOnce('queue:process', () =>
+      this._runExclusive(() => this._processQueueUnlocked()));
+    return promise;
   }
 
   async _processQueueUnlocked(maxMs) {
@@ -1103,8 +1360,8 @@ class CareSync {
             let result;
             try {
               result = isWriteOp
-                ? await postAction(action, data, 45000)
-                : await jsonpAction(action, data, 45000);
+                ? await postAction(action, data, 25000)
+                : await jsonpAction(action, data, 25000);
               console.log('[sync] processQueue RESULT:', action, 'success:', result?.success, 'error:', result?.error, 'already_processed:', result?.already_processed);
             } catch (requestErr) {
               // Request failed (network error/timeout) - re-throw to trigger retry logic
@@ -1187,17 +1444,10 @@ class CareSync {
   }
 
   async forceFullSync(onProgress, filters = {}) {
-    return this._runExclusive(async () => {
-      const queue = await this._processQueueUnlocked();
-      const load = await this._loadInitialDataUnlocked(onProgress, false, filters);
-      // Do NOT clearQueue here — pending operations not yet confirmed by server
-      // must be preserved. Items are only removed when server accepts them.
-      const result = { ...load, queue };
-      try {
-        window.dispatchEvent(new CustomEvent('syncComplete', { detail: result }));
-      } catch (e) {}
-      return result;
-    });
+    // forceFullSync atšķiras no loadInitialData TIKAI tāpēc, ka ignorē
+    // "dati jau svaigi" logiku. Tas ir viss, ko tas dara. Tas NEPALAIST
+    // otru bootstrap, ja lielā ielāde jau notiek — to apstrādā reģistrs.
+    return this.loadInitialData(onProgress, filters || {}, { force: true });
   }
 
   // Pūsta sync_queue - izsaucot, kad serveris ir "source of truth"

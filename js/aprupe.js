@@ -169,7 +169,7 @@ class AprupeController {
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
     const retryBtn = document.getElementById('retryLoadBtn');
-    if (overlay) overlay.style.display = 'flex';
+    if (overlay) overlay.style.display = 'none';
 
     // Retry button handler - clears IndexedDB cache and reloads
     if (retryBtn) {
@@ -200,16 +200,27 @@ class AprupeController {
       this.filteredClients = [...this.clients];
       this.renderCards();
 
-      const syncResult = await this.sync.loadInitialData((msg) => {
-        if (loadingText) loadingText.textContent = msg;
-      });
-      await Promise.all([
-        this.loadClients(),
-        this.loadTodayMarks()
-      ]);
-      this.filteredClients = [...this.clients];
-      this.renderCards();
-      await this.renderTasksTable();
+    // Lietotājs jau var strādāt ar pēdējiem datiem — ekrāns nav bloķēts.
+    // Google atjauninājumi notiek fonā un patiekošie dati pārķāpj ekrānu
+    // tikai tad, ja serveris kļūst pieejams.
+    const syncResult = await this.sync.bootstrapUI({
+      onLocalReady: async () => {
+        await Promise.all([this.loadClients(), this.loadTodayMarks()]);
+        this.filteredClients = [...this.clients];
+        this.renderCards();
+        Perf.markUI('UI gatavs (no lokālajiem datiem)');
+      },
+      onServerData: async () => {
+        await Promise.all([this.loadClients(), this.loadTodayMarks()]);
+        this.filteredClients = [...this.clients];
+        this.renderCards();
+        await this.renderTasksTable();
+      },
+      onProgress: (msg) => { if (loadingText) loadingText.textContent = msg; }
+    });
+    if (syncResult && syncResult.offline && retryBtn) {
+      retryBtn.style.display = 'block';
+    }
     } catch (e) {
       console.error(e);
       if (retryBtn) {
