@@ -1111,31 +1111,82 @@ class CareSync {
    // darbu uzreiz. Vēsture netiek ielādēta līdz brīdim, kad konkrētais
    // klients tiek atvērts (loadClientRange) vai lietotājs to izvēlas
    // pats (sync.loadHistory()).
-   async _loadRecentMarks(onProgress, days) {
-     const span = days || this.RECENT_DAYS || 3;
-     const dates = [];
-     for (let i = -(span - 1); i <= 0; i++) {
-       dates.push(TimezoneUtils ? TimezoneUtils.offsetDaysRiga(i) : new Date(Date.now() + i * 86400000).toISOString().slice(0, 10));
-     }
+  async _loadRecentMarks(onProgress, days) {
+    const span = days || this.RECENT_DAYS || 3;
+    const dates = [];
+    for (let i = -(span - 1); i <= 0; i++) {
+      dates.push(TimezoneUtils ? TimezoneUtils.offsetDaysRiga(i) : new Date(Date.now() + i * 86400000).toISOString().slice(0, 10));
+    }
 
-     const params = new URLSearchParams({
-       action: 'load', mode: 'range', t: Date.now(),
-       dateFrom: dates[0], dateTo: dates[dates.length - 1], limit: '2000'
-     });
-     const url = SYNC_URL + '?' + params.toString();
-     const data = await this._requestWithRetry(url, { label: 'atzīmes (' + span + ' dienas)', attempts: 2, timeout: 25000 });
+    // ⚠️ LAPOŠANA. Serveris ierobežo katru atbildi ar Math.min(limit, 5000)
+    // un atgriež `done`, `nextOffset`, `logNextOffset`. Vecākais klients šos
+    // laukus IGNORĒJA un ņēma tikai pirmo lapu. Pie 200 klientiem 3 dienas
+    // dod ~18 000 atzīmju, tāpēc pirmās 2000 būtu KLUSĀ datu zaudējuma.
+    // Šeit atbilde tiek izlasta, kamēr serveris saka `done`.
+    const PAGE = 2000;
+    const MAX_PAGES = 60;          // 120 000 ieraksti — vairāk par jebkuru reālu dienu
+    let offset = 0;
+    let rawMarks = [], rawLogs = [];
+    let pages = 0, truncated = false;
 
-     const tProcess = _nowMs();
-     const marks = (data.atzimes || []).map(normalizeRow);
-     const logs = (data.atzimes_log || []).map(normalizeRow);
-     if (marks.length) await this.db.batchPut('atzimes', marks);
-     if (logs.length) await this.db.batchPut('atzimes_log', logs);
-     PERF.sub('atzīmes (' + span + ' dienas)', 'datu apstrāde (IndexedDB)', (_nowMs() - tProcess));
+    while (pages < MAX_PAGES) {
+      const params = new URLSearchParams({
+        action: 'load', mode: 'range', t: Date.now(),
+        dateFrom: dates[0], dateTo: dates[dates.length - 1],
+        limit: String(PAGE), offset: String(offset)
+      });
+      const url = SYNC_URL + '?' + params.toString();
+      const data = await this._requestWithRetry(url, {
+        label: 'atzīmes (' + span + ' dienas, lapa ' + (pages + 1) + ')',
+        attempts: 2, timeout: 25000
+      });
 
-     console.log('[sync] aktuālie ieraksti ielādēti: ' + marks.length + ' atzīmes, ' + logs.length + ' logi (' + dates[0] + ' → ' + dates[dates.length - 1] + ')');
-     try { window.dispatchEvent(new CustomEvent('recentMarksLoaded')); } catch (e) {}
-     return { marks: marks.length, logs: logs.length, from: dates[0], to: dates[dates.length - 1] };
-   }
+      rawMarks = rawMarks.concat(data.atzimes || []);
+      rawLogs = rawLogs.concat(data.atzimes_log || []);
+      pages++;
+
+      // Serveris pats pateiks, vai ir vēl lapas.
+      if (data.done === true) break;
+
+      // Divas lapas vienā pieprasījumā, tāpēc katrai savs offset. Kustamies
+      // pa mazāko, lai neizlēktu rindas tai tabulai, kurai vēl tās ir.
+      const next = Math.min(
+        Number(data.nextOffset || 0),
+        Number(data.logNextOffset || 0)
+      );
+      if (!isFinite(next) || next <= offset) {
+        console.warn('[sync] atzīmju lapošana apstājās: neprogresējošs offset', offset);
+        truncated = true;
+        break;
+      }
+      offset = next;
+      if (onProgress) onProgress('Ielādēju aprūpes ierakstus: ' + rawMarks.length + ' …');
+      await new Promise(r => setTimeout(r, 0)); // Atlaide UI starp lapām
+    }
+
+    if (pages >= MAX_PAGES) {
+      truncated = true;
+      console.warn('[sync] atzīmju lapošana apstājās pēc ' + MAX_PAGES +
+        ' lapām. Šis ir drošības ierobežojums, nevis normāls ceļš.');
+    }
+
+    const tProcess = _nowMs();
+    const marks = rawMarks.map(normalizeRow);
+    const logs = rawLogs.map(normalizeRow);
+    if (marks.length) await this.db.batchPut('atzimes', marks);
+    if (logs.length) await this.db.batchPut('atzimes_log', logs);
+    PERF.sub('atzīmes (' + span + ' dienas)', 'datu apstrāde (IndexedDB)', (_nowMs() - tProcess));
+
+    console.log('[sync] aktuālie ieraksti ielādēti: ' + marks.length + ' atzīmes, ' +
+      logs.length + ' logi (' + dates[0] + ' → ' + dates[dates.length - 1] + ')' +
+      (pages > 1 ? ', ' + pages + ' lapas' : ''));
+    if (truncated) {
+      console.warn('[sync] ⚠️ Ne visas atzīmes varēja tikt ielādētas. Rādītais ' +
+        'logs nav pilnīgs — pārlādē vai palielini MAX_PAGES.');
+    }
+    try { window.dispatchEvent(new CustomEvent('recentMarksLoaded')); } catch (e) {}
+    return { marks: marks.length, logs: logs.length, from: dates[0], to: dates[dates.length - 1], pages: pages, truncated: truncated };
+  }
 
    // FONĀ ielādē jaunākos ierakstus. Tas ir VIENS datu ielādes ceļš pēc
    // bootstrap — nevis divi paralēli (_loadMarksPaged + _loadRecentMarks),
