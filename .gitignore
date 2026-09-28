@@ -11,7 +11,6 @@ node_modules/
 Aprūpes sistēma.xlsx
 Aprūpētāja rokasgrāmata.txt
 DUPLICATE_FIX_README.md
-README.md
 debug.xlsx
 final_test.xlsx
 test_output.xlsx
@@ -20,8 +19,18 @@ test_*.js
 visas_aprupes_lapas_dati.txt
 .cursor/
 .kilo/
+# ⚠️ KĀRTĪBA UN VEIDS IR SVARĪGI, un abi bieži klup.
+# 1) Git piemēro PĒDĒJO atbilstošo noteikumu — atļaušanām jābūt ZEM šī
+#    noteikuma, nevis virs tā.
+# 2) Ja aizliedz PATS DIREKTORIJU (`backend/`), Git vispār neiebiedrojas
+#    tajā un neko nevar atļautt atpakaļ. Tāpēc šeit ir `backend/*`
+#    (aizliedz SATURU, nevis direktoriju) — tikai tā atļaušanas darbojas.
+# Iepriekš bija `!backend/gas_webhook.gs` VIRS `backend/`, tāpēc fails palika
+# sekots tikai tāpēc, ka tas jau bija force-addēts, un viss jauns fails
+# backend/ tika neredzams.
+backend/*
 !backend/gas_webhook.gs
-backend/
+!backend/*.md
 docs/
 js/demo_aprupetajs.html
 js/dataManager.js
