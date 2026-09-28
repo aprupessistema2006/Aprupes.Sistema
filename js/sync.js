@@ -85,9 +85,15 @@ const Transport = {
   failedModes: new Map(),     // modeKey -> kļūdu skaits
   lastError: null,
 
-  FETCH_TIMEOUT: 20000,       // bija 120000 — GAS aukstais starts ir 3–10s
-  JSONP_TIMEOUT: 25000,       // bija 120000
-  FETCH_FAILURES_BEFORE_STICKY: 2,
+    FETCH_TIMEOUT: 20000,       // bija 120000 — GAS aukstais starts ir 3–10s
+    JSONP_TIMEOUT: 25000,       // bija 120000
+    // RAKSTĪŠANAI īsāks fetch probes. Aprūpētājs nospilda laukus un gaida
+    // apstiprinājumu — ja katrs ieraksts izmēģina 20 s fetch timeout un tad
+    // pārnes uz JSONP, desmit lauku saglabāšana izmaksā 200 s, un rindā
+    // paliek ieraksti, kas netika nosūtīti ("Ir nesaglabāti dati!").
+    // JSONP rakstīšanai strādāja stabili, tāpēc tam pietiek īss probes.
+    ACTION_FETCH_TIMEOUT: 8000,
+    FETCH_FAILURES_BEFORE_STICKY: 2,
 
   shouldSkipFetch(url) {
     if (this.mode === 'jsonp') return true;
@@ -252,8 +258,11 @@ async function requestData(url, timeout) {
   const jsonUrl = url.replace(/([?&])callback=[^&]*&?/, '$1').replace(/[?&]$/, '');
 
   if (!Transport.shouldSkipFetch(url)) {
+    // Rakstīšanai (action=...) īsāks probes — skaidrojums pie ACTION_FETCH_TIMEOUT.
+    const isAction = Transport._modeKey(url) === 'action';
+    const fetchTimeout = timeout || (isAction ? Transport.ACTION_FETCH_TIMEOUT : Transport.FETCH_TIMEOUT);
     try {
-      const result = await fetchRequest(jsonUrl, timeout || Transport.FETCH_TIMEOUT);
+      const result = await fetchRequest(jsonUrl, fetchTimeout);
       Transport.noteSuccess(true);
       PERF.sub('transport', 'fetch', (_nowMs() - t0));
       return result;

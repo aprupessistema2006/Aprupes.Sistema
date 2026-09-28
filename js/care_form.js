@@ -194,12 +194,18 @@ try {
     this.setupEventListeners();
 
     // Pievieno syncComplete listener — atjaunojam UI kad fona sinhronizācija pabeidzās
-    window.addEventListener('syncComplete', (e) => {
-      if (e.detail && !e.detail.offline && this._initialLoadDone && this.client) {
-        this.loadTodayMarks();
+    window.addEventListener('syncComplete', async (e) => {
+      if (!e.detail || e.detail.offline || !this._initialLoadDone || !this.client) return;
+      // Sinhronizācija var būt atnesusi jaunus šī klienta ierakstus (piem.
+      // cits darbiniejs ierakstīja tajā pašā laikā), tāpēc pārlādām marku
+      // sarakstu un pēc tam pārrakstām skaitļus.
+      try {
+        await this.loadMarks();
         this.updateHospitalStatusUI();
         this.updateTeamSummary();
         this.renderQuickTotals();
+      } catch (err) {
+        console.warn('[care_form] syncComplete atjaunošana neizdevās:', err);
       }
     });
   }

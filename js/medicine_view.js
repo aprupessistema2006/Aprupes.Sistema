@@ -890,9 +890,15 @@ class MedicineView {
 
     el.innerHTML =
       '<div class="med-kpis">' +
-        tile('attn', '🔴', attention.length, 'Uzmanība') +
+        tile('attn', '🔴', attention.length, 'Steens') +
         tile('trend', '📈', trends.length, 'Tendence') +
         tile('all', '👥', total, 'Klienti') +
+      '</div>' +
+      '<div class="med-legend">' +
+        '<span class="med-legend-item crit"><b>🔴 Steens</b> — ārpus robežām, rīcība tagad</span>' +
+        '<span class="med-legend-item attn"><b>🟡 Uzmanīt</b> — tuvs robežai, sekot līdzi</span>' +
+        '<span class="med-legend-item trend"><b>📈 Tendence</b> — mainās 3+ dienas</span>' +
+        '<span class="med-legend-item ok"><b>✅ Normāli</b> — bez brīdinājuma</span>' +
       '</div>' +
       (attention.length === 0 && trends.length === 0
         ? '<div class="med-ok">✅ Nevienam klientam šobrīd nav ne kritisks rādījums, ne tendence.</div>'
@@ -937,19 +943,19 @@ class MedicineView {
     let html = '';
     if (this.focus === 'attn') {
       html = attention.length || trends.length || rest.length
-        ? section('attn', '🔴', 'Uzmanība', attention, false) +
-          section('trend', '📈', 'Tendence', trends, false) +
-          section('rest', '👥', 'Visi klienti', rest, false)
+    ? section('attn', '🔴', 'Rīcība tagad', attention, false) +
+    section('trend', '📈', 'Tendence', trends, false) +
+    section('rest', '👥', 'Visi klienti', rest, false)
         : this._emptyRow(term);
     } else if (this.focus === 'trend') {
       html = attention.length || trends.length || rest.length
         ? section('trend', '📈', 'Tendence', trends, false) +
-          section('attn', '🔴', 'Uzmanība', attention, false) +
+          section('attn', '🔴', 'Rīcība tagad', attention, false) +
           section('rest', '👥', 'Visi klienti', rest, false)
         : this._emptyRow(term);
     } else {
       // Noklusējums: uzmanība + tendence. Visi pārējie ir aizvākti.
-      html = section('attn', '🔴', 'Uzmanība', attention, false) +
+      html = section('attn', '🔴', 'Rīcība tagad', attention, false) +
         section('trend', '📈', 'Tendence', trends, false) +
         section('rest', '👥', 'Visi klienti', rest, !this.showAll);
     }
@@ -1111,9 +1117,15 @@ class MedicineView {
   }
 
   // Bloku galvene ar stāvokļa krāsu: 🔴 / 🟡 / normāls
+  //
+  // Pie emoji ir arī VĀRDS. Emoji bez vārda nozīmē gandrīz neko jaunam
+  // darbiniekam — tas nespēj atšķirt, kas ir steens un kas uzmanība.
   _blockHead(icon, title, state, extra) {
-    const stateTag = state === 'crit' ? '<span class="med-state crit">🔴</span>'
-      : state === 'attn' ? '<span class="med-state attn">🟡</span>' : '';
+    const stateTag = state === 'crit'
+        ? '<span class="med-state crit" title="Rādītājs ir ārpus pieņemamajiem robežām — nepieciešama rīcība tagad.">🔴 steens</span>'
+        : state === 'attn'
+          ? '<span class="med-state attn" title="Rādītājs tuvs robežai vai izmainījies — sekot līdzi.">🟡 uzmanīt</span>'
+          : '';
     return '<h3>' + icon + ' ' + this.escapeHtml(title) + ' ' + stateTag + (extra || '') + '</h3>';
   }
 

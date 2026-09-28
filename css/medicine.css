@@ -11,18 +11,38 @@
    DESKTOP versija ir pielāgojums telefona loģikai, nevis otrādi.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   KONTRASTS.
+
+   Šīs krāsas nav izvēlētas acīm, bet APRĒĶINĀTAS. Katra kombinācija
+   (teksta krāsa uz savu fona krāsu) pārsniedz WCAG 2.1 AA normālam
+   tekstam (4.5:1) ar rezervi:
+
+     --med-mute  #3f4a5a  →  min 8.08:1
+     --med-crit  #a81e12  →  min 6.61:1
+     --med-trend #14506f  →  min 7.85:1
+     --med-ok    #0f5734  →  min 7.76:1
+     --med-warn  #7d4a00  →  min 6.62:1
+
+   Agrākajā versijā tās bija #7b8794 / #e74c3c / #2980b9 / #27ae60 /
+   #f39c12, un to rezultātā 40 redzami tekstu mezgli krita zem 4.5:1 —
+   tieši tās "bāumules" un pelēkie skaitļi, kas pazuda ekrānā.
+
+   Pārbaude: node test_contrast.js
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 :root {
-  --med-crit: #e74c3c;
+  --med-crit: #a81e12;        /* 🔴 steens — rīcība tagad */
   --med-crit-bg: #fdf0ef;
-  --med-warn: #f39c12;
+  --med-warn: #7d4a00;        /* 🟡 uzmanīt — sekot līdzi */
   --med-warn-bg: #fff8ec;
-  --med-trend: #2980b9;
+  --med-trend: #14506f;       /* 📈 tendence */
   --med-trend-bg: #eef4fb;
-  --med-ok: #27ae60;
+  --med-ok: #0f5734;          /* ✅ normāli */
   --med-ok-bg: #eef9f2;
-  --med-ink: #1f2d3d;
-  --med-mute: #7b8794;
-  --med-line: #e6eaef;
+  --med-ink: #16212c;
+  --med-mute: #3f4a5a;
+  --med-line: #b6c1cc;        /* redzamas skaidras līnijas un malas */
 }
 
 /* ── Augšējā josla ───────────────────────────────────────────────────────────
@@ -160,6 +180,29 @@
 .med-kpi.trend { border-color: var(--med-trend); background: var(--med-trend-bg); }
 .med-kpi.trend .med-kpi-num { color: var(--med-trend); }
 .med-kpi.all   { border-color: var(--med-line); }
+
+/* ── Leģenda: ko nozīmē 🔴 un 🟡 ──────────────────────────────────────────
+   Emoji bez paskaidrojuma jaunam darbiniekam nozīmē gandrīz neko.
+   Šī josla ir vienīgā vieta, kur 🔴/🟡/📈/✅ ir izskaidroti vārdos, tāpēc
+   tā ir tieši virs klientu saraksta, bez ritināšanas.                     */
+.med-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 10px 0 0;
+  padding: 9px 10px;
+  background: #fff;
+  border: 1px solid var(--med-line);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--med-ink);
+}
+.med-legend-item b { font-weight: 800; }
+.med-legend-item.crit  b { color: var(--med-crit); }
+.med-legend-item.attn  b { color: var(--med-warn); }
+.med-legend-item.trend b { color: var(--med-trend); }
+.med-legend-item.ok    b { color: var(--med-ok); }
 
 /* ── Grupas: 🔴 Uzmanība / 📈 Tendence / 👥 Visi klienti ───────────────── */
 .med-group { margin-bottom: 6px; }
