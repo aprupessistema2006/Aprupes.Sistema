@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <meta name="theme-color" content="#2c3e50">
   <title data-i18n="appName">Aprūpes sistēma</title>
-  <link rel="stylesheet" href="css/index.css?v=20260928-1745">
+  <link rel="stylesheet" href="css/index.css?v=20260928-2100">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
@@ -119,79 +119,53 @@
     </div>
   </div>
 <script>
-  // INLINE VERSION CHECK - bypasses SW cache entirely
-  // This runs BEFORE any SW can intercept, ensuring the update banner appears
-  (async function() {
-    try {
-      const resp = await fetch('version.json?v=20260928-1745', { cache: 'no-store', integrity: '' });
-      if (!resp.ok) throw new Error('version.json fetch failed');
-      const manifest = await resp.json();
-      const currentVersion = manifest.version;
-      const storedVersion = localStorage.getItem('appVersion') || '';
-      console.log('[InlineCheck] Version:', { storedVersion, currentVersion });
-      if (storedVersion !== currentVersion) {
-        console.log('[InlineCheck] Version mismatch! Showing banner immediately.');
-        // Show banner immediately without waiting for SW
-        const banner = document.createElement('div');
-        banner.id = 'inlineUpdateBanner';
-        banner.style.cssText = `
-          position: fixed; top: 0; left: 0; right: 0; z-index: 10001;
-          background: #2196F3; color: white; padding: 12px 16px;
-          font-family: system-ui, sans-serif; text-align: center;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        `;
-        banner.innerHTML = `
-          <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">🔄 Jauna versija pieejama</div>
-          <button id="inlineUpdateNowBtn" style="
-            background: white; color: #2196F3; border: none; padding: 12px 24px;
-            border-radius: 6px; font-weight: 600; cursor: pointer;
-            font-size: 16px; width: 100%; max-width: 240px; margin: 0 auto;
-            display: block;
-          ">Atjaunot</button>
-        `;
-        document.body.insertBefore(banner, document.body.firstChild);
-    document.getElementById('inlineUpdateNowBtn').onclick = function() {
-      console.log('[InlineCheck] Clear all data and reload...');
-      // Clear everything
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration().then(reg => {
-          if (reg) {
-            reg.unregister().then(() => {
-              localStorage.clear();
-              return caches.keys();
-            }).then(keys => {
-              return Promise.all(keys.map(k => caches.delete(k)));
-            }).then(() => {
-              localStorage.setItem('appVersion', currentVersion);
-              window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
-            });
-          } else {
-            localStorage.clear();
-            localStorage.setItem('appVersion', currentVersion);
-            window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
-          }
-        });
+  // ĀTRĀ VERSIJAS PĀRBAUDE — notiek pirms jebkura service worker, tāpēc
+  // versija tiek pamanīta pat pirms SW var pārķert pieprasījumus.
+  //
+  // ⚠️ Šis bloks TIKAI konstatē atšķirību un paziņo UpdateNotifier. Tas
+  // NEDRĪKST neko tīrīt un NEDRĪKST rādīt savu baneri. Vecākais kods to
+  // darīja, un tā rezultātā bija divas konkurējošas atjauninājuma
+  // sistēmas: šī (kas localStorage.clear() + pārlādēja, tīrīdama
+  // IndexedDB un izdzēdama 'lang') un UpdateNotifier (kas to darīja
+  // pareizi). Lietotājs varēja dabūt divus banerus, un tas, kurš
+  // parādījās pirmais, noteica izturēšanos.
+  //
+  // Tagad ir viens ceļš: UpdateNotifier.showUpdateBanner() + applyUpdate().
+  (function() {
+    var BANNER_ID = 'updateBanner';
+    function announce(version) {
+      if (typeof window.__showUpdateBanner === 'function') {
+        window.__showUpdateBanner(version);
       } else {
-        localStorage.clear();
-        localStorage.setItem('appVersion', currentVersion);
-        window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+        // UpdateNotifier vēl ielādējas — viņš uzņems uzreiz, tiklīdz sāksies.
+        window.__UPDATE_PENDING_VERSION = version;
       }
-    };
-  }
-      localStorage.setItem('appVersion', currentVersion);
-    } catch (e) {
-      console.warn('[InlineCheck] Version check failed:', e);
     }
+    window.__showUpdateBannerEarly = announce;
+
+    fetch('version.json?v=20260928-2100', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (manifest) {
+        var current = manifest.version;
+        var stored = '';
+        try { stored = localStorage.getItem('appVersion') || ''; } catch (e) {}
+        if (document.getElementById(BANNER_ID)) return;   // jau rādīts
+        if (stored && stored === current) return;          // esam šajā versijā
+        announce(current);
+      })
+      .catch(function (e) {
+        console.warn('[InlineCheck] Versijas pārbaude neizdevās:', e);
+      });
   })();
 </script>
-<script src="js/config.js?v=20260928-1745"></script>
-  <script src="js/i18n.js?v=20260928-1745"></script>
-  <script src="js/timezone.js?v=20260928-1745"></script>
-  <script src="js/db.js?v=20260928-1745"></script>
-  <script src="js/perf.js?v=20260928-1745"></script>
-  <script src="js/operation_registry.js?v=20260928-1745"></script>
-  <script src="js/sync.js?v=20260928-1745"></script>
-  <script src="js/login.js?v=20260928-1745"></script>
+<script src="js/config.js?v=20260928-2100"></script>
+  <script src="js/i18n.js?v=20260928-2100"></script>
+  <script src="js/timezone.js?v=20260928-2100"></script>
+  <script src="js/db.js?v=20260928-2100"></script>
+  <script src="js/perf.js?v=20260928-2100"></script>
+  <script src="js/operation_registry.js?v=20260928-2100"></script>
+  <script src="js/sync.js?v=20260928-2100"></script>
+  <script src="js/login.js?v=20260928-2100"></script>
   <script>
     (function() {
       var vh = window.innerHeight * 0.01;
@@ -216,7 +190,7 @@
       }
     })();
   </script>
-  <script src="js/update_notifier.js?v=20260928-1745"></script>
+  <script src="js/update_notifier.js?v=20260928-2100"></script>
 </body>
 </html>
 

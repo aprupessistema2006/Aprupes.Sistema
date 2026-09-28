@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v39'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v40'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -37,36 +37,44 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  console.log('[SW-v39] Installing new service worker (cache:', CACHE_NAME, ')');
+  console.log('[SW-v40] Installing new service worker (cache:', CACHE_NAME, ')');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW-v39] Precaching static assets');
+      console.log('[SW-v40] Precaching static assets');
       return cache.addAll(STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' })));
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW-v39] Activating new service worker');
+  console.log('[SW-v40] Activating new service worker');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[SW-v39] Deleting old cache:', name);
+            console.log('[SW-v40] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
     }).then(() => self.clients.claim())
       .then(() => {
-        console.log('[SW-v39] Activation complete, notifying clients to reload');
-        // Force clients to reload immediately to pick up new SW
-        return self.clients.matchAll({ type: 'window' }).then(clients => {
-          clients.forEach(client => {
-            client.postMessage({ type: 'SW_REPLACED' });
-          });
-        });
+        // ⚠️ BRĪDINĀJUMS: NEizsaukt klientu pārlādēšanu.
+        //
+        // Vecākais kods šeit pēc katras aktivācijas nosūtīja
+        // SW_REPLACED visiem atvērtajiem logiem, un lapa pārlādējās.
+        // Tas nozīmēja, ka SW atjaunināšanās BRĪĶA laikā jebkurš
+        // lietotājs, kas pustāpa aprūpes ierakstu, zaudēja visu ievadīto.
+        //
+        // Tas nav pieņemami darba vietā, kurā ieraksti ir svarīgi.
+        // Jaunā versija tiek piedāvāta caur UpdateNotifier baneri, un
+        // pārlādēšanās notiek TIKAI tad, kad lietotājs pats nospiež
+        // "Atjaunot" — tāpēc viņš jau ir beidzis darbu un neko
+        // nezaudē. clients.claim() augstāk joprojām nodrošina, ka
+        // jaunais kods sāk darboties tūlīt nākamajā navigācijā.
+        console.log('[SW-v40] Aktivizācija pabeigta. Klienti netiek pārlādēti —' +
+          ' atjauninājumu lietotājs apstiprina pats (skat. UpdateNotifier).');
       })
   );
 });

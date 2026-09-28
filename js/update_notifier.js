@@ -1,63 +1,93 @@
 /**
- * UpdateNotifier - Automātiski pārbauda jaunu versiju un paziņo lietotājam ar vienkāršu pogu.
- * 65+ aprūpētāji: vienkāršs paziņojums ar vienu lielo pogu "Atjaunot".
- * Pēc nospiešanas: notīra visus lokālos datus, aktivizē jauno SW un pārlādē lapu.
+ * UpdateNotifier — automātiski pārbauda jaunu versiju un piedāvā vienu
+ * lielu, vienkāršu pogu. Tas ir izstrādāts DARBA vietai, nevis manai
+ * mašīnai: lietotājs (65+ aprūpētājs) nekad neatvērs pārlūka kešatmiņu,
+ * netīrīs vēsturi un nezinā ko nozīmē Ctrl+Shift+R. Viņš tikai nospied
+ * vienu pogu.
+ *
+ * ⚠️ Trīs noteikumi, kas šo failu padara par drošu:
+ *
+ *  1. PAZIŅOJUMU NEDRĪKST PATARVINĀT. Vecākais kods rakstīja appVersion
+ *     uzreiz pēc atklāšanas — tāpēc brīdinājums parādījās VIENU reizi
+ *     un pēc tam pazuda pats sevī. Lietotājs, kas aizvēra lapu pirms
+ *     poga izskatīšanās, vairs NEBŪS brīdināts nekad. Versija tagad
+ *     tiek saglabāta TIKAI pēc tam, kad atjauninājums ir patiešām
+ *     pielāgots.
+ *
+ *  2. DATUS DRĪKST SAGLABĀT PIRMS TĪRĪŠANAS. Vecākais kods, nospiežot
+ *     "Atjaunot", tīrīja IndexedDB un sync_queue BEZ brīdinājuma —
+ *     tā pazaudina jebkuru ierakstu, kas vēl nebija nosūtīts uz
+ *     Google Sheets. Tagad rinda tiek vispirms nosūtīta, un ja tas
+ *     neizdodas, atjauninājums tiek apturēts ar skaidru iemeslu.
+ *
+ *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
+ *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20260928-2040';
+const BUILD_VERSION = '20260928-2100';
 
 class UpdateNotifier {
   constructor() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('force_update') === '1' || urlParams.get('v') === 'force') {
-      console.log('[UpdateNotifier] Force update requested via URL param');
-      // Pilnīga tīrīšana: SW atsaukšana + kešu iztīrīšana + pārlādēšana.
-      // Bez kešu tīrīšanas pārlūks var 10 minūtes atgriezt vecus JS failus
-      // (GitHub Pages sūta Cache-Control: max-age=600).
-      const hardReset = () => {
-        localStorage.removeItem('appVersion');
-        window.location.href = window.location.origin + window.location.pathname;
-      };
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
+      this.forceUpdate();
+      return;
+    }
+
+    this.applied = false;          // atkārtojamu nospiešņu aizsardzība
+    this.versionParam = '?v=' + BUILD_VERSION;
+    this.init();
+    this.checkVersionOnPageLoad();
+
+    // index.html inline pārbaude notiek pirms šī faila ielādes. Tā
+    // atklāj versiju agrāk (pirms SW var pārķert), tāpēc tā atzīmē
+    // rezultātu, un mēs rādām to pašu baneri.
+    if (window.__UPDATE_PENDING_VERSION) {
+      this.showUpdateBanner(window.__UPDATE_PENDING_VERSION);
+    }
+  }
+
+  // ── Pilnīga atjaunināšana no URL parametriem (diagnostika / avārijas atgriezšana)
+  forceUpdate() {
+    console.log('[UpdateNotifier] Force update requested via URL param');
+    // SW atsaukšana + kešu iztīrīšana + pārlādēšana. Bez kešu
+    // iztīrīšanas pārlūks var 10 minūtes atgriezt vecus JS failus
+    // (GitHub Pages sūta Cache-Control: max-age=600).
+    const hardReset = () => {
+      window.location.href = window.location.origin + window.location.pathname;
+    };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(regs => {
           const jobs = (regs || []).map(r => r.unregister().catch(() => {}));
           if ('caches' in window) {
             jobs.push(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
           }
           return Promise.all(jobs);
-        }).then(hardReset).catch(hardReset);
-      } else {
-        if (typeof caches !== 'undefined') {
-          caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
-            .then(hardReset).catch(hardReset);
-        } else {
-          hardReset();
-        }
-      }
-      return;
+        })
+        .then(hardReset)
+        .catch(hardReset);
+    } else if (typeof caches !== 'undefined') {
+      caches.keys()
+        .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+        .then(hardReset)
+        .catch(hardReset);
+    } else {
+      hardReset();
     }
-
-    this.versionParam = '?v=' + BUILD_VERSION;
-    console.log('[UpdateNotifier] Initializing with version param:', this.versionParam);
-    this.init();
-    this.checkVersionOnPageLoad();
   }
 
   init() {
     if (!('serviceWorker' in navigator)) return;
-    console.log('[UpdateNotifier] Reģistrējam service workeru (bez atsaukšanas)');
     // SVARĪGI: NEDRĪKST katrā ielādē atsaukt un pārreģistrēt SW.
-    // Tas liek lapai nonākt zem jauna SW pārvaldības, kas pārtver arējos
+    // Tas liek lapai nonākt zem jauna SW pārvaldības, kas pārķert arējos
     // JSONP pieprasījumus uz script.google.com un nogriek datu ielādi.
     // SW atjaunināšanos pārvalda pats pārlūks.
     this.registerNewSW();
   }
 
   registerNewSW() {
-    console.log('[UpdateNotifier] Reģistrējam Service Worker (sw2.js):', this.versionParam);
     navigator.serviceWorker.register('sw2.js' + this.versionParam, { updateViaCache: 'none' })
       .then(reg => {
-        console.log('[UpdateNotifier] SW reģistrēta:', reg.scope);
-        // Ja ir gaidījošs SW — aktivē to, lai jaunais kods sāk darboties tūlīt
         if (reg.waiting) {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
@@ -67,212 +97,265 @@ class UpdateNotifier {
 
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
-        console.log('[UpdateNotifier] Jauna versija pieejama no SW');
-        this.showUpdateBanner();
+        this.showUpdateBanner(event.data.version);
       }
-      if (event.data && event.data.type === 'SW_REPLACED') {
-        console.log('[UpdateNotifier] Vecā SW aizvietota, pārlādē...');
-        window.location.reload();
-      }
+      // ⚠️ SW_REPLACED vairs NAV jāapstrādā ar location.reload().
+      // Pārlādēšana notiek tikai no applyUpdate(), kurā lietotājs jau
+      // ir skatījis brīdinājumu un neko neievada. Automātiska
+      // pārlādēšana dzēstu lietotāja pustāpa ievadīto ierakstu.
     });
   }
 
-  
-  // Pārbaudīt jaunu versiju lapas ielādes brīdī (pirmais, kas dari, atverot programmu)
+  // ── Versijas pārbaude ────────────────────────────────────────────────────
+  //
+  // ⚠️ Šeit APZĪMĒJUMU "jāatjaunina" drīkst atzīmēt TIKAI pēc veiksmīgas
+  // atjaunināšanas, nevis pēc atklāšanas. Pretējā gadījumā brīdinājums
+  // sevi anulē un lietotājs paliek uz veco kodu uz mužību.
   async checkVersionOnPageLoad() {
     const BUILD = BUILD_VERSION;
+    let currentVersion = null;
     try {
       const response = await fetch('version.json?v=' + BUILD, { cache: 'no-store' });
-      console.log('[UpdateNotifier] Fetching version.json, response status:', response.status);
-      if (!response.ok) {
-        console.warn('[UpdateNotifier] version.json fetch failed:', response.status);
-        // Fallback: Always show banner if version.json unavailable
-        // This ensures users get the update even if version.json is cached or unavailable
-        const storedVersion = localStorage.getItem('appVersion') || '';
-        if (!storedVersion || storedVersion !== BUILD) {
-          this.showUpdateBanner();
-        }
-        return;
-      }
+      if (!response.ok) throw new Error('HTTP ' + response.status);
       const manifest = await response.json();
-      const currentVersion = manifest.version;
-      const storedVersion = localStorage.getItem('appVersion') || '';
-      console.log('[UpdateNotifier] Version check:', { storedVersion, currentVersion });
-
-      // Show banner if versions differ OR if localStorage is empty (upgrade scenario)
-      if (storedVersion !== currentVersion) {
-        console.log('[UpdateNotifier] Version mismatched:', storedVersion || '(tukšs)', '->', currentVersion);
-        this.showUpdateBanner();
-      }
-      localStorage.setItem('appVersion', currentVersion);
+      currentVersion = manifest.version;
     } catch (e) {
-      console.warn('[UpdateNotifier] Versijas pārbaude neizdevās:', e);
-      // Fallback: Show banner on error
-      const storedVersion = localStorage.getItem('appVersion') || '';
-      if (!storedVersion || storedVersion !== BUILD) {
-        this.showUpdateBanner();
-      }
+      console.warn('[UpdateNotifier] version.json nepieejams:', e);
+      // Nav versijas manifesta → nevaram pārliecināties, ka versija ir
+      // tāda pati. Tāpēc rāda baneri, ja vien mēs patiešām neesam
+      // jau šajā versijā.
+      if (this.storedVersion() !== BUILD) this.showUpdateBanner(BUILD);
+      return;
     }
+
+    const stored = this.storedVersion();
+    if (stored && stored !== currentVersion) {
+      this.showUpdateBanner(currentVersion);
+    }
+    // ⚠️ NEDRĪKST šeit rakstīt appVersion — skatīt 1. noteikumu augstāk.
   }
 
-  showUpdateBanner() {
+  storedVersion() {
+    try { return localStorage.getItem('appVersion') || ''; }
+    catch (e) { return ''; }
+  }
+
+  // ── Baneris ──────────────────────────────────────────────────────────────
+  showUpdateBanner(version) {
     if (document.getElementById('updateBanner')) return;
 
     const banner = document.createElement('div');
     banner.id = 'updateBanner';
-    banner.style.cssText = `
-      position: fixed; top: 0; left: 0; right: 0; z-index: 10001;
-      background: #2196F3; color: white; padding: 12px 16px;
-      font-family: system-ui, sans-serif; text-align: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    `;
+    // Tam jābūt pamanāmam lielā ekrānā, tāpēc nevis vienai rindai, bet
+    // skaidrs panelis ar lielu tekstu un vienu poga.
+    banner.style.cssText = [
+      'position: fixed', 'top: 0', 'left: 0', 'right: 0',
+      'z-index: 10001',
+      'background: #1565C0', 'color: #fff',
+      'padding: 16px 14px calc(16px + env(safe-area-inset-bottom, 0px))',
+      'font-family: system-ui, -apple-system, "Segoe UI", sans-serif',
+      'text-align: center',
+      'box-shadow: 0 4px 14px rgba(0,0,0,0.4)'
+    ].join(';');
+
     banner.innerHTML = `
-      <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">🔄 Jauna versija pieejama</div>
+      <div style="font-size: 20px; font-weight: 700; line-height: 1.25; margin-bottom: 6px;">
+        🔄 Programma ir atjaunināta
+      </div>
+      <div id="updateBody" style="font-size: 15px; line-height: 1.45; margin-bottom: 14px; opacity: 0.95;">
+        Jums jāatsvēr šo logu un jāpiespiež <b>Atjaunot</b>.<br>
+        Jūsu ieraksti netiks dzēsti.<br>
+        Pēc tam jums būs jāpiesakās vēlreiz.
+      </div>
       <button id="updateNowBtn" style="
-        background: white; color: #2196F3; border: none; padding: 12px 24px;
-        border-radius: 6px; font-weight: 600; cursor: pointer;
-        font-size: 16px; width: 100%; max-width: 240px; margin: 0 auto;
-        display: block;
-      ">Atjaunot</button>
+        background: #fff; color: #1565C0; border: none;
+        padding: 16px 28px; border-radius: 10px;
+        font-weight: 700; cursor: pointer; font-size: 18px;
+        width: 100%; max-width: 320px; margin: 0 auto; display: block;
+        min-height: 56px;
+      ">Atjaunot tagad</button>
     `;
     document.body.insertBefore(banner, document.body.firstChild);
 
     document.getElementById('updateNowBtn').addEventListener('click', () => {
-      this.applyUpdate();
+      this.applyUpdate(version);
     });
 
-    // Debug pogas, kas veic manuālu versijas pārbaudi (noder, ja baneris neparādās)
-    this.addDebugButton();
-  }
-
-  addDebugButton() {
-    // Check if force_update param is in URL
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('force_update') === '1') {
-      this.showUpdateBanner();
-      return;
+    if (version) {
+      console.log('[UpdateNotifier] Rāda atjauninājuma baneri. Versija:', version);
     }
-
-    const debugBtn = document.createElement('button');
-    debugBtn.id = 'debugForceUpdateBtn';
-    debugBtn.innerHTML = 'Pārbaudīt atjauninājumu';
-    debugBtn.style.cssText = `
-      position: fixed; bottom: 20px; right: 20px; z-index: 10002;
-      background: #ff9800; color: white; border: none; padding: 10px 15px;
-      border-radius: 6px; font-size: 14px; cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    `;
-    debugBtn.onclick = async () => {
-      debugBtn.textContent = 'Pārbauda...';
-      const response = await fetch('version.json?t=' + Date.now());
-      const manifest = await response.json();
-      const currentVersion = manifest.version;
-      const storedVersion = localStorage.getItem('appVersion') || '';
-      if (storedVersion !== currentVersion) {
-        debugBtn.textContent = 'Atjaunot!';
-        debugBtn.style.background = '#2196F3';
-        debugBtn.onclick = () => this.applyUpdate();
-      } else {
-        debugBtn.textContent = 'Nav jauninājuma';
-        setTimeout(() => { debugBtn.style.display = 'none'; }, 3000);
-      }
-    };
-    document.body.appendChild(debugBtn);
   }
 
-  async applyUpdate() {
-    console.log('[UpdateNotifier] applyUpdate sākās');
-    const banner = document.getElementById('updateBanner');
-    if (banner) banner.style.opacity = '0.5';
+  setUpdateState(text, busy) {
+    const btn = document.getElementById('updateNowBtn');
+    const body = document.getElementById('updateBody');
+    if (body) body.textContent = text;
+    if (!btn) return;
+    btn.disabled = !!busy;
+    btn.textContent = busy ? 'Notiek…' : 'Atjaunot tagad';
+    btn.style.opacity = busy ? '0.7' : '1';
+  }
 
-    if ('serviceWorker' in navigator) {
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        console.log('[UpdateNotifier] SW gatavs, checking waiting SW...');
-        if (reg.waiting) {
-          console.log('[UpdateNotifier] Atrodas gaidījošais SW, sūtām SKIP_WAITING');
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        } else {
-          console.log('[UpdateNotifier] Nav gaidīgoša SW');
+  // ── Atjaunināšana ────────────────────────────────────────────────────────
+  async applyUpdate(version) {
+    if (this._applying) return;   // dubultspiedes aizsardzība
+    this._applying = true;
+
+    try {
+      // ── 1) Datu drošība ────────────────────────────────────────────────
+      //
+      // Pirms jebkā tīrīšanas jāpārliecina, ka nekas nevar pazust.
+      // Ja rindā ir neizsūtīti ieraksti, tie vispirm jānosūta. Ja tas
+      // neizdodas, atjauninājums JĀPRAUSTAS — labāk vecā versija nekā
+      // pazaudāti aprūpes ieraksti.
+      const flush = await this.safelyFlushPendingData();
+      if (!flush.ok) {
+        this.setUpdateState(
+          'Neizdevās nosūtīt jūsu ierakstus uz Google Sheets (' + flush.reason +
+          '). Jūsu dati ir drošībā šajā ierīcē — mēģiniet vēlreiz, kad ir internets.',
+          false
+        );
+        this._applying = false;
+        return;
+      }
+
+      this.setUpdateState('Ielādē jauno versiju…', true);
+
+      // ── 2) Service worker ───────────────────────────────────────────────
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        } catch (e) {
+          // Nav SW — nav ar ko sinhronizēt, turpinām tīrīt kešas.
+          console.warn('[UpdateNotifier] SW nav pieejams:', e);
         }
-      } catch (e) {
-        console.warn('[UpdateNotifier] SKIP_WAITING neizdevās:', e);
       }
+
+      // ── 3) Lokālo datu tīrīšana ──────────────────────────────────────────
+      await this.clearAllLocalData();
+
+      // ── 4) Atzīmējam versiju TIKAI tagad ───────────────────────────────
+      //
+      // Līdz šim brīdim appVersion palika veca, tāpēc baners parādītos
+      // arī tad, ja lietotājs pārlādē lapu. Tagad tas ir izdarīts.
+      try {
+        localStorage.setItem('appVersion', version || BUILD_VERSION);
+      } catch (e) {}
+
+      // ── 5) Pārlādēšana ──────────────────────────────────────────────────
+      const base = window.location.href.split('?')[0];
+      window.location.replace(base + '?v=' + Date.now());
+    } catch (e) {
+      console.error('[UpdateNotifier] Atjaunināšana neizdevās:', e);
+      this.setUpdateState('Atjaunināšana neizdevās. Mēģiniet vēlreiz.', false);
+      this._applying = false;
     }
+  }
 
-    console.log('[UpdateNotifier] Tīra visus datus...');
-    await this.clearAllLocalData();
+  // Nosūta neizsūtīto rindu uz serveri. Atgriež { ok, reason }.
+  async safelyFlushPendingData() {
+    const sync = window.careSync;
+    if (!sync) return { ok: true, reason: 'nav careSync (pieteikšanās lapa)' };
 
-    console.log('[UpdateNotifier] Pārlādē lapu...');
-    window.location = window.location.href.split('?')[0] + '?v=' + BUILD_VERSION;
+    try {
+      if (typeof sync.getUnsyncedCount !== 'function') return { ok: true, reason: '' };
+      const pending = await sync.getUnsyncedCount();
+      if (!pending) return { ok: true, reason: '' };
+
+      if (typeof sync.flushBeforeExit === 'function') {
+        const res = await sync.flushBeforeExit();
+        if (res && res.remaining === 0) return { ok: true, reason: '' };
+        return { ok: false, reason: res && res.remaining ? res.remaining + ' ieraksti' : 'neatpēkts' };
+      }
+      if (typeof sync.processQueue === 'function') {
+        await sync.processQueue();
+        if ((await sync.getUnsyncedCount()) === 0) return { ok: true, reason: '' };
+        return { ok: false, reason: 'rinda nav tukša' };
+      }
+      return { ok: false, reason: 'sinhronizācija nav pieejama' };
+    } catch (e) {
+      console.warn('[UpdateNotifier] Rindas nosūtīšana neizdevās:', e);
+      return { ok: false, reason: (e && e.message) || 'kļūda' };
+    }
   }
 
   async clearAllLocalData() {
-    console.log('[UpdateNotifier] Tīra visus lokālos datus...');
-
-    const storeNames = ['darbinieki', 'klienti', 'atzime', 'atzime', 'atzimes', 'atzimes_log', 'uzdevomi', 'meta', 'sync_queue'];
+    const storeNames = ['darbinieki', 'klienti', 'atzime', 'atzimes', 'atzimes_log', 'uzdevomi', 'meta', 'sync_queue', 'sync_audit'];
 
     try {
       if (window.indexedDB) {
-        console.log('[UpdateNotifier] Tīra IndexedDB: AprupesSistema');
         const db = new CareDB();
         await db.init();
         for (const storeName of storeNames) {
           try {
             await db.clear(storeName);
-            console.log('[UpdateNotifier] Notīrīts:', storeName);
           } catch (e) {
-            console.warn('[UpdateNotifier] Neizdevās notīrīt ' + storeName + ':', e.message);
+            // Store, ko šī versija nelieto, nav jāiztīra.
           }
         }
-        if (db.db && db.db.close) {
-          db.db.close();
-        }
+        if (db.db && db.db.close) db.db.close();
         indexedDB.deleteDatabase('AprupesSistema');
       }
     } catch (e) {
-      console.warn('[UpdateNotifier] IndexedDB notīrīšana neizdevās:', e.message);
-      try {
-        indexedDB.deleteDatabase('AprupesSistema');
-      } catch (e2) {
-        console.warn('[UpdateNotifier] deleteDatabase neizdevās:', e2);
-      }
+      try { indexedDB.deleteDatabase('AprupesSistema'); }
+      catch (e2) { console.warn('[UpdateNotifier] deleteDatabase neizdevās:', e2); }
     }
 
     if ('caches' in window) {
       try {
         const keys = await caches.keys();
-        for (const key of keys) {
-          await caches.delete(key);
-          console.log('[UpdateNotifier] Cache dzēsts:', key);
-        }
+        for (const key of keys) await caches.delete(key);
       } catch (e) {
         console.warn('[UpdateNotifier] Cache notīrīšana neizdevās:', e);
       }
     }
 
-    localStorage.clear();
-    sessionStorage.clear();
-
-    console.log('[UpdateNotifier] Visi dati notīrīti.');
+    // ⚠️ localStorage.clear() dzēstu arī 'lang' — katrs atjauninājums
+    // klusējot atgrieztu lietotāju uz latviešu. Tāpēc glabājam to.
+    let lang = null;
+    try { lang = localStorage.getItem('lang'); } catch (e) {}
+    try { localStorage.clear(); } catch (e) {}
+    if (lang) {
+      try { localStorage.setItem('lang', lang); } catch (e) {}
+    }
+    try { sessionStorage.clear(); } catch (e) {}
   }
 }
 
 if (typeof globalThis !== 'undefined') {
   globalThis.UpdateNotifier = UpdateNotifier;
+  // index.html inline pārbaude izmanto šo, lai abi ceļi rādītu vienu un to pašu baneri.
+  globalThis.__showUpdateBanner = function (version) {
+    if (globalThis._updateNotifier) return globalThis._updateNotifier.showUpdateBanner(version);
+    // UpdateNotifier vēl nav ielādēts — viņš uzņems to, tiklīdz sāksies.
+    globalThis.__UPDATE_PENDING_VERSION = version;
+  };
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Pašinicializācija.
+//
+// ⚠️ Vecākajā versijā `new UpdateNotifier()` nekur netika izsaukts —
+// fails tikai definēja klasi. Tāpēc brīdinājums parādījās TIKAI
+// index.html inline bloka dēļ, un pārējās piecas sadaļas (medicīna,
+// kontrolieris, aprūpētājs, administrators, pārcēlēties) NEKAD
+// nepaziņoja lietotāju par atjauninājumu. Tagad katra lapa, kas ielādē
+// šo failu, to darbojas automātiski.
+(function autoStart() {
+  const start = () => {
+    if (globalThis._updateNotifier) return;          // jau palaists
+    if (globalThis.__updateAutoStartDisabled) return; // pārbaudēm
+    try {
+      globalThis._updateNotifier = new UpdateNotifier();
+    } catch (e) {
+      console.warn('[UpdateNotifier] Neizdevās startēt:', e);
+    }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
+})();
