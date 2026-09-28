@@ -58,16 +58,44 @@
 // Vienīgais atļauto lauku saraksts. Viss pārējais tiek izfiltrēts pirms
 // analīzes — pat ja kāds lauks tur būtu, tas nevar parādīties.
 // Šis ir vienīgais veids, kā garantēt spec §8.
+// Tulkošanas palīgs medicīniskajam skatam.
+//
+// Tulkojumu funkcija tiek ņemta no `globalThis`, NEVIS no brīva vārda `t`
+// šajā failā — citādi jebkurš `function t()` deklarācija, kas tiks ielādēta
+// vēlāk, pārsedztu i18n tulkojumu un mt() sāktu bezgalvi atkārtoties.
+// Ja atslēga nav (piem. vecāka i18n.js versija), atgriež fallback vērtību,
+// lai lapa neuzrāda nevis tulkojumu, bet neko. {x} vietas aizstā ar vars.
+let mtTranslatorWarned = false;
+function mt(key, vars, fallback) {
+  const full = 'med_' + key;
+  const translator = globalThis.t;
+  let s = (typeof translator === 'function') ? translator(full) : null;
+  if ((!s || s === full) && !mtTranslatorWarned && typeof translator !== 'function') {
+    mtTranslatorWarned = true;
+    console.warn('[medicine] i18n nav ielādēts — lietojam atsauksmes tekstus');
+  }
+  if (!s || s === full) s = fallback !== undefined ? fallback : '';
+  if (vars) {
+    Object.keys(vars).forEach(function (k) {
+      s = String(s).split('{' + k + '}').join(vars[k]);
+    });
+  }
+  return s;
+}
+
+// ⚠️ `label` ir TULKOJAMS ĪSLAICĪGI, nevis teksts: tas tiek nolasīts tikai
+// renderēšanas laikā, lai `setLang()` atjauninātu skatu bez lapas pārlādēšanas.
 const MEDICINE_FIELDS = [
-  { cat: 'temp', field: 'temperatura', label: 'Temperatūra', icon: '🌡', unit: '°C' },
-  { cat: 'edinasana', field: 'brokastis', label: 'Brokastis', icon: '🍽', unit: '' },
-  { cat: 'edinasana', field: 'pusdienas', label: 'Pusdienas', icon: '🍽', unit: '' },
-  { cat: 'edinasana', field: 'launags', label: 'Launags', icon: '🍽', unit: '' },
-  { cat: 'edinasana', field: 'vakariņi', label: 'Vakariņas', icon: '🍽', unit: '' },
-  { cat: 'sikdrumi', field: 'urina_daudzums', label: 'Urīns 24h', icon: '💧', unit: 'ml' },
-  { cat: 'sikdrumi', field: 'uznemts_ml', label: 'H₂O 24h', icon: '💧', unit: 'ml' },
-  { cat: 'fiziologija', field: 'vedera_izeja', label: 'Vēdera izeja', icon: '🚽', unit: '' }
+  { cat: 'temp', field: 'temperatura', label: () => mt('cat_temp', null, 'Temperatūra'), icon: '🌡', unit: '°C' },
+  { cat: 'edinasana', field: 'brokastis', label: () => mt('meal_breakfast', null, 'Brokastis'), icon: '🍽', unit: '' },
+  { cat: 'edinasana', field: 'pusdienas', label: () => mt('meal_lunch', null, 'Pusdienas'), icon: '🍽', unit: '' },
+  { cat: 'edinasana', field: 'launags', label: () => mt('meal_snack', null, 'Launags'), icon: '🍽', unit: '' },
+  { cat: 'edinasana', field: 'vakariņi', label: () => mt('meal_dinner', null, 'Vakariņas'), icon: '🍽', unit: '' },
+  { cat: 'sikdrumi', field: 'urina_daudzums', label: () => mt('urine24', null, 'Urīns 24h'), icon: '💧', unit: 'ml' },
+  { cat: 'sikdrumi', field: 'uznemts_ml', label: () => mt('h2o24', null, 'H₂O 24h'), icon: '💧', unit: 'ml' },
+  { cat: 'fiziologija', field: 'vedera_izeja', label: () => mt('cat_bowel', null, 'Vēdera izeja'), icon: '🚽', unit: '' }
 ];
+const fieldLabel = f => (f && typeof f.label === 'function' ? f.label() : (f ? f.label : ''));
 
 const MEDICINE_FIELD_SET = new Set(MEDICINE_FIELDS.map(f => f.field));
 const MEDICINE_CATEGORIES = new Set(MEDICINE_FIELDS.map(f => f.cat));
@@ -87,29 +115,33 @@ const FLUID_CHANGE_PCT = 30;        // % diennakts maiņa → 📈
 // Vērtības ņemtas no CONFIG.VALUE_LEGEND.VEDERA_IZEJA.
 // ⚠️ "S" = Svecīte. "Slimnīca" NAV šeit — tā ir klienta statuss laukā
 // `statuss` un to apstrādā atsevišķi (_isHospital).
-const BOWEL_LABEL = (typeof CONFIG !== 'undefined' && CONFIG.VALUE_LEGEND && CONFIG.VALUE_LEGEND.VEDERA_IZEJA)
+const BOWEL_LABEL_FB = (typeof CONFIG !== 'undefined' && CONFIG.VALUE_LEGEND && CONFIG.VALUE_LEGEND.VEDERA_IZEJA)
   ? CONFIG.VALUE_LEGEND.VEDERA_IZEJA
   : { N: 'Normāla', S: 'Svecīte', A: 'Aizcietējumi', C: 'Caureja', K: 'Klizma' };
 
 // Patoloģiskas vērtības → 🔴. "Klizma" ir medicīniska iejauksme, nevis
 // patoloģija → 🟡.
-const BOWEL_CRITICAL = { A: 'aizcietējumi', C: 'caureja' };
-const BOWEL_ATTENTION = { K: 'medicīniska iejauksme' };
+const BOWEL_CRITICAL = ['A', 'C'];
+const BOWEL_ATTENTION = ['K'];
 const BOWEL_NORMAL = ['N', 'S'];
 const BOWEL_ABSENT_DAYS = 2;       // bez izkārnīšanās N dienas → 🟡
 
-// Atzīmētas vērtības (rādāmās), atšķirībā no null = "nav ieraksta".
-// Ieskaitās arī "P – patstāvīgi", kas tiek rādīts, bet netiek mērīts.
-const MEAL_KNOWN = (typeof CONFIG !== 'undefined' && CONFIG.VALUE_LEGEND && CONFIG.VALUE_LEGEND.ĒDIŠANA)
-  ? CONFIG.VALUE_LEGEND.ĒDIŠANA
-  : { X: 'Visa porcija', '½': 'Puse porcijas', A: 'Atteicās', P: 'Patstāvīgi' };
+// Vērtību apzīmējumi tiek tulkoti LAIKĀ, nevis moduļa ielādēšanas brīdī —
+// lai `setLang()` pēc tam uzreiz atjaunotu skatu, nevis atstātu vecās
+// valodas tekstu. Katrs atslēga beidzas ar koda burtu, lai NUM un ĒDIŠANA
+// nesapļūst kopā.
+const bowelLabel = v => mt('bowl_' + v, null, BOWEL_LABEL_FB[v] || v);
+const bowelCritText = v => mt('bowl_crit_' + v, null,
+  v === 'A' ? 'aizcietējumi' : 'caureja');
+const bowelAttnText = v => mt('bowl_attn_' + v, null, 'medicīniska iejauksme');
+const mealLabel = f => mt('meal_' + f, null,
+  { brokastis: 'Brokastis', pusdienas: 'Pusdienas', launags: 'Launags', 'vakariņi': 'Vakariņas' }[f] || f);
 
 // Koliko punktu dotam vērtībai ēšanas apjoma aprēķinam. "P" apzināti nav
-// iekļauts — tā klīniskā nozīme nav apstiprināta (skatīt MEAL_TEXT).
+// iekļauts — tā klīniskā nozīme nav apstiprināta.
 const mealScore = (v) =>
   (Object.prototype.hasOwnProperty.call(MEAL_SCORE, v) ? MEAL_SCORE[v] : null);
-const mealKnown = (v) =>
-  !!v && Object.prototype.hasOwnProperty.call(MEAL_KNOWN, v);
+const mealKnown = (v) => !!v && MEAL_KNOWN.has(v);
 
 // ── 🍽 Ēšana ────────────────────────────────────────────────────────────────
 // Vērtības ņemtas no CONFIG.VALUE_LEGEND.ĒDIŠANA (vienīgais avots):
@@ -122,9 +154,9 @@ const mealKnown = (v) =>
 // izmainiet P_COLOR/MEAL_SCORE — bet ne paņemiet to klīniski nozīmīgu
 // nozīmi bez apstiprinājuma.
 const MEAL_FIELDS = ['brokastis', 'pusdienas', 'launags', 'vakariņi'];
-const MEAL_LABEL = { brokastis: 'Brokastis', pusdienas: 'Pusdienas', launags: 'Launags', 'vakariņi': 'Vakariņas' };
 const MEAL_SCORE = { 'X': 2, '½': 1, 'A': 0 };
-const MEAL_TEXT = { 'X': 'ēdis', '½': '½', 'A': 'atteicies', 'P': 'patstāvīgi' };
+// "P – patstāvīgi" ir rādāma vērtība, kas netiek mērīta porciju punktos.
+const MEAL_KNOWN = new Set(['X', '½', 'A', 'P']);
 const MEAL_LOW_DAYS = 3;           // dienas pēc kārtas ar ≤½ porcijām → 🔴
 const MEAL_REFUSAL_DAYS = 2;       // dienas pēc kārtas ar atteikumiem → 🟡
 const MEAL_REFUSALS_ONE_DAY = 2;   // atteikumi vienā dienā → 🟡
@@ -174,6 +206,11 @@ class MedicineView {
     this.showAll = false;
     this.focus = null;
     this.analysis = [];
+    // Valodas maiņai jāpārrenderē skats: daļa tulkojumu tiek
+    // nolasīti tikai renderēšanas laikā, nevis moduļa ielādēšanas brīdī.
+    document.addEventListener('langchange', () => {
+      if (this.analysis && this.analysis.length) this.render();
+    });
     this.init();
   }
 
@@ -435,7 +472,7 @@ class MedicineView {
       const raw = now ? String(now.value).trim() : '';
       const valid = mealKnown(raw);
       if (valid) anyRecorded++;
-      meals[f] = { label: MEAL_LABEL[f], field: f, value: valid ? raw : '', recorded: valid, item: now, date: now ? now.date : '' };
+      meals[f] = { label: mealLabel(f), field: f, value: valid ? raw : '', recorded: valid, item: now, date: now ? now.date : '' };
       const sc = mealScore(raw);
       if (sc !== null) {
         scored++;                     // tikai mērāmie punkti ietilpst aprēkinos
@@ -492,8 +529,9 @@ class MedicineView {
       const totalRef = recent.reduce((s, d) => s + d.refusals, 0);
       const totalHalf = recent.reduce((s, d) => s + d.halves, 0);
       findings.push({
-        sev: 'crit', cat: 'edinasana', field: 'edinasana', label: 'Ēšana',
-        reason: MEAL_LOW_DAYS + ' dienas pēc kārtas tikai ½ porcijas, ' + totalRef + ' × atteikums',
+        sev: 'crit', cat: 'edinasana', field: 'edinasana', label: mt('cat_food', null, 'Ēšana'),
+        reason: mt('food_crit', { n: MEAL_LOW_DAYS, ref: totalRef },
+          MEAL_LOW_DAYS + ' dienas pēc kārtas tikai ½ porcijas, ' + totalRef + ' × atteikums'),
         detail: totalHalf + ' × ½ porcija', icon: '🍽'
       });
     }
@@ -502,31 +540,31 @@ class MedicineView {
     const refRun = daySeries.slice(0, MEAL_REFUSAL_DAYS);
     if (!lowRun && refRun.length === MEAL_REFUSAL_DAYS && refRun.every(d => d.refusals > 0)) {
       findings.push({
-        sev: 'attn', cat: 'edinasana', field: 'edinasana', label: 'Ēšana',
-        reason: MEAL_REFUSAL_DAYS + ' dienas pēc kārtas atteikums no ēšanas',
-        detail: 'atteikumi katrā no šīm dienām', icon: '🍽'
+        sev: 'attn', cat: 'edinasana', field: 'edinasana', label: mt('cat_food', null, 'Ēšana'),
+        reason: mt('food_attn1', { n: MEAL_REFUSAL_DAYS }, MEAL_REFUSAL_DAYS + ' dienas pēc kārtas atteikums no ēšanas'),
+        detail: mt('food_attn1_detail', null, 'atteikumi katrā no šīm dienām'), icon: '🍽'
       });
     }
 
     // 🟡 Vairāki atteikumi vienā dienā (neatkarīgi no vairāku dienu secības)
     if (refusals >= MEAL_REFUSALS_ONE_DAY && !lowRun) {
       findings.push({
-        sev: 'attn', cat: 'edinasana', field: 'edinasana', label: 'Ēšana',
-        reason: refusals + ' × atteikums no ēšanas šodien',
-        detail: 'atteikumi vienā dienā', icon: '🍽'
+        sev: 'attn', cat: 'edinasana', field: 'edinasana', label: mt('cat_food', null, 'Ēšana'),
+        reason: mt('food_attn2', { n: refusals }, refusals + ' × atteikums no ēšanas šodien'),
+        detail: mt('food_attn2_detail', null, 'atteikumi vienā dienā'), icon: '🍽'
       });
     }
 
     // 📈 Tendence: ievērojama maiņa ēšanas apjomā
     const trend = (dir !== 'flat' && Math.abs(delta) >= MEAL_TREND_DROP) ? {
-      dir, delta, label: 'Ēšana', icon: '🍽', series, dates: seriesDates
+      dir, delta, label: mt('cat_food', null, 'Ēšana'), icon: '🍽', series, dates: seriesDates
     } : null;
 
     return {
-      icon: '🍽', title: 'Ēšana', meals, dayScore, refusals, halves,
+      icon: '🍽', title: mt('cat_food', null, 'Ēšana'), meals, dayScore, refusals, halves,
       recorded: anyRecorded, scored,
       daySeries, series, seriesDates, trend, findings,
-      emptyNote: anyRecorded === 0 ? 'Šodien ēšanas datu nav' : ''
+      emptyNote: anyRecorded === 0 ? mt('none_food', null, 'Šodien ēšanas datu nav') : ''
     };
   }
 
@@ -547,15 +585,17 @@ class MedicineView {
       state = n >= TEMP_CRITICAL ? 'crit' : 'norm';
       if (n >= TEMP_CRITICAL) {
         findings.push({
-          sev: 'crit', cat: 'temp', field: 'temperatura', label: 'Temperatūra', icon: '🌡',
-          reason: n.toFixed(1) + ' °C — virs ' + TEMP_CRITICAL + ' °C (drudzis)',
+          sev: 'crit', cat: 'temp', field: 'temperatura', label: mt('cat_temp', null, 'Temperatūra'), icon: '🌡',
+          reason: mt('temp_crit', { v: n.toFixed(1), lim: TEMP_CRITICAL },
+            n.toFixed(1) + ' °C — virs ' + TEMP_CRITICAL + ' °C (drudzis)'),
           value: item.value, unit: '°C', item
         });
       } else if (!isNaN(prev) && n - prev >= TEMP_RISE_NOTABLE) {
         // Augsts, bet vēl zem 37 — tomēr strauji kāpj: tas ir tendence, nevis kritiskums
         findings.push({
-          sev: 'attn', cat: 'temp', field: 'temperatura', label: 'Temperatūra', icon: '🌡',
-          reason: '+' + (n - prev).toFixed(1) + ' °C pret iepriekšējo mērījumu',
+          sev: 'attn', cat: 'temp', field: 'temperatura', label: mt('cat_temp', null, 'Temperatūra'), icon: '🌡',
+          reason: mt('temp_rise', { d: (n - prev).toFixed(1) },
+            '+' + (n - prev).toFixed(1) + ' °C pret iepriekšējo mērījumu'),
           value: item.value, unit: '°C', item
         });
       }
@@ -565,17 +605,17 @@ class MedicineView {
     const trend = (t.points.length >= TREND_MIN_POINTS && t.points[t.points.length - 1].value - t.points[0].value !== 0) ? {
       dir: t.points[t.points.length - 1].value - t.points[0].value > 0 ? 'up' : 'down',
       delta: t.points[t.points.length - 1].value - t.points[0].value,
-      label: 'Temperatūra', icon: '🌡', series: t.series, dates: t.points.map(p => p.date), unit: '°C'
+      label: mt('cat_temp', null, 'Temperatūra'), icon: '🌡', series: t.series, dates: t.points.map(p => p.date), unit: '°C'
     } : null;
 
     return {
-      icon: '🌡', title: 'Temperatūra', value: item ? String(item.value) : '', unit: '°C',
+      icon: '🌡', title: mt('cat_temp', null, 'Temperatūra'), value: item ? String(item.value) : '', unit: '°C',
       date: today ? today.date : '', time: item ? item.time : '',
       state, item, prevValue: isNaN(prev) ? null : prev,
       delta: (!isNaN(n) && !isNaN(prev)) ? +(n - prev).toFixed(1) : null,
       author: item ? (this.employeeMap[String(item.raw.employeeId || item.raw.darbinieks_id)] || '') : '',
       trend, findings,
-      emptyNote: item ? '' : 'Nav temperatūras datu'
+      emptyNote: item ? '' : mt('none_temp', null, 'Nav temperatūras datu')
     };
   }
 
@@ -586,8 +626,8 @@ class MedicineView {
     const parts = [];
     const findings = [];
     const cfg = [
-      { field: 'urina_daudzums', label: 'Urīns 24h', low: URINE_LOW, lowText: 'zem ' + URINE_LOW + ' ml diennakts minima', high: URINE_HIGH, highText: 'virs ' + URINE_HIGH + ' ml — paaugsts diennakts apjoms' },
-      { field: 'uznemts_ml', label: 'H₂O 24h', low: H2O_LOW, lowText: 'zem ' + H2O_LOW + ' ml diennakts minima', high: H2O_HIGH, highText: 'virs ' + H2O_HIGH + ' ml diennakts apjoms' }
+      { field: 'urina_daudzums', label: mt('urine24', null, 'Urīns 24h'), low: URINE_LOW, lowText: mt('fluid_low', { v: URINE_LOW }, 'zem ' + URINE_LOW + ' ml diennakts minima'), high: URINE_HIGH, highText: mt('fluid_high', { v: URINE_HIGH }, 'virs ' + URINE_HIGH + ' ml diennakts maksimuma') },
+      { field: 'uznemts_ml', label: mt('h2o24', null, 'H₂O 24h'), low: H2O_LOW, lowText: mt('fluid_low', { v: H2O_LOW }, 'zem ' + H2O_LOW + ' ml diennakts minima'), high: H2O_HIGH, highText: mt('fluid_high', { v: H2O_HIGH }, 'virs ' + H2O_HIGH + ' ml diennakts maksimuma') }
     ];
     const trends = [];
 
@@ -635,7 +675,7 @@ class MedicineView {
       parts.push(part);
     });
 
-    return { icon: '💧', title: 'Šķidrumi', parts, trends, findings };
+    return { icon: '💧', title: mt('cat_fluid', null, 'Šķidrumi'), parts, trends, findings };
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -664,12 +704,12 @@ class MedicineView {
 
     if (item && v) {
       state = 'norm';
-      if (BOWEL_CRITICAL[v]) {
+      if (BOWEL_CRITICAL.includes(v)) {
         state = 'crit';
-        findings.push({ sev: 'crit', cat: 'fiziologija', field, label: 'Vēdera izeja', icon: '🚽', reason: BOWEL_LABEL[v] + ' — ' + BOWEL_CRITICAL[v], value: v, item });
-      } else if (BOWEL_ATTENTION[v]) {
+        findings.push({ sev: 'crit', cat: 'fiziologija', field, label: mt('cat_bowel', null, 'Vēdera izeja'), icon: '🚽', reason: bowelLabel(v) + ' — ' + bowelCritText(v), value: v, item });
+      } else if (BOWEL_ATTENTION.includes(v)) {
         state = 'attn';
-        findings.push({ sev: 'attn', cat: 'fiziologija', field, label: 'Vēdera izeja', icon: '🚽', reason: BOWEL_LABEL[v] + ' — ' + BOWEL_ATTENTION[v], value: v, item });
+        findings.push({ sev: 'attn', cat: 'fiziologija', field, label: mt('cat_bowel', null, 'Vēdera izeja'), icon: '🚽', reason: bowelLabel(v) + ' — ' + bowelAttnText(v), value: v, item });
       } else if (BOWEL_NORMAL.includes(v)) {
         state = 'norm';
       }
@@ -682,8 +722,13 @@ class MedicineView {
     if (daysSince !== null && daysSince >= BOWEL_ABSENT_DAYS && !findings.length) {
       state = state === 'none' ? 'attn' : state;
       findings.push({
-        sev: 'attn', cat: 'fiziologija', field, label: 'Vēdera izeja', icon: '🚽',
-        reason: 'nav ' + daysSince + (daysSince === 1 ? ' dienu' : ' dienas'), detail: 'bez izkārnīšanās'
+        sev: 'attn', cat: 'fiziologija', field, label: mt('cat_bowel', null, 'Vēdera izeja'), icon: '🚽',
+        reason: mt('bowel_absent', {
+        n: daysSince,
+        unit: mt(daysSince === 1 ? 'bowel_absent_unit1' : 'bowel_absent_unit',
+          null, daysSince === 1 ? 'dienu' : 'dienas')
+      }, 'nav ' + daysSince + (daysSince === 1 ? ' dienu' : ' dienas')),
+    detail: mt('bowel_no_stool', null, 'bez izkārnīšanās')
       });
     }
 
@@ -692,13 +737,13 @@ class MedicineView {
     const changed = v && prev && v !== prev;
 
     return {
-      icon: '🚽', title: 'Vēdera izeja',
-      value: v, label: v ? (BOWEL_LABEL[v] || v) : '',
+      icon: '🚽', title: mt('cat_bowel', null, 'Vēdera izeja'),
+      value: v, label: v ? bowelLabel(v) : '',
       state, item, date: today ? today.date : '', time: item ? item.time : '',
       daysSince, changed, prevValue: prev,
       author: item ? (this.employeeMap[String(item.raw.employeeId || item.raw.darbinieks_id)] || '') : '',
       findings,
-      emptyNote: item ? '' : 'Nav datu'
+      emptyNote: item ? '' : mt('none_fluid', null, 'Nav datu')
     };
   }
 
@@ -758,7 +803,7 @@ class MedicineView {
         const text = String(it.raw.comment || it.raw.virsenis || it.raw.reason || it.value || '').trim();
         entry.attention.push({
           kind: 'note', cat: 'pievienot', field: 'uzmaniba',
-          label: text || 'Pievērst medicīnisko uzmanību', reason: '',
+          label: text || mt('attention_label', null, 'Pievērst medicīnisko uzmanību'), reason: '',
           author: this.employeeMap[String(it.raw.employeeId || it.raw.darbinieks_id)] || '',
           date: it.date, markId: it.id
         });
@@ -890,19 +935,19 @@ class MedicineView {
 
     el.innerHTML =
       '<div class="med-kpis">' +
-        tile('attn', '🔴', attention.length, 'Steens') +
-        tile('trend', '📈', trends.length, 'Tendence') +
-        tile('all', '👥', total, 'Klienti') +
+        tile('attn', '🔴', attention.length, mt('kpi_crit', null, 'Akūts')) +
+        tile('trend', '📈', trends.length, mt('kpi_trend', null, 'Tendence')) +
+        tile('all', '👥', total, mt('kpi_all', null, 'Klienti')) +
       '</div>' +
       '<div class="med-legend">' +
-        '<span class="med-legend-item crit"><b>🔴 Steens</b> — ārpus robežām, rīcība tagad</span>' +
-        '<span class="med-legend-item attn"><b>🟡 Uzmanīt</b> — tuvs robežai, sekot līdzi</span>' +
-        '<span class="med-legend-item trend"><b>📈 Tendence</b> — mainās 3+ dienas</span>' +
-        '<span class="med-legend-item ok"><b>✅ Normāli</b> — bez brīdinājuma</span>' +
+        '<span class="med-legend-item crit">' + this.escapeHtml(mt('legend_crit', null, '🔴 Akūts — ārpus robežām, rīcība tagad')) + '</span>' +
+        '<span class="med-legend-item attn">' + this.escapeHtml(mt('legend_attn', null, '🟡 Uzmanīt — tuvs robežai, sekot līdzi')) + '</span>' +
+        '<span class="med-legend-item trend">' + this.escapeHtml(mt('legend_trend', null, '📈 Tendence — mainās 3+ dienas')) + '</span>' +
+        '<span class="med-legend-item ok">' + this.escapeHtml(mt('legend_ok', null, '✅ Normāli — bez brīdinājuma')) + '</span>' +
       '</div>' +
       (attention.length === 0 && trends.length === 0
-        ? '<div class="med-ok">✅ Nevienam klientam šobrīd nav ne kritisks rādījums, ne tendence.</div>'
-        : '<div class="med-hint">Pirmais klients sarakstā ir tas, kas jāapskata pirmais.</div>');
+        ? '<div class="med-ok">' + this.escapeHtml(mt('ok_none', null, '✅ Nevienam klientam šobrīd nav ne akūts rādījums, ne tendence.')) + '</div>'
+        : '<div class="med-hint">' + this.escapeHtml(mt('hint_first', null, 'Pirmais klients sarakstā ir tas, kas jāapskata pirmais.')) + '</div>');
 
     el.querySelectorAll('.med-kpi').forEach(b => {
       b.addEventListener('click', () => {
@@ -931,7 +976,7 @@ class MedicineView {
     const section = (id, icon, title, rows, collapsed) => {
       if (!rows.length) return '';
       const body = collapsed
-        ? '<button class="med-more" data-more="' + id + '">Parādīt ' + rows.length + ' klientus</button>'
+        ? '<button class="med-more" data-more="' + id + '">' + this.escapeHtml(mt('show_more', { n: rows.length }, 'Parādīt ' + rows.length + ' klientus')) + '</button>'
         : '<div class="med-group-body">' + rows.map(a => this._clientRow(a)).join('') + '</div>';
       return '<section class="med-group" data-group="' + id + '">' +
         '<h2 class="med-group-head" data-toggle="' + id + '">' +
@@ -943,21 +988,21 @@ class MedicineView {
     let html = '';
     if (this.focus === 'attn') {
       html = attention.length || trends.length || rest.length
-    ? section('attn', '🔴', 'Rīcība tagad', attention, false) +
-    section('trend', '📈', 'Tendence', trends, false) +
-    section('rest', '👥', 'Visi klienti', rest, false)
+    ? section('attn', '🔴', mt('grp_crit', null, 'Rīcība tagad'), attention, false) +
+    section('trend', '📈', mt('kpi_trend', null, 'Tendence'), trends, false) +
+    section('rest', '👥', mt('grp_rest', null, 'Visi klienti'), rest, false)
         : this._emptyRow(term);
     } else if (this.focus === 'trend') {
       html = attention.length || trends.length || rest.length
-        ? section('trend', '📈', 'Tendence', trends, false) +
-          section('attn', '🔴', 'Rīcība tagad', attention, false) +
-          section('rest', '👥', 'Visi klienti', rest, false)
+        ? section('trend', '📈', mt('kpi_trend', null, 'Tendence'), trends, false) +
+          section('attn', '🔴', mt('grp_crit', null, 'Rīcība tagad'), attention, false) +
+          section('rest', '👥', mt('grp_rest', null, 'Visi klienti'), rest, false)
         : this._emptyRow(term);
     } else {
       // Noklusējums: uzmanība + tendence. Visi pārējie ir aizvākti.
-      html = section('attn', '🔴', 'Rīcība tagad', attention, false) +
-        section('trend', '📈', 'Tendence', trends, false) +
-        section('rest', '👥', 'Visi klienti', rest, !this.showAll);
+      html = section('attn', '🔴', mt('grp_crit', null, 'Rīcība tagad'), attention, false) +
+        section('trend', '📈', mt('kpi_trend', null, 'Tendence'), trends, false) +
+        section('rest', '👥', mt('grp_rest', null, 'Visi klienti'), rest, !this.showAll);
     }
     if (!html) html = this._emptyRow(term);
     list.innerHTML = html;
@@ -978,7 +1023,8 @@ class MedicineView {
 
   _emptyRow(term) {
     return '<div class="med-empty">' +
-      (term ? 'Klienti ar "' + this.escapeHtml(term) + '" nav atrasti.' : 'Nav klientu ar medicīniski nozīmīgām novirzēm.') +
+      (term ? mt('not_found', { q: this.escapeHtml(term) }, 'Klienti ar "' + this.escapeHtml(term) + '" nav atrasti.')
+        : mt('no_dev', null, 'Nav klientu ar medicīniski nozīmīgām novirzēm.')) +
       '</div>';
   }
 
@@ -1029,7 +1075,7 @@ class MedicineView {
       bits.push('<span class="med-sum' + (m.bowel.state === 'crit' ? ' crit' : '') + '">🚽 ' +
         this.escapeHtml(m.bowel.label) + '</span>');
     }
-    return bits.length ? bits.join('') : '<span class="med-sum none">Nav medicīnisko datu</span>';
+    return bits.length ? bits.join('') : '<span class="med-sum none">' + this.escapeHtml(mt('none_summary', null, 'Nav medicīnisko datu')) + '</span>';
   }
 
   renderDetail() {
@@ -1075,12 +1121,12 @@ class MedicineView {
 
     const head =
       '<div class="med-detail-head">' +
-        '<button class="med-back" data-act="back">← Klienti</button>' +
+        '<button class="med-back" data-act="back">' + this.escapeHtml(mt('back', null, '← Klienti')) + '</button>' +
         '<div class="med-detail-id">' +
           '<h2>' + this.escapeHtml(a.name) + '</h2>' +
           '<div class="med-detail-meta">' +
             (a.age ? this.escapeHtml(a.age) + ' gadi · ' : '') +
-            (a.diet ? this.escapeHtml(a.diet) : 'Nav noteikta diēta') +
+            (a.diet ? this.escapeHtml(a.diet) : this.escapeHtml(mt('no_diet', null, 'Nav noteikta diēta'))) +
             (a.hospital ? ' · <span class="med-hosp">🏥 Slimnīcā</span>' : '') +
           '</div>' +
         '</div>' +
@@ -1096,10 +1142,10 @@ class MedicineView {
     // Aktīvās "Pievērst medicīnisko uzmanību" atzīmes
     const notes = a.attention.filter(x => x.kind === 'note');
     const noteHtml = notes.length
-      ? '<section class="med-block warn"><h3>🟡 Uzmanības atzīmes (' + notes.length + ')</h3>' +
+      ? '<section class="med-block warn"><h3>' + this.escapeHtml(mt('attn_notes', { n: notes.length }, '🟡 Uzmanības atzīmes (' + notes.length + ')')) + '</h3>' +
         notes.map(x => this._attHtml(x)).join('') +
         (a.historyCount
-          ? '<div class="med-history">ℹ️ Vecākas ' + a.historyCount + ' atzīmes pārceltas uz vēsturi.</div>'
+          ? '<div class="med-history">ℹ️ ' + this.escapeHtml(mt('history_note', { n: a.historyCount }, 'Vecākas ' + a.historyCount + ' atzīmes pārceltas uz vēsturi.')) + '</div>'
           : '') +
         '</section>'
       : (a.historyCount
@@ -1107,7 +1153,7 @@ class MedicineView {
           : '');
 
     const clean = !a.problems
-      ? '<div class="med-ok big">✅ Visi četri rādītāji normāli, tendencēm nav ko rādīt.</div>'
+      ? '<div class="med-ok big">' + this.escapeHtml(mt('all_normal', null, '✅ Visi četri rādītāji normāli, tendencēm nav ko rādīt.')) + '</div>'
       : '';
 
     // Medicīniskais skats ir FILTRS, nevis jauna darbvieta. Šeit nav ne
@@ -1122,9 +1168,9 @@ class MedicineView {
   // darbiniekam — tas nespēj atšķirt, kas ir steens un kas uzmanība.
   _blockHead(icon, title, state, extra) {
     const stateTag = state === 'crit'
-        ? '<span class="med-state crit" title="Rādītājs ir ārpus pieņemamajiem robežām — nepieciešama rīcība tagad.">🔴 steens</span>'
+        ? '<span class="med-state crit" title="' + this.escapeHtml(mt('state_crit_title', null, 'Rādītājs ir ārpus pieņemamajiem robežām.')) + '">🔴 ' + this.escapeHtml(mt('state_crit', null, 'akūts')) + '</span>'
         : state === 'attn'
-          ? '<span class="med-state attn" title="Rādītājs tuvs robežai vai izmainījies — sekot līdzi.">🟡 uzmanīt</span>'
+          ? '<span class="med-state attn" title="' + this.escapeHtml(mt('state_attn_title', null, 'Rādītājs tuvs robežai.')) + '">🟡 ' + this.escapeHtml(mt('state_attn', null, 'uzmanīt')) + '</span>'
           : '';
     return '<h3>' + icon + ' ' + this.escapeHtml(title) + ' ' + stateTag + (extra || '') + '</h3>';
   }
@@ -1136,7 +1182,7 @@ class MedicineView {
         '<span class="med-finding-label">' + (f.sev === 'crit' ? '🔴' : '🟡') + ' ' + this.escapeHtml(f.label) + '</span>' +
         '<span class="med-finding-reason">' + this.escapeHtml(f.reason) + '</span>' +
         (f.detail ? '<span class="med-finding-detail">' + this.escapeHtml(f.detail) + '</span>' : '') +
-        (f.author ? '<span class="med-finding-author">ierakstījis ' + this.escapeHtml(f.author) + '</span>' : '') +
+        (f.author ? '<span class="med-finding-author">' + this.escapeHtml(mt('authored', { name: f.author }, 'ierakstījis ' + f.author)) + '</span>' : '') +
       '</div>').join('') + '</div>';
   }
 
@@ -1166,7 +1212,7 @@ class MedicineView {
       '<div class="med-when">' + this._whenHtml(t.date, t.time) + '</div>' +
       this._findingsHtml(t.findings) +
       this._trendLineHtml(t.trend) +
-      (t.author ? '<div class="med-author">ierakstījis ' + this.escapeHtml(t.author) + '</div>' : '') +
+      (t.author ? '<div class="med-author">' + this.escapeHtml(mt('authored', { name: t.author }, 'ierakstījis ' + t.author)) + '</div>' : '') +
       '</section>';
   }
 
@@ -1187,7 +1233,7 @@ class MedicineView {
             : (m.recorded ? 'ate' : 'empty')));
       const title = m.recorded && MEAL_KNOWN[m.value] ? ' title="' + this.escapeHtml(MEAL_KNOWN[m.value]) + '"' : '';
       return '<div class="med-meal ' + cls + '"' + title + '>' +
-        '<span class="med-meal-name">' + this.escapeHtml(MEAL_LABEL[k]) + '</span>' +
+        '<span class="med-meal-name">' + this.escapeHtml(mealLabel(k)) + '</span>' +
         '<span class="med-meal-val">' + this.escapeHtml(v) + '</span>' +
       '</div>';
     }).join('');
@@ -1200,8 +1246,9 @@ class MedicineView {
       // maināts (tas jau ir 🔴 brīdinājums, nevis 📈 tendence).
       (f.series && f.series.length >= TREND_MIN_POINTS
         ? '<div class="med-series">🍽 ' + f.series.join(' → ') + '</div>' +
-          '<div class="med-hint small">Dienas vidējais ēdienreižu apjoms, vecākais → šodien (' +
-          this._dateLabel(f.seriesDates[0]) + ' → ' + this._dateLabel(f.seriesDates[f.seriesDates.length - 1]) + ')</div>'
+          '<div class="med-hint small">' + this.escapeHtml(mt('food_dayavg', {
+            range: this._dateLabel(f.seriesDates[0]) + ' → ' + this._dateLabel(f.seriesDates[f.seriesDates.length - 1])
+          }, 'Dienas vidējais ēdienreižu apjoms, vecākais → šodien (' + this._dateLabel(f.seriesDates[0]) + ' → ' + this._dateLabel(f.seriesDates[f.seriesDates.length - 1]) + ')')) + '</div>'
         : '') +
       this._trendLineHtml(f.trend) +
       '</section>';
@@ -1225,7 +1272,7 @@ class MedicineView {
     }).join('');
 
     return '<section class="med-block med-cat ' + (state === 'ok' ? 'ok' : state) + '">' +
-      this._blockHead('💧', 'Šķidrumi', state) +
+      this._blockHead('💧', mt('cat_fluid', null, 'Šķidrumi'), state) +
       '<div class="med-fluids">' + rows + '</div>' +
       this._findingsHtml(f.findings) +
       f.trends.map(t => this._trendLineHtml(t)).join('') +
@@ -1240,17 +1287,23 @@ class MedicineView {
     }
     const state = b.state === 'crit' ? 'crit' : (b.state === 'attn' ? 'attn' : 'ok');
     const since = b.daysSince === null ? '' :
-      '<div class="med-when">Pēdējā izkārnīšanās: pirms ' + b.daysSince +
-      (b.daysSince === 1 ? ' dienas' : ' dienām') + '</div>';
+      '<div class="med-when">' + this.escapeHtml(mt('bowel_last', {
+        n: b.daysSince,
+        unit: mt(b.daysSince === 1 ? 'bowel_last_unit1' : 'bowel_last_unit',
+          null, b.daysSince === 1 ? 'dienas' : 'dienām')
+      }, 'Pēdējā izkārnīšanās: pirms ' + b.daysSince + (b.daysSince === 1 ? ' dienas' : ' dienām'))) + '</div>';
     return '<section class="med-block med-cat ' + (state === 'ok' ? 'ok' : state) + '">' +
-      this._blockHead('🚽', 'Vēdera izeja', state) +
+      this._blockHead('🚽', mt('cat_bowel', null, 'Vēdera izeja'), state) +
       (b.value
         ? '<div class="med-big ' + (b.state === 'crit' ? 'crit' : 'norm') + '">' +
             this.escapeHtml(b.label) + '</div>' + since
-        : '<div class="med-big ' + (b.state === 'crit' ? 'crit' : 'norm') + '">nav ' +
-            (b.daysSince || 0) + (b.daysSince === 1 ? ' dienu' : ' dienas') + '</div>') +
+        : '<div class="med-big ' + (b.state === 'crit' ? 'crit' : 'norm') + '">' + this.escapeHtml(mt('bowel_absent', {
+            n: (b.daysSince || 0),
+            unit: mt((b.daysSince || 0) === 1 ? 'bowel_absent_unit1' : 'bowel_absent_unit',
+              null, (b.daysSince || 0) === 1 ? 'dienu' : 'dienas')
+          }, 'nav ' + (b.daysSince || 0) + ((b.daysSince || 0) === 1 ? ' dienu' : ' dienas'))) + '</div>') +
       this._findingsHtml(b.findings) +
-      (b.author ? '<div class="med-author">ierakstījis ' + this.escapeHtml(b.author) + '</div>' : '') +
+      (b.author ? '<div class="med-author">' + this.escapeHtml(mt('authored', { name: b.author }, 'ierakstījis ' + b.author)) + '</div>' : '') +
       '</section>';
   }
 
@@ -1454,9 +1507,4 @@ function formatDateTimeLVShort(dt) {
   const d = new Date(dt);
   if (isNaN(d.getTime())) return '';
   return d.toLocaleDateString('lv-LV') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-}
-
-function t(key, params) {
-  if (typeof window.t === 'function') return window.t(key, params);
-  return key;
 }

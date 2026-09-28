@@ -543,7 +543,58 @@ class CareSync {
     // vienīgais papildus datu ielādes ceļš; pārējo vēsturi ielādē tikai
     // konkrēta klienta atvēršanai.
     this.RECENT_DAYS = 3;
+    // Cik reižu var atkārtot sūtīšanu, pēc kā ieraksts vairs netiks
+    // nosūtīts un tiek pārcists uz sync_audit. To NEskait kā "nesaglabāts":
+    // ieraksts, kuru vairs nevar nosūtīt, joprojām ir ierīcē, bet arī
+    // nevar tikt pazaudēts, atkārtojot sinhronizāciju.
+    this.MAX_QUEUE_RETRIES = 5;
     this._setupOfflineDetection();
+  }
+
+  // ── Rindas stāvokļi ────────────────────────────────────────────────────────
+  //
+  // GALĪGIE stāvokļi: šo ierakstu rinda vairs NEDOS sūtīt. Tādus nedrīkst
+  // glabāt sync_queue, jo tie uzkrājas un ikreiz liek iziešanas dialogam
+  // apgalvot, ka "ir nesaglabāti dati" — pat ja lietotājs neko nemainīja.
+  //
+  // ⚠️ BLOKKĒTS / KONFLIKTS / KĻŪDA / NORAIDĪTS šeit NAV iekļauti: tie
+  // prasa cilvēka lēmumu, tāpēc to dzēšana klusējot pazaudētu datus.
+  static get QUEUE_TERMINAL() {
+    return new Set(['AIZVIETA', 'ATCELTS', 'PIEŅEMTS', 'NEVAR ATKĀRTOT']);
+  }
+
+  // Vai šis rindas ieraksts tiek vēl sūtīts? Atbilde ir viens avots
+  // gan skaitīšanai dialogā, gan rindas apstrādei.
+  isQueueItemPending(item) {
+    if (!item) return false;
+    if (CareSync.QUEUE_TERMINAL.has(item.status)) return false;
+    if ((item.retries || 0) >= this.MAX_QUEUE_RETRIES) return false;
+    return true;
+  }
+
+  // Noņem galīgos ierakstus no rindas, pirms tam arhivējot tos uz
+  // sync_audit. Tas novērš gan Phantom brīdinājumu, gan rindas mūžmūžīgu
+  // pieaugšanu. Atgriež noņemto ierakstu skaitu.
+  async _purgeDeadQueueItems() {
+    let items;
+    try { items = await this.db.getAll('sync_queue'); }
+    catch (e) { return 0; }
+    const dead = items.filter(i => !this.isQueueItemPending(i));
+    for (const item of dead) {
+      if (item.status === 'AIZVIETA' || item.status === 'ATCELTS' || item.status === 'PIEŅEMTS') {
+        await this._archiveItem(item, 'superseded');
+      } else if (item.status === 'NEVAR ATKĀRTOT') {
+        await this._archiveItem(item, 'not_retryable');
+      } else {
+        // retries pārsniegtas — pats vairs nevar tikt nosūtīts
+        await this._archiveItem(item, 'max_retries');
+      }
+    }
+    if (dead.length) {
+      console.log('[sync] noņemti ' + dead.length + ' galīgie rindas ieraksti: ' +
+        dead.map(i => (i.status || 'BEZ STATUSA') + (i.retries >= this.MAX_QUEUE_RETRIES ? ' (max retries)' : '')).join(', '));
+    }
+    return dead.length;
   }
 
   // Reģistra saīsne. Ja js/operation_registry.js nav ielādēts (piem. testi),
@@ -1141,9 +1192,18 @@ class CareSync {
       // sync_queue is NOT cleared after data load — pending operations
       // may not have been confirmed by the server yet. Each item is only
       // deleted when the server explicitly accepts it (accepted/already_processed).
+      //
+      // Bet GALĪGIE ieraksti (AIZVIETA, pārsniegtie MAX_RETRIES, ATCELTS)
+      // jāiztīra tieši šeit. Tie nekad netiks nosūtīti, un, kamēr tie
+      // paliek rindā, katra nākamā sesija ielādē rādīs "Ir nesaglabāti
+      // dati!" pat tad, ja lietotājs neko neko nav mainījis.
+      const purged = await this._purgeDeadQueueItems();
       const remaining = await this.getUnsyncedCount();
       this._updateSyncStatus(remaining > 0 ? 'Gaida nosūtīšanu' : 'Saglabāts');
 
+      if (purged > 0) {
+        console.log('[sync] pēc ielādes iztīrīti ' + purged + ' galīgie rindas ieraksti');
+      }
       if (remaining > 0) {
         console.log('[sync] Pēc ielādes atlikuši ' + remaining + ' neatlasīti ieraksti, sūtu uz GS');
         this.processQueue().catch(() => {});
@@ -1342,7 +1402,7 @@ class CareSync {
   }
 
   async _processQueueUnlocked(maxMs) {
-    const summary = { synced: 0, failed: 0, remaining: 0, permanentlyFailed: 0 };
+    const summary = { synced: 0, failed: 0, remaining: 0, permanentlyFailed: 0, superseded: 0 };
     if (!SYNC_URL) {
       this._updateSyncStatus('Nav savienojuma');
       return summary;
@@ -1354,13 +1414,18 @@ class CareSync {
     // lāpu ielādi desmitiem minūšu pirms datu ielādes sākas.
     const deadline = maxMs ? Date.now() + maxMs : 0;
     try {
-      const items = await this.db.getAll('sync_queue');
+      // Galīgie ieraksti (AIZVIETA, neattīrīti mēģinājumi, ATCELTS …) tiek
+      // arhivēti un noņemti, NEVIS tikai izlaisti. Tie vairs netiks
+      // nosūtīti, tāpēc kaņ glabāšana rindā tikai liek dialogam uzskatīt
+      // katru ierakstu par "nesaglabātu" un bloķēt iziešanu uz mužību.
+      await this._purgeDeadQueueItems();
+      const items = (await this.db.getAll('sync_queue')).filter(i => this.isQueueItemPending(i));
       if (items.length === 0) {
         this._updateSyncStatus(navigator.onLine ? 'Saglabāts' : 'Nav savienojuma');
         return summary;
       }
 
-      const MAX_RETRIES = 5;
+      const MAX_RETRIES = this.MAX_QUEUE_RETRIES;
       const sorted = items.slice().sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
         if (deadline && Date.now() > deadline) {
@@ -1369,21 +1434,16 @@ class CareSync {
           summary.skipped = true;
           break;
         }
-        // Skip permanently failed items (exceeded max retries)
-        if ((item.retries || 0) >= MAX_RETRIES) {
-          summary.permanentlyFailed++;
-          continue;
-        }
         // Spec 11.3: konfliktējoši itemi nav atkārtot automātiski —
         // lietotājam jārisolvē konflikts (serverVersion ≠ client recordVersion)
         if (item.status === 'KONFLIKTS') {
           summary.conflictSkipped = (summary.conflictSkipped || 0) + 1;
           continue;
         }
-        // Spec 7: pārējie neattīrītie stāvokļi — izlaidi
-        if (['NEVAR ATKĀRTOT', 'ATCELTS', 'AIZVIETA', 'PIEŅEMTS', 'BLOKKĒTS'].includes(item.status)) {
-          if (item.status === 'NEVAR ATKĀRTOT') summary.permanentlyFailed++;
-          if (item.status === 'BLOKKĒTS') summary.blocked = (summary.blocked || 0) + 1;
+        // BLOKKĒTS / NORAIDĪTS arī prasa cilvēka lēmumu → paliek rindā,
+        // bet netiek rakstīti kā "galīgs", lai tos var redzēt un atrisināt.
+        if (item.status === 'BLOKKĒTS') {
+          summary.blocked = (summary.blocked || 0) + 1;
           continue;
         }
         // Spec 7: replacement detection — ja jaunāks item ar to pašu recordId jau ir,
@@ -1399,9 +1459,14 @@ class CareSync {
             other.timestamp > itemTs
           );
           if (newerExists) {
+            // ⚠️ Vecākais kods šeit tikai atzīmēja statusu un atstāja ierakstu
+            // rindā. Tas bija tiešs Phantom brīdinājuma avots: ieraksts, kuru
+            // nomainīja jaunāks, palika mūžmūžīgi un katrā iziešanā tika
+            // ieskaitīts kā "nesaglabāts". Tagad arhivējam un noņemam.
             item.status = 'AIZVIETA';
             item.replacedBy = newerExists.id;
-            await this.db.put('sync_queue', item);
+            await this._archiveItem(item, 'superseded');
+            summary.superseded++;
             continue;
           }
         }
@@ -1505,6 +1570,23 @@ class CareSync {
     return this.loadInitialData(onProgress, filters || {}, { force: true });
   }
 
+  // Izejam no lietojuma → jāgarantē, ka rindā nav neizdzīstu ierakstu.
+  //
+  // ⚠️ Šeit NEDRĪKST izmantot forceFullSync(): tas ir LASĪŠANA no servera,
+  // nevis rakstīšana uz serveri. Tam piemērojās REPEAT_COOLDOWN_MS, tāpēc
+  // aiziešanas brīdī tas varētu atgriezt tukšu ielādi, rindu neatgriezt,
+  // un iziešana notiktu ar neizdzīstiem datiem.
+  async flushBeforeExit() {
+    const pending = await this.getUnsyncedCount();
+    if (pending === 0) {
+      // Nav ko sūtīt → NETIEKAM nekas uz servera. Tas ir vēlamais
+      // ceļš: izejam uzreiz, bez 5 s pilnas bootstrap ielādes.
+      return { pushed: 0, remaining: 0, skipped: true };
+    }
+    await this.processQueue();
+    return { pushed: pending, remaining: await this.getUnsyncedCount(), skipped: false };
+  }
+
   // Pūsta sync_queue - izsaucot, kad serveris ir "source of truth"
   async clearQueue() {
     try {
@@ -1521,14 +1603,28 @@ class CareSync {
     }
   }
 
+  // ⚠️ Atgriež TIKAI tos ierakstus, kas vēl tiek sūtīti. Šo izmanto visu
+  // četru sadaļu (admin, control, aprupe, medicine) iziešanas dialogs, lai
+  // skaitītu "nesaglabātos ierakstus". Galīgie ieraksti (AIZVIETA,
+  // pārsniegtie MAX_RETRIES, ATCELTS, PIEŅEMTS) NAV neizsūtāmi, tāpēc
+  // tie nedrīkst skaitīties kā risks zaudēt datus — pretērā jebkurš
+  // lietotājs, kam izdevās kaut ko izdzīvot, redzētu brīdinājumu par
+  // ierakstu, kas nekur nevar pazust.
   async getUnsyncedItems() {
     const items = await this.db.getAll('sync_queue');
-    return items.map(i => i.change);
+    return items.filter(i => this.isQueueItemPending(i)).map(i => i.change);
   }
 
+  // Cik ieraksti patiešām VĒL NAV saglabāti serverī.
+  //
+  // ⚠️ Vecākā implementācija atgrieza items.length — tas skaitīja arī
+  // galīgos ierakstus (AIZVIETA, BLOKKĒTS, pārsniegtie MAX_RETRIES),
+  // kas nekad vairs netiks nosūtīti. Rezultāts: iziešanas dialogs
+  // bezgalzīgi rādīja "Ir nesaglabāti dati!" pat tad, kad nekas nebija
+  // mainīts un nekas nebija apsaimējoties zaudēt.
   async getUnsyncedCount() {
     const items = await this.db.getAll('sync_queue');
-    return items.length;
+    return items.filter(i => this.isQueueItemPending(i)).length;
   }
 
   // Manuālā atkārtošana — lietotājs spyied "Mēģināt vēlreiz".

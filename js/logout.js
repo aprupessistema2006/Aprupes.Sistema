@@ -58,32 +58,48 @@ const Logout = {
             syncBtn.textContent = '⏳ Sinhronizē...';
           }
           try {
-            if (window.careSync && typeof window.careSync.forceFullSync === 'function') {
-              await window.careSync.forceFullSync();
-            } else if (window.careSync && typeof window.careSync.sync === 'function') {
-              await window.careSync.sync();
+            // ⚠️ Izejam no lietojuma → jānosūta RINDA, nevis jāielādē no
+            // servera. forceFullSync() ir lasīšana (pilnā bootstrap ielāde),
+            // tā bloķējas COOLDOWN un negarantē, ka dati ir saglabāti.
+            let flush = { pushed: 0, remaining: 0, skipped: true };
+            if (window.careSync) {
+              if (typeof window.careSync.flushBeforeExit === 'function') {
+                flush = await window.careSync.flushBeforeExit();
+              } else if (typeof window.careSync.processQueue === 'function') {
+                await window.careSync.processQueue();
+                flush = {
+                  pushed: 0,
+                  remaining: await window.careSync.getUnsyncedCount(),
+                  skipped: false
+                };
+              }
             }
             // Re-check pending
-            let remaining = 0;
-            if (window.careSync && typeof window.careSync.getUnsyncedCount === 'function') {
+            let remaining = flush.remaining;
+            if (!remaining && window.careSync && typeof window.careSync.getUnsyncedCount === 'function') {
               remaining = await window.careSync.getUnsyncedCount();
             }
             if (remaining === 0) {
               overlay.remove();
               resolve(true); // Allow logout after successful sync
             } else {
-              // Update message
+              // ⚠️ RINDA NAV TUKŠA. nedrīkst apgalvot, ka dati saglabāti —
+              // tie joprojām ir tikai ierīcē. Piedāvājam mēģināt vēlreiz
+              // un brīdinām, ka iziešana var pazaudēt šos ierakstus.
               const msgEl = overlay.querySelector('.logout-confirm-msg');
               if (msgEl) {
-                msgEl.innerHTML = '✅ Sinhronizācija pabeigta. Visi dati saglabāti Google Sheets.<br><br>Vai tiešām vēlies iziet?';
-                msgEl.classList.remove('unsaved');
+                msgEl.innerHTML = '⚠️ <b>' + remaining + '</b> ierakstu vēl nav saglabāti Google Sheets.<br><br>' +
+                  'Dati ir tikai šajā ierīcē — ja iziesi tagad, tie var pazust.<br><br>' +
+                  'Vai vēlies mēģināt vēlreiz, vai tomēr iziet?';
+                msgEl.classList.add('unsaved');
               }
               const titleEl = overlay.querySelector('.logout-confirm-title');
-              if (titleEl) titleEl.textContent = 'Dati sinhronizēti!';
+              if (titleEl) titleEl.textContent = 'Ne visas izmaiņas saglabātas';
               const iconEl = overlay.querySelector('.logout-confirm-icon');
-              if (iconEl) iconEl.textContent = '✅';
+              if (iconEl) iconEl.textContent = '⚠️';
               if (syncBtn) {
-                syncBtn.remove();
+                syncBtn.disabled = false;
+                syncBtn.textContent = '🔄 Mēģināt vēlreiz';
               }
             }
           } catch (err) {
