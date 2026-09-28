@@ -590,7 +590,7 @@ class MedicineView {
       date: today,
       priority,
       markId: m.id,
-      isHospital: this.isClientHospital(null, marks || [])
+      isHospital: this.isClientHospital(null, this.getClientMarks(clientId, today) || [])
     };
   }
 
@@ -730,7 +730,7 @@ class MedicineView {
 
     detail.innerHTML = `
       <div class="medicine-client-header">
-        <h2>${this.escapeHtml(vards)} ${this.escapeHtml(ujvards)}</h2>
+        <h2>${this.escapeHtml(vards)} ${this.escapeHtml(uzvards)}</h2>
         ${isHospital ? '<span class="medicine-hospital-badge">🏥 Slimnīcā</span>' : ''}
       </div>
       <div class="medicine-client-meta-grid">
