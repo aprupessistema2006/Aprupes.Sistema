@@ -2,7 +2,10 @@ class CareDB {
   constructor() {
     this.db = null;
     this.dbName = 'AprupesSistema';
-    this.version = 3;
+    // v4: pievienots sync_audit veikals mirkļa rindas ierakstu arhivēšanai.
+    // Bez tā arhivēšana vienmēr neizdodās (NotFoundError) un mirkļie
+    // ieraksti palika rindā uz mužību, katru ielādi palielinot datubāzi.
+    this.version = 4;
   }
 
   async init() {
@@ -26,7 +29,8 @@ class CareDB {
           atzimes_log: { keyPath: 'id' },
           uzdevomi: { keyPath: 'id' },
           meta: { keyPath: 'key' },
-          sync_queue: { keyPath: 'id' }
+          sync_queue: { keyPath: 'id' },
+          sync_audit: { keyPath: 'id' }
         };
         Object.keys(migrations).forEach(storeName => {
           if (!db.objectStoreNames.contains(storeName)) {
@@ -40,7 +44,7 @@ class CareDB {
   _initMemory() {
     this._memory = {
       darbinieki: {}, klienti: {}, atzimes: {}, atzimes_log: {},
-      uzdevomi: {}, meta: {}, sync_queue: {}
+      uzdevomi: {}, meta: {}, sync_queue: {}, sync_audit: {}
     };
     this.db = { _memory: this._memory, _isMemory: true };
     return this.db;

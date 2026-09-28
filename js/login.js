@@ -366,7 +366,7 @@ class LoginController {
     // Setup veidlapu rādam TIKAI tad, ja esam pārliecinoši sazinājušies ar
     // serveri. navigator.onTime nevar balstīties — tas daudzās ierīcēs ir
     // neprecīzs un var būt false, pat ja serveris ir sasniedzams.
-    if (this._serverReachable === false) {
+    if (!this._serverReachable) {
       this.enterNoConnectionMode(new Error('nav savienojuma'));
       return;
     }

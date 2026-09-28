@@ -1746,9 +1746,20 @@ class CareSync {
         });
         await this.db.delete('sync_queue', item.id);
         console.log('[sync] Item archived to sync_audit:', item.id, 'outcome:', outcome);
-      } catch (e) {
-        console.warn('[sync] _archiveItem failed, keeping item in queue:', e);
+    } catch (e) {
+      // Arhivēšanas kļūda nedrīkst būt par iemeslu mirkļa ieraksta atstāšanu
+      // rindā. Ieraksts jebkurā gadījumā vairs netiks sūtīts, tāpēc, ja
+      // arhīvu neizdās saglabāt, ierakstu tomēr noņemam — pretērā rinda
+      // aug bezgalzīgi un katra ielāde kļūst lēnāka. Skaņu brīdinājums
+      // saglabājas, lai zaudējumu būtu iespējams izpētīt.
+      console.warn('[sync] _archiveItem audits saglabāšana neizdevās, ieraksts tomēr noņemts no rindas:', e);
+      try {
+        await this.db.delete('sync_queue', item.id);
+        console.log('[sync] noņemts bez audita:', item.id, 'outcome:', outcome);
+      } catch (e2) {
+        console.warn('[sync] neizdevās noņemt arhivējamu ierakstu no rindas:', e2);
       }
+    }
     }
 
    async checkRetryAllowed(operationId) {

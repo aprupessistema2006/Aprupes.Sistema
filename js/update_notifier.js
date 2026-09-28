@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20260928-2330';
+const BUILD_VERSION = '20260928-2430';
 
 class UpdateNotifier {
   constructor() {

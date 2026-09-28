@@ -133,7 +133,7 @@ class CareFormController {
         retryBtn.textContent = '⏳ Notīra cache...';
         try {
           // Clear all IndexedDB stores
-          const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue'];
+          const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue', 'sync_audit'];
           for (const store of stores) {
             await this.db.clear(store);
           }
