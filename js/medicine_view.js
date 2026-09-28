@@ -812,9 +812,10 @@ class MedicineView {
 
     const trendHtml = f.trend && f.trend.length > 0
       ? `<div class="medicine-trend">${f.trend.map(t => {
-          const v = t && t.value ? String(t.value) : '-';
+          if (!t) return '';
+          const v = t.value ? String(t.value) : '-';
           return `<span>${t.date}: ${v}</span>`;
-        }).join(' • ')}</div>`
+        }).filter(h => h).join(' • ')}</div>`
       : '';
 
     return `<div class="medicine-finding-card ${f.priority}" data-client="${f.clientId}">

@@ -859,12 +859,16 @@ class CareSync {
       const localClientChanges = await this._collectLocalClientChanges();
 
       // NOMAINĀT atzimes/atzimes_log — tās tiek ielādētas daļās fonā un saplūstas
+      // meta store is NOT included here — replaceStores clears it entirely,
+      // which would delete the migration_v3_complete marker and force the O(n)
+      // runMigrations to re-run on every sync. Instead we use db.put for
+      // lastSync to preserve existing meta entries.
       await this.db.replaceStores({
         darbinieki: (base.darbinieki || []).map(normalizeRow),
         klienti: (base.klienti || []).map(normalizeRow),
-        uzdevomi: (base.uzdevomi || []).map(normalizeRow),
-        meta: [{ key: 'lastSync', value: lastSync, ts: lastSync }]
+        uzdevomi: (base.uzdevomi || []).map(normalizeRow)
       });
+      await this.db.put('meta', { key: 'lastSync', value: lastSync, ts: lastSync });
 
       await this._applyLocalCompletions(localCompletions);
       await this._applyLocalClientChanges(localClientChanges);
