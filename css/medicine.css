@@ -25,27 +25,94 @@
   --med-line: #e6eaef;
 }
 
-/* Lieli, viegli nospiežami elementi (spec §10) */
-.med-title {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--med-ink);
-  margin: 4px 0 12px;
-  letter-spacing: -.2px;
+/* ── Augšējā josla ───────────────────────────────────────────────────────────
+   Šīm lapai šie stili eksistē TIKAI šeit (medicine.html ir vienīgā lapa,
+   kas lieto .top-bar). Iepriekš to stilu nebija vispār — tāpēc josla
+   lūžās divās rindās, un fiksētais valodu pārslēdzējs karāja pār izietas
+   pogu. Rezultāts bija tieši tas "haoss augšpus", ko lietotājs redzēja. */
+
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 6px 10px;
+  background: #fff;
+  border-bottom: 1px solid var(--med-line);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .06);
 }
 
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;                 /* ļauj virsrakstam saīsties, nevis izstumt */
+}
 
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.top-bar-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--med-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.icon-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  background: #f5f7f9;
+  color: var(--med-ink);
+  border: 1px solid var(--med-line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.icon-btn:active { background: #e9edf1; }
+
+/* Valodu pārslēdzējs iekļaujas joslā, nevis karā virs tās. */
+.top-bar .lang-switcher-global {
+  position: static;
+  background: none;
+  padding: 0;
+  gap: 2px;
+  box-shadow: none;
+}
+.top-bar .lang-btn {
+  padding: 5px 7px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+
+/* Lieli, viegli nospiežami elementi (spec §10) */
 .med-container {
   max-width: 900px;
   margin: 0 auto;
-  padding: 12px 12px 96px;
+  padding: 10px 12px 96px;
 }
 
 /* ── 1. Kopsavilkums ─────────────────────────────────────────────────────── */
 
-.med-headline { margin-bottom: 12px; }
-
-.med-headline { margin-bottom: 12px; }
+.med-headline { margin-bottom: 10px; }
 
 /* ── KPI — tikai trīs, uz klientu līmeni (spec §7) ───────────────────────
    Katrs KPI ir arī FILTRA pārslēdzis: nospiežot uz "Uzmanība" tiek
@@ -493,26 +560,6 @@
   margin-top: 4px;
 }
 
-.med-detail-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 22px;
-  padding-top: 14px;
-  border-top: 1px solid var(--med-line);
-}
-
-.med-btn {
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-.med-btn.primary { background: #2c3e50; color: #fff; }
-.med-btn.primary:active { background: #22303e; }
-.med-btn.secondary { background: #fff; color: var(--med-ink); border-color: var(--med-line); }
-
 /* ── Fona sinhronizācijas josla ────────────────────────────────────────────
    Lietotājs redz, ka dati atjauninās, bet var strādāt tālāk.                  */
 
@@ -542,10 +589,15 @@
 }
 
 @media (max-width: 480px) {
+  .top-bar { gap: 6px; padding: 6px 8px; }
+  .icon-btn { width: 36px; height: 36px; font-size: 16px; }
+  .top-bar .lang-btn { padding: 4px 5px; font-size: 10px; }
+  .top-bar .lang-switcher-global { gap: 1px; }
+  .top-bar-title { font-size: 15px; }
+
   .med-container { padding: 10px 8px 96px; }
-  .med-title { font-size: 19px; }
   .med-big { font-size: 26px; }
-  .med-kpi { min-height: 58px; }
+  .med-kpi { min-height: 56px; padding: 8px 4px; }
   .med-kpi-num { font-size: 18px; }
   .med-kpi-label { font-size: 10px; }
   .med-meal-name { font-size: 9px; }
@@ -553,6 +605,4 @@
   .med-fluid-name { min-width: 66px; }
   .med-fluid-val { font-size: 17px; }
   .med-detail-id h2 { font-size: 19px; }
-  .med-detail-actions { flex-direction: column; }
-  .med-btn { width: 100%; }
 }

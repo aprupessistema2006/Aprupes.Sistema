@@ -1054,8 +1054,6 @@ class MedicineView {
       el.addEventListener('click', () => {
         const act = el.dataset.act;
         if (act === 'back') this.closeDetail();
-        else if (act === 'full') this.openFullRecord(a.clientId);
-        else if (act === 'note') this.openForm(a.clientId);
       });
     });
   }
@@ -1106,11 +1104,10 @@ class MedicineView {
       ? '<div class="med-ok big">✅ Visi četri rādītāji normāli, tendencēm nav ko rādīt.</div>'
       : '';
 
-    return head + clean + blocks + noteHtml +
-      '<div class="med-detail-actions">' +
-        '<button class="med-btn primary" data-act="full">📋 Pilna aprūpes lapa</button>' +
-        '<button class="med-btn secondary" data-act="note">✍️ Pievienot atzīmi</button>' +
-      '</div>';
+    // Medicīniskais skats ir FILTRS, nevis jauna darbvieta. Šeit nav ne
+    // "Pievienot atzīmi", ne "Pilna aprūpes lapa" — abas dzīvo savās
+    // lapās. Medicīnā lietotājs tikai skata un noklikšķina uz klienta.
+    return head + clean + blocks + noteHtml;
   }
 
   // Bloku galvene ar stāvokļa krāsu: 🔴 / 🟡 / normāls
@@ -1396,27 +1393,7 @@ class MedicineView {
   // Atvērt konkrētu klientu no ārējās saites (piem. no kontroliera).
   viewClient(clientId) { this.selectClient(clientId); }
 
-  /**
-   * Pilna aprūpes lapa — SEKUNDĀRAIS skats. Pirms tā atveršanas ielādējam
-   * TIKAI šī klienta vēsturi no servera, nevis visu sistēmas vēsturi.
-   */
-  async openFullRecord(clientId) {
-    this._setStatus('Ielādēju klienta vēsturi...');
-    try {
-      if (this.sync && navigator.onLine) {
-        await this.sync.loadClientRange(String(clientId), '', '');
-      }
-      await this.loadData();
-      this.render();
-    } catch (e) {
-      console.warn('[medicine] klienta vēstures ielāde neizdevās:', e.message);
-    } finally {
-      this._setStatus(null);
-    }
-    window.location.href = 'control.html#client-' + clientId;
-  }
-
-  openForm(clientId) { window.location.href = 'aprupe.html?client=' + clientId; }
+  // Pāriet uz kontroliera paneli, kurā ir šī klienta pilna aprūpes vēsture.
   openLog(clientId) { window.location.href = 'control.html#client-' + clientId; }
 
   calculateAge(dob) {

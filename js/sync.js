@@ -525,6 +525,11 @@ class CareSync {
     // nospieda "Sinhronizēt" vai atvērt divas sadaļas, nedrīkst palaist
     // otru identisku bootstrap.
     this.FRESH_MS = 60000;
+    // Cik ilgi pēc PABEIGTAS pilnās ielādes identisku ceļu vēl nedrīkst
+    // palaist. ACTIVE bloķēšana aptur tikai paralēlos izsaukumus; šis
+    // logs aptur secīgus atkārtojumus (3 ielādes pēc kārtas = 80+ sekundes).
+    // Lietotāja apzināta "Sinhronizēt" (force) to ignorē.
+    this.REPEAT_COOLDOWN_MS = 20000;
     // Cik dienu aprūpes ierakstus ielādēt sākuma ekrānam. Tas ir
     // vienīgais papildus datu ielādes ceļš; pārējo vēsturi ielādē tikai
     // konkrēta klienta atvēršanai.
@@ -570,8 +575,10 @@ class CareSync {
   // atslēga: piem. 'load:initial' vai 'load:marks'
   // atgriež pašu Promise, ja darbība jau izpildās. Tas ir galvenais
   // mehānisms, kas novērš "viena darbība = 3 sinhronizācijas".
-  _runOnce(key, fn) {
-    return this._registry.run(key, fn);
+  //
+  // opts: { force, cooldownMs } — skat. operation_registry.js
+  _runOnce(key, fn, opts) {
+    return this._registry.run(key, fn, opts);
   }
 
   _setupOfflineDetection() {
@@ -761,9 +768,48 @@ class CareSync {
    // reģistrs pārliecinās, ka tā pati ielāde notiek tikai vienu reizi.
    // ───────────────────────────────────────────────────────────────────────
    async loadInitialData(onProgress, filters = {}, opts = {}) {
-     const options = opts || {};
-     const force = !!options.force;
-     const key = 'load:initial';
+      const options = opts || {};
+      const force = !!options.force;
+      const key = 'load:initial';
+
+      // 0) Cooldown PRET SECĪGU atkārtošanu — pat force ceļam.
+      //
+      // Reģistra ACTIVE bloķēšana aptur TIKAI paralēlus izsaukumus. Ja kāds
+      // kods izsauc ielādi, gaida tās beigās un tad izsauc vēlreiz, ACTIVE
+      // jau ir beidzies — un mēs iegūstam tieši to, ko lietotājs redzēja:
+      // 3 pilnās sinhronizācijas pēc kārtas, 80+ sekundes, 3× slodze GAS.
+      //
+      // Kāpēc arī force? Tāpēc ka pēc 20 sekundēm nekas nevar būt jaunāks —
+      // serveris pats nevarētu atdot citus datus. Tāpēc šeit netiek nekas
+      // zaudēts, bet lietotājs redz skaidru paziņojumu, nevis klusu nedarbošanos.
+      if (this._lastGoodLoad) {
+        const since = Date.now() - this._lastGoodLoad;
+        if (since < this.REPEAT_COOLDOWN_MS) {
+          const who = (new Error().stack || '').split('\n').slice(2, 5).join(' ← ');
+          console.log(
+            '[sync] ⏸ COOLDOWN: pilnā ielāde notika ' + Math.round(since / 100) / 10 +
+            's atpakaļ (< ' + this.REPEAT_COOLDOWN_MS / 1000 + 's). Jaunu netaisu.' +
+            (force ? ' Izsaucējs: ' + who : '')
+          );
+          PERF.skipped(key, 'pilnā ielāde notika ' + Math.round(since / 1000) + 's atpakaļ');
+          return {
+            offline: false, connected: true, cached: true, cooled: true,
+            count: this._serverCounts || {},
+            pending: await this.getUnsyncedCount(),
+            revision: this.revision
+          };
+        }
+      }
+
+      // 0b) Diagnostics. Ja kāds ierēķina "force" lai gan jau ielādētiem
+      //     svaigiem datiem, mēs to nebloķējam, bet atzīmējam, kas to
+      //     izsauca — lai nākamajā reālajā ielādē būtu redzama konkrēta
+      //     vieta kodā, nevis minējumi.
+      if (force && this.isFresh()) {
+        const who = (new Error().stack || '').split('\n').slice(2, 5).join(' ← ');
+        console.log('[sync] ⚠ force sync, lai gan dati jau svaigi. Izsaucējs: ' + who);
+      }
+
 
      // 1) Svaņi? — pārraksta nav vajadzīgas.
      if (!force && this.isFresh()) {
@@ -773,13 +819,13 @@ class CareSync {
        return { offline: false, connected: true, cached: true, count: this._serverCounts || {}, pending: await this.getUnsyncedCount(), revision: this.revision };
      }
 
-     // 2) Jau izpildās? — atgriež to pašu darbību, nevis sāk otru.
-     const { started, promise } = this._runOnce(key, async () => {
-       try { await this.runMigrations(); } catch (e) { console.warn('[sync] migration failed:', e); }
-       return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
-     });
-     if (!started) PERF.skipped(key, 'ielāde jau izpildās');
-     return promise;
+      // 2) Jau izpildās? — atgriež to pašu darbību, nevis sāk otru.
+      const { started, promise } = this._runOnce(key, async () => {
+        try { await this.runMigrations(); } catch (e) { console.warn('[sync] migration failed:', e); }
+        return this._runExclusive(() => this._loadInitialDataUnlocked(onProgress, true, filters));
+      });
+      if (!started) PERF.skipped(key, 'ielāde jau izpildās vai tikko pabeidās');
+      return promise;
    }
 
   // Faza 1: nelielās tabulas (darbinieki, klienti, uzdevomi) — ātri, vienā pieprasījumā

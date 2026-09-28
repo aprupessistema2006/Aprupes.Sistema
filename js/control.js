@@ -50,6 +50,13 @@ class ControlPanel {
           });
           if (result.offline) {
             this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+          } else if (result.cooled) {
+            // Dati jau tika ielādēti dažas sekundes atpakaļ — serveris
+            // nevarētu atdot neko jaunāku. Skaidrs paziņojums, nevis klusa nedarbošanās.
+            await this.loadData();
+            this.renderAll();
+            await this.renderTasksList();
+            this.toast && this.toast('ℹ️ Dati jau tikko atjaunināti — jauna sinhronizācija nav vajadzīga.', 4000);
           } else {
             await this.loadData();
             this.renderAll();
@@ -208,14 +215,19 @@ class ControlPanel {
           });
           if (result.offline) {
             this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+          } else if (result.cooled) {
+            await this.loadData();
+            this.renderAll();
+            await this.renderTasksList();
+            this.toast && this.toast('ℹ️ Dati jau tikko atjaunināti — jauna sinhronizācija nav vajadzīga.', 4000);
           } else {
             await this.loadData();
             this.renderAll();
             await this.renderTasksList();
             this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
-        } catch (e) {
-          this.toast && this.toast('⚠️ Kļūda: ' + e.message, 4000);
+        } catch (err) {
+          this.toast && this.toast('⚠️ Kļūda: ' + err.message, 4000);
         } finally {
           if (btn) btn.disabled = false;
           this._setBackgroundSyncNote(null);
