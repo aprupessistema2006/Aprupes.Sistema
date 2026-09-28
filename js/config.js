@@ -1,8 +1,11 @@
 const CONFIG = {
   APP_NAME: 'Aprūpes sistēma',
-  VERSION: '20260928-2040',
+  // Uzkopējama ar version.json un HTML ?v= parametriem. Šis lauks pats
+  // nekur netiek lasīts (skripti izmanto version.json), bet tas ir jātur
+  // saskaņots, lai neviens uz to nepaliekoties nepareizas versijas.
+  VERSION: '20260928-2710',
 
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbw6MZ5RGgnRSQg3GBWo8OFsa0d5WBHwRwuds0AxzqJYQB1dAFgTtKGWQC5XKnFw2G69HQ/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbym5XB7hr5EzqqglybPP95yyFm0DyNwnHsrcATTqDyTk0CKA2B9bPE8JTfhJg3IkPCniQ/exec',
 
   SHEET_ID: '1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E',
 
