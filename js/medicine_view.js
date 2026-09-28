@@ -50,18 +50,6 @@ class MedicineView {
     this.sync = new CareSync(this.db, CONFIG);
     window.careSync = this.sync;
 
-    // Version check — ja kodā ir jaunāka versija par serveri, refresh
-    try {
-      const serverVersion = await this.sync.getServerVersion();
-      if (serverVersion && serverVersion !== CONFIG.VERSION) {
-        console.log('[medicine] Version mismatch — reloading. Client:', CONFIG.VERSION, 'Server:', serverVersion);
-        window.location.reload(true);
-        return;
-      }
-    } catch (e) {
-      console.warn('[medicine] Version check failed:', e);
-    }
-
     const role = (this.currentUser.loma || '').toLowerCase();
     if (role !== 'administrators' && role !== 'kontroliere') {
       window.location.href = 'aprupe.html';
@@ -71,6 +59,7 @@ class MedicineView {
     this.setupUI();
     this.setupLanguageSwitcher();
 
+    // Show loading overlay immediately — do NOT wait for version check or sync
     const overlay = document.getElementById('loadingOverlay');
     const loadingText = document.getElementById('loadingText');
     if (overlay) overlay.style.display = 'flex';
@@ -86,15 +75,42 @@ class MedicineView {
 
     const splashTimeout = setTimeout(hideSplash, 20000);
 
+    // Background version check — non-blocking. The update_notifier.js already
+    // handles version mismatches via version.json + SW. A hard reload here
+    // (as the old code did) caused reload loops when GAS was slow and
+    // returned an unexpected version.
+    (async () => {
+      try {
+        const serverVersion = await this.sync.getServerVersion();
+        if (serverVersion && serverVersion !== CONFIG.VERSION) {
+          console.log('[medicine] Server version differs:', serverVersion, 'vs client', CONFIG.VERSION);
+        }
+      } catch (e) {
+        console.warn('[medicine] Version check failed:', e);
+      }
+    })();
+
+    // Load local data first and render immediately so the GUI is visible
+    // even if GAS sync is slow or unreachable.
     try {
-      await this.sync.loadInitialData((msg) => {
+      await this.loadData();
+      this.renderAll();
+      this.renderFindings();
+      if (loadingText) loadingText.textContent = 'Atjaunoju no servera...';
+    } catch (e) {
+      console.error('[medicine] initial render error:', e);
+    }
+
+    // Background data sync — may take time with GAS cold starts
+    try {
+      const result = await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
       });
       await this.loadData();
       this.renderAll();
       this.renderFindings();
-    } catch (e) {
-      console.error('[medicine] init error:', e);
+    } catch (err) {
+      console.warn('[medicine] sync/load error:', err);
     } finally {
       clearTimeout(splashTimeout);
       hideSplash();
@@ -102,7 +118,10 @@ class MedicineView {
 
     window.addEventListener('syncComplete', (e) => {
       if (e.detail && !e.detail.offline) {
-        this.loadData().then(() => this.renderAll());
+        this.loadData().then(() => {
+          this.renderAll();
+          this.renderFindings();
+        });
       }
     });
   }
