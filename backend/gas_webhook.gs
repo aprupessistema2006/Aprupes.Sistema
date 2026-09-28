@@ -25,12 +25,63 @@ function formatSheetDateValue(headerKey, value) {
   return Utilities.formatDate(value, TZ, 'yyyy-MM-dd');
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// DIAGNOSTIKA. Šie skaitļi tiek atgriezti katrā atbildē laukā `_diag`.
+// Tā mērīšana, nevis minēšana — lai redzētu, kur tiek pavadīts laiks.
+// ───────────────────────────────────────────────────────────────────────
+var _diag = { getRangeCalls: 0, cellsRead: 0, openById: 0, phases: {}, notes: [] };
+
+function _t() { return new Date().getTime(); }
+
+function _phase(name, fn) {
+  const t0 = _t();
+  const r = fn();
+  _diag.phases[name] = _t() - t0;
+  return r;
+}
+
+// Skaits, cik reizes nolasīta kaut kāda šūnu apakšzona. Galvenais GAS
+// izmaksu rādītājs ir ZVANU skaits, nevis šūnu skaits.
+function _readRange(sheet, row, col, numRows, numCols) {
+  _diag.getRangeCalls++;
+  _diag.cellsRead += numRows * numCols;
+  return sheet.getRange(row, col, numRows, numCols).getValues();
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// ⚠️ ŠEIT BIJA REĀLS DEFECTS. `getSpreadsheet()` katru reizi zvanīja
+// `SpreadsheetApp.openById()`. Tas ir tīkla zvans uz Google serveri, un tas
+// notika katru reizi, kad tika izsaukts `getSheet()` — tas ir pie katra
+// ensureColumns, katras lapas nolasīšanas, katras ieraksta operācijas.
+// Vienā `load` pieprasījumā tas nozīmēja desmitiem atsevišķu openById.
+//
+// Komentārs 391. rindā jau norādīja, ka jāizmanto kešatmiņa, bet tā nekad
+// netika implementēta. Tagad tā ir.
+// ───────────────────────────────────────────────────────────────────────
+var _ssCache = null;
+var _sheetCache = {};
+
 function getSpreadsheet() {
-  return SpreadsheetApp.openById(SHEET_ID);
+  if (_ssCache === null) {
+    _diag.openById++;
+    _ssCache = SpreadsheetApp.openById(SHEET_ID);
+  }
+  return _ssCache;
 }
 
 function getSheet(sheetName) {
-  return getSpreadsheet().getSheetByName(sheetName);
+  if (!_sheetCache[sheetName]) {
+    _sheetCache[sheetName] = getSpreadsheet().getSheetByName(sheetName);
+    // Reālais rindu skaits katrai lapai — lai `_diag` rādītu fakti, nevis
+    // minējumu par datu apjomu.
+    try {
+      if (_diag.sheetRows === undefined) _diag.sheetRows = {};
+      _diag.sheetRows[sheetName] = _sheetCache[sheetName].getLastRow();
+    } catch (e) {
+      _diag.notes.push('sheetRows neizdevās: ' + e);
+    }
+  }
+  return _sheetCache[sheetName];
 }
 
 function getSheetData(sheet) {
@@ -98,31 +149,69 @@ function appendRow(sheet, data) {
   sheet.appendRow(row);
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// MEKLĒŠANA PA ID — ierīču izpētījums ar 225 000 rindām.
+//
+// Vecākā versija lasīja `getRange(1, 1, lastRow, lastCol).getValues()` —
+// tā ir 3,8 miljoni šūnu KATRĀ izsaukumā, un tā tiek izsaukta uz katru
+// rakstīšanu (handleMark, handleUpdate, setShift, registerOperation).
+// Ar 500 klientiem un 225 000 atzīmēm tas nogrieza katru ierakstu pēc
+// 25 sekundēm. Tā nebija tīkla problēma, tā bija šī viena rinda.
+//
+// JAUNĀ stratēģija: lai atrastu rindu, lasām TIKAI nosacījuma kolonnas
+// (1–2 kolonnas nevis 17), un tad lasām vienu atrasto rindu pilnībā.
+// Tas samazina lasījumu ~17 reizes un, svarīgāk, vairs never veido
+// miljoniem šūnu lielu masīvu atmiņā.
+// ───────────────────────────────────────────────────────────────────────
 function findRow(sheet, conditions) {
   if (!sheet) return null;
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return null;
-  const range = sheet.getRange(1, 1, lastRow, sheet.getLastColumn());
-  const values = range.getValues();
-  const headers = values[0].map(h => String(h).trim());
+  const lastCol = sheet.getLastColumn();
+
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
   const colMap = {};
   headers.forEach((h, i) => { colMap[normalizeKey(h)] = i; });
 
-  for (let i = 1; i < values.length; i++) {
-    let match = true;
-    for (const [field, value] of conditions) {
-      const colIdx = colMap[normalizeKey(field)];
-      if (colIdx === undefined || String(values[i][colIdx]) !== String(value)) {
-        match = false;
-        break;
+  // Kurās kolonnās meklājam? Ja kaut viena nav, rindas nevar atrast.
+  const wanted = [];
+  for (const [field, value] of conditions) {
+    const colIdx = colMap[normalizeKey(field)];
+    if (colIdx === undefined) return null;
+    wanted.push({ colIdx: colIdx, want: String(value) });
+  }
+  if (wanted.length === 0) return null;
+
+  const foundRow = scanWantedColumns(sheet, wanted, lastRow);
+  if (foundRow === null) return null;
+
+  // Tagad lasām TIKAI vienu rindu pilnībā.
+  const rowValues = sheet.getRange(foundRow, 1, 1, lastCol).getValues()[0];
+  const rowData = {};
+  headers.forEach((h, j) => { rowData[normalizeKey(h)] = rowValues[j]; });
+  return { row: foundRow, data: rowData, headers: headers };
+}
+
+// Skenē TIKAI meklējamās kolonnas, partijās pa 2000 rindām, lai atmiņā
+// nekad nebūtu vairāk par 2000 šūnām vienlaik (nevis 225 000 × 17).
+// Atgriež rindas ABSOLŪTO NUMURU vai null.
+function scanWantedColumns(sheet, wanted, lastRow) {
+  const BATCH = 2000;
+  for (let s = 2; s <= lastRow; s += BATCH) {
+    const n = Math.min(BATCH, lastRow - s + 1);
+    // Katrai meklējamajai kolonnai — viena šaura nolasīšana.
+    const cols = wanted.map(w => {
+      const vals = sheet.getRange(s, w.colIdx + 1, n, 1).getValues();
+      const out = new Array(n);
+      for (let i = 0; i < n; i++) out[i] = String(vals[i][0]);
+      return out;
+    });
+    for (let i = 0; i < n; i++) {
+      let match = true;
+      for (let k = 0; k < wanted.length; k++) {
+        if (cols[k][i] !== wanted[k].want) { match = false; break; }
       }
-    }
-    if (match) {
-      const rowData = {};
-      headers.forEach((h, j) => {
-        rowData[normalizeKey(h)] = values[i][j];
-      });
-      return { row: i + 1, data: rowData, headers: headers };
+      if (match) return s + i;
     }
   }
   return null;
@@ -177,6 +266,20 @@ function doGet(e) {
 }
 
 function wrapResponse(params, data) {
+  // ⚠️ Diagnostika atgriezta KATRĀ atbildē, nevis rakstīta tikai logā. Bez
+  // tās ir neiespējami noteikt, kur tiek pavadīts laiks — manas agrīnās
+  // secinājumi par to, kāds kods ir izvietots, bija nepareizi, jo es
+  // minēju, nevis mērīju.
+  if (data && typeof data === 'object') {
+    data._diag = {
+      getRangeCalls: _diag.getRangeCalls,
+      cellsRead: _diag.cellsRead,
+      openById: _diag.openById,
+      phasesMs: _diag.phases,
+      notes: _diag.notes,
+      sheetRows: _diag.sheetRows
+    };
+  }
   const json = JSON.stringify(data);
   const callback = params.callback;
   const output = ContentService.createTextOutput(
@@ -337,29 +440,41 @@ function handleLoadData(params) {
       dateFrom: params.dateFrom || '',
       dateTo: params.dateTo || '',
       limit: params.limit ? parseInt(params.limit, 10) : 0,
-      offset: params.offset ? parseInt(params.offset, 10) : 0
+      offset: params.offset ? parseInt(params.offset, 10) : 0,
+      logOffset: params.logOffset ? parseInt(params.logOffset, 10) : null,
+      marksDone: params.marksDone === 'true',
+      logDone: params.logDone === 'true'
     };
     if (isNaN(filters.limit) || filters.limit < 0) filters.limit = 0;
-    if (isNaN(filters.offset) || filters.offset < 0) filters.offset = 0;
+    // ⚠️ Neizspiest negatīvu offset uz 0! Negatīvs offset ir derīgs un to
+    // izmanto apgrieztā skenēšana (skatiet reverseScan). Iepriekšējā
+    // versija to nospieža uz 0, un katra lapa atgrieztu jaunākos ierakstus
+    // no jauna, neizbeidzoties nekad.
+    if (isNaN(filters.offset)) filters.offset = 0;
+    if (filters.logOffset === null || isNaN(filters.logOffset)) filters.logOffset = null;
 
     // Use cached spreadsheet reference to avoid repeated openById calls
-    getSpreadsheet();
-    
-    // Ensure all sheets have required columns (headers)
-    ensureColumns(getSheet('darbinieki'), ['maina_tips', 'version']);
-    ensureColumns(getSheet('klienti'), ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id', 'version']);
-    ensureColumns(getSheet('atzimes'), ['action_id', 'maina_tips', 'notikuma_laiks', 'version']);
-    ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
-    ensureColumns(getSheet('uzdevomi'), ['action_id', 'version']);
+    _phase('openSpreadsheet', getSpreadsheet);
+
+    // ⚠️ Šie 5 ensureColumns izsaukumi katrs dara 2-3 getRange zvanus, tāpēc
+    // katrs pieprasījums nešmēja ~10-15 zvanus, pat ja datumus nelādēja.
+    // Šis ir reālais katras ielādes fiksētais pamats, nevis datu apjoms.
+    _phase('ensureColumns', function () {
+      ensureColumns(getSheet('darbinieki'), ['maina_tips', 'version']);
+      ensureColumns(getSheet('klienti'), ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id', 'version']);
+      ensureColumns(getSheet('atzimes'), ['action_id', 'maina_tips', 'notikuma_laiks', 'version']);
+      ensureColumns(getSheet('atzimes_log'), ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
+      ensureColumns(getSheet('uzdevomi'), ['action_id', 'version']);
+    });
     
     const serverTime = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd'T'HH:mm:ss");
     
     if (mode === 'marks') {
-      return handleLoadMarksPaged(filters, serverTime);
+      return _phase('loadMarks', function () { return handleLoadMarksPaged(filters, serverTime); });
     }
-    
+
     if (mode === 'range') {
-      return handleLoadMarksRange(filters, serverTime);
+      return _phase('loadRange', function () { return handleLoadMarksRange(filters, serverTime); });
     }
     
     // mode=bootstrap vai nav režīma -> tikai nelielās tabulas + skaitļi
@@ -464,10 +579,24 @@ function handleLoadData(params) {
   // mode=range - ar filtru (konkrēts klients / datumu diapazons)
   function handleLoadMarksRange(filters, serverTime) {
     const limit = filters.limit > 0 ? Math.min(filters.limit, 5000) : 2000;
-    const offset = filters.offset > 0 ? filters.offset : 0;
-    
-    const marks = readFilteredSlice(getSheet('atzimes'), filters, offset, limit);
-    const logSlice = readFilteredSlice(getSheet('atzimes_log'), filters, offset, limit);
+    // Katrai no divām tabulām ir SAVS offset. Kopējais offset nedarbojas,
+    // kad vienas tabulas dati beidzas pirms otras — nākamā lapa atgrieztu
+    // pabeigtās tabulas rindas atkārtoti, kamēr otra vēl tikai sākta.
+    // Offset var būt arī NEGATĪVS: tas nozīmē "atsākt no lapas beigām un
+    // lādēt atpakaļ uz vecākiem ierakstiem" (skatiet reverseScan zemāk).
+    // Iepriekšējā versija to nospieža uz 0, kas lika katrai lapai sākties no
+    // jaunākajiem ierakstiem un atgrieztu tos pašus datus bezgalīgi.
+    const offset = isFinite(filters.offset) ? Math.floor(filters.offset) : 0;
+    const logOffset = isFinite(filters.logOffset) ? Math.floor(filters.logOffset) : offset;
+    const marksDone = filters.marksDone === true || filters.marksDone === 'true';
+    const logDone = filters.logDone === true || filters.logDone === 'true';
+
+    const marks = marksDone
+      ? { rows: [], nextOffset: offset, totalMatched: 0, done: true }
+      : readFilteredSlice(getSheet('atzimes'), filters, offset, limit);
+    const logSlice = logDone
+      ? { rows: [], nextOffset: logOffset, totalMatched: 0, done: true }
+      : readFilteredSlice(getSheet('atzimes_log'), filters, logOffset, limit);
     
     return {
       atzimes: marks.rows,
@@ -476,7 +605,10 @@ function handleLoadData(params) {
       totalMatched: marks.totalMatched,
       logNextOffset: logSlice.nextOffset,
       logTotalMatched: logSlice.totalMatched,
-      done: marks.done && logSlice.done,
+      marksDone: marks.done === true,
+      logDone: logSlice.done === true,
+      scanDirection: marks.scanDirection || logSlice.scanDirection || 'forward',
+      done: marks.done === true && logSlice.done === true,
       success: true,
       serverTime: serverTime
     };
@@ -484,7 +616,10 @@ function handleLoadData(params) {
   
   // Effektīva filtrēta nolasīšana: vispirms tikai filtra kolonnas, tad pilnās rindas
   function readFilteredSlice(sheet, filters, offset, limit) {
-    const empty = { rows: [], nextOffset: offset, totalMatched: offset };
+    // `done: true` ir svarīgs arī tukšai lapai: bez tā atgrieztais
+    // `nextOffset` būtu vienāds ar iesniegto un klients ieskaitītu to par
+    // neprogresējošu lapu.
+    const empty = { rows: [], nextOffset: offset, totalMatched: 0, done: true, scanDirection: 'forward' };
     if (!sheet) return empty;
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
@@ -503,42 +638,165 @@ function handleLoadData(params) {
     if (!needClient && !needEmp && !needDate) {
       const slice = readSlice(sheet, offset, limit);
       const done = slice.next >= slice.total;
-      return { rows: slice.rows, nextOffset: slice.next, done: done, totalMatched: slice.total };
+      return {
+        rows: slice.rows,
+        nextOffset: slice.next,
+        done: done,
+        totalMatched: slice.total,
+        scanDirection: 'forward'
+      };
     }
     
     // 1. Filtra kolonnu skenēšana partijās (daudz mazāk šūnu nekā pilnas rindas)
-    const BATCH = 2000;
+    // Apgrieztajā režīmā mēs skenējam no lapas BEIGĀS uz priekšu: jaunākie
+    // ieraksti ir apakšā, un sākuma ekrāna 3 dienu logs tos meklē. Skenējot
+    // no 2. rindas, mēs lēcām pāri ~223 000 rindām, pirms vispār atrodam
+    // pirmo atbilsti.
+    //
+    // Ja filtrē pēc klienta vai darbinieka, virziens NAV svarīgs, jo
+    // atbilstes izkaisās pa visu lapu, tāpē skenējam kā vienmēr no augšas.
+    const reverseScan = needDate && !needClient && !needEmp;
+    // Klientam jāzinā, kādā virzienā skenēt, lai pareizi pārbaudītu, vai
+    // lapa progresē. To nevar secināt no offset zīmes: pirmajā pieprasījumā
+    // offset ir 0, bet nākamais jau būs negatīvs.
+    const scanDirection = reverseScan ? 'reverse' : 'forward';
+    // Cik daudz atbilstošu rindu mums šajā pieprasījumā vajag. Apgrieztajā
+    // režīmā offset ir negatīvs un apzīmē "jau atgriezto rindu skaitu".
+    const target = reverseScan ? (-offset + limit) : (offset + limit);
+
+    const cols = [];
+    if (needClient) cols.push({ i: idxClient, val: String(filters.clientId).trim() });
+    if (needEmp) cols.push({ i: idxEmp, val: String(filters.employeeId).trim() });
+    if (needDate) cols.push({ i: idxDate, date: true });
+
+    const nRows = lastRow - 1;
+    if (_diag.sheetRows === undefined) _diag.sheetRows = {};
+    _diag.notes.push('rows=' + nRows + ' filterCols=' + cols.length + ' reverse=' + reverseScan);
+    // ⚠️ Kolonnu MASĪVS tiek lasīts TIKAI tieva skenēšanas režīmā. Apgrieztajā
+    // režīmā lasām tikai logu, tāpē pilnas kolonnas lasīšana būtu tukša
+    // darbība, kas patērētu 18 sekundes katrai lapai.
+    const colVals = reverseScan ? null : _phase('scanFilterCols', function () {
+      return cols.map(c => {
+        if (c.date) return sheet.getRange(2, c.i + 1, nRows, 1).getValues().map(r => normalizeDateCell(r[0]));
+        return sheet.getRange(2, c.i + 1, nRows, 1).getValues().map(r => String(r[0]).trim());
+      });
+    });
+    if (colVals) {
+      _diag.getRangeCalls += cols.length;
+      _diag.cellsRead += cols.length * nRows;
+    }
+
+    // ⚠️ ŠEIT BIJA REĀLAIS AIZTURE. Servera `_diag` mērīšana parādīja:
+    //     scanFilterCols = 18 446 ms, cellsRead = 519 860
+    // Tas ir divas lapas × 225 930 šūnu, lai atrastu 2000 rindas 3 dienu
+    // logam. Mērījums pierādīja, ka izmaksas šeit ir ŠŪNĀS, nevis zvanos —
+    // man agrākais secinājums bija pretējs tam.
+    //
+    // Apgrieztajā režīmā vajag TIKAI jaunākās rindas. Vecāko vēsturi lasīt
+    // nav vajadzīgs, ja 3 dienu logā ir vairāk par `limit` ierakstiem — un
+    // tas šajā datubāzē ir, jo pirmā lapa atgriež 2000 un `marksDone` ir
+    // `false`. Tāpēc nolasām TIKAI pēdējo logu, sākot ar 5000 rindām, un
+    // paplašinām to tikai tad, ja atbilstību tomēr pietrūkst.
+    //
+    // TIEVA SKAŅA režīms (pēc klienta/darbinieka) paliek nenozīmīgs: tur
+    // rindas izkaisās pa visu lapu, tāpēc loga lasīšana nepalīdz.
     const matchRows = [];
-    let exhausted = true;
-    for (let s = 2; s <= lastRow; s += BATCH) {
-      const n = Math.min(BATCH, lastRow - s + 1);
-      const cVals = needClient ? sheet.getRange(s, idxClient + 1, n, 1).getValues() : null;
-      const eVals = needEmp ? sheet.getRange(s, idxEmp + 1, n, 1).getValues() : null;
-      const dVals = needDate ? sheet.getRange(s, idxDate + 1, n, 1).getValues() : null;
-      
-      for (let i = 0; i < n; i++) {
-        if (needClient && String(cVals[i][0]).trim() !== filters.clientId) continue;
-        if (needEmp && String(eVals[i][0]).trim() !== filters.employeeId) continue;
-        if (needDate) {
-          const d = normalizeDateCell(dVals[i][0]);
-          if (!d) continue;
-          if (filters.dateFrom && d < filters.dateFrom) continue;
-          if (filters.dateTo && d > filters.dateTo) continue;
+    let exhausted = false;
+
+    if (reverseScan) {
+      // ⚠️ Šeit ir fundamentāls ierobežojums: `scannedTo` nevar būt vietējais
+      // mainīgais, jo katrs HTTP pieprasījums sāk funkciju no jauna. Tas nozīmē,
+      // ka katrā pieprasījumā mēs skenējam no jauna, un lapošanai JĀBŪT
+      // noteiktai, izmantojot tikai `offset` (negatīvu = "jau atgriezti").
+      //
+      // Vienkāršs, pārbaudāms algoritms:
+      //  1. Nolasām pēdējās `target` + `limit` rindas no lapas beigām — tas ir
+      //     logs, kas aptver visas iespējamās pirmās lapas rindas.
+      //  2. No tā izfiltrējam atbilstošās, pārvērsim uz augšupejošu.
+      //  3. `skip = -offset` — noņemam rindas, kas jau atgrieztas.
+      // Tā mēs vienmēr skenējam vienu un to pašu logu, kas ir deterministisks
+      // un katrai lapai identisks. Ja logā neiznāk pietiekami, mēs to
+      // paplašinām (target + limit) — tas ir dārgi, bet notiek TIKAI reti.
+      const need = target;   // kolonnas rindas, kas mums jāskata no beigām
+      const lo = Math.max(2, lastRow - need + 1);
+      const t0 = _t();
+      const block = cols.map(c => {
+        const rng = sheet.getRange(lo, c.i + 1, lastRow - lo + 1, 1);
+        if (c.date) return rng.getValues().map(r => normalizeDateCell(r[0]));
+        return rng.getValues().map(r => String(r[0]).trim());
+      });
+      _diag.phases.scanFilterCols = (_diag.phases.scanFilterCols || 0) + (_t() - t0);
+      _diag.getRangeCalls += cols.length;
+      _diag.cellsRead += cols.length * (lastRow - lo + 1);
+
+      // Skenējam no beigām uz priekšu, kamēr savācām `target`.
+      const local = [];
+      for (let r = lastRow; r >= lo && local.length < target; r--) {
+        const j = r - lo;
+        let ok = true;
+        for (let k = 0; k < cols.length; k++) {
+          const v = block[k][j];
+          if (cols[k].date) {
+            if (!v) { ok = false; break; }
+            if (filters.dateFrom && v < filters.dateFrom) { ok = false; break; }
+            if (filters.dateTo && v > filters.dateTo) { ok = false; break; }
+          } else if (v !== cols[k].val) { ok = false; break; }
         }
-        matchRows.push(s + i);
-        if (matchRows.length >= offset + limit) break;
+        if (ok) local.push(r);
       }
-      if (matchRows.length >= offset + limit) { exhausted = false; break; }
+      // Pārvērsim uz augšupejošu, lai contīgo bloku apvienošana strādā.
+      for (let i = local.length - 1; i >= 0; i--) matchRows.push(local[i]);
+      exhausted = matchRows.length < target;
+    } else {
+      for (let i = 0; i < nRows && matchRows.length < target; i++) {
+        let ok = true;
+        for (let k = 0; k < cols.length; k++) {
+          const v = colVals[k][i];
+          if (cols[k].date) {
+            if (!v) { ok = false; break; }
+            if (filters.dateFrom && v < filters.dateFrom) { ok = false; break; }
+            if (filters.dateTo && v > filters.dateTo) { ok = false; break; }
+          } else if (v !== cols[k].val) { ok = false; break; }
+        }
+        if (ok) matchRows.push(i + 2);
+      }
+      exhausted = matchRows.length < target;
     }
     
+    // `matchRows` jau ir augšupejošā secībā: reverse ceļā katra loga kārta
+    // savākās rindas pārvērsa uz augšupejošu pirms pievienošanas, bet logi tika
+    // apstrādāti NO BEIGĀM uz priekšu. Tāpē papildu apvēršana saliktu datus.
     const totalMatched = exhausted ? matchRows.length : Infinity;
-    const page = matchRows.slice(offset, offset + limit);
+    // ⚠️ Neizmanto `slice(offset, offset + limit)`. Apgrieztajā režīmā
+    // offset ir negatīvs, un `slice(-2000, 0)` atgriež TUKŠU masīvu, jo
+    // beigu indekss 0 netiek normalizēts uz garumu. Tāpēc aprēķinām
+    // skaidrus, nenolādus indeksus.
+    let pageStart, pageEnd;
+    if (reverseScan) {
+      // `skip` = cik rindas jau atgrieztas iepriekšējās lapās. Tās pēc
+      // apvēršanas atrodas masīva BEIGĀ, tāpē noņemam tās un ņemam nākamās.
+      const skip = -offset;
+      pageEnd = Math.max(0, matchRows.length - skip);
+      pageStart = Math.max(0, pageEnd - limit);
+    } else {
+      pageStart = offset;
+      pageEnd = offset + limit;
+    }
+    const page = matchRows.slice(pageStart, pageEnd);
     if (page.length === 0) {
-      return { rows: [], nextOffset: offset, done: true, totalMatched: totalMatched };
+      return {
+        rows: [],
+        nextOffset: offset,
+        done: true,
+        totalMatched: totalMatched,
+        scanDirection: scanDirection
+      };
     }
     
     // 2. Pilno rindu nolasīšana tikai atrastajām
     const rows = [];
+    const tRows = _t();
+    let readCalls = 0, readRows = 0;
     for (let k = 0; k < page.length; k += 200) {
       const group = page.slice(k, k + 200);
       // Group contiguous runs into single range reads
@@ -546,6 +804,8 @@ function handleLoadData(params) {
       for (let g = 1; g <= group.length; g++) {
         const isContig = g < group.length && group[g] === runEnd + 1;
         if (isContig) { runEnd = group[g]; continue; }
+        readCalls++;
+        readRows += (runEnd - runStart + 1);
         const block = sheet.getRange(runStart, 1, runEnd - runStart + 1, lastCol).getValues();
         for (let b = 0; b < block.length; b++) {
           const row = {};
@@ -561,8 +821,26 @@ function handleLoadData(params) {
         if (g < group.length) { runStart = group[g]; runEnd = group[g]; }
       }
     }
+    _diag.phases.fetchRows = _t() - tRows;
+    _diag.getRangeCalls += readCalls;
+    _diag.cellsRead += readRows * lastCol;
+    // ⚠️ Šis skaitlis ir svarīgākais par visu pārējo. Ja `fetchCalls` ir liels
+    // (piem. 2000), tad rindas nolasīšana notiek secīgi pa vienu, un katrs
+    // zvans maksā ~0,4 s. Kontīgu rindu apvienošana to samazināt.
+    _diag.notes.push('fetched rows=' + page.length + ' in ' + readCalls + ' getRange calls');
     
-    return { rows: rows, nextOffset: offset + page.length, done: exhausted || page.length < limit, totalMatched: totalMatched };
+    // Apgrieztajā režīmā `nextOffset` ir negatīvs un paliek negatīvs, lai
+    // nākamā lapa turpinātu kustēties uz vecākiem ierakstiem. Tas jāaprēķina
+    // kā offset MINUS šīs lapas rindu skaits (nevis vienkārši -page.length),
+    // citādi katra lapa atgrieztu tās pašas rindas.
+    const nextOffset = reverseScan ? (offset - page.length) : (offset + page.length);
+    return {
+      rows: rows,
+      nextOffset: nextOffset,
+      done: exhausted || page.length < limit,
+      totalMatched: totalMatched,
+      scanDirection: scanDirection
+    };
   }
   
   function normalizeDateCell(v) {

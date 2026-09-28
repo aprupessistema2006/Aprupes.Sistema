@@ -1125,7 +1125,12 @@ class CareSync {
     // Šeit atbilde tiek izlasta, kamēr serveris saka `done`.
     const PAGE = 2000;
     const MAX_PAGES = 60;          // 120 000 ieraksti — vairāk par jebkuru reālu dienu
-    let offset = 0;
+    // ⚠️ Katrai tabulai ir SAVS offset. Kopējais offset nedarbojas, kad vienas
+    // tabulas dati beidzas pirms otras — nākamā lapa atgrieztu pabeigtās
+    // tabulas rindas atkārtoti, kamēr otra tikai sākta. Katrai arī savs done
+    // karodziņš, lai beigušos klints vairs nesūta.
+    let offset = 0, logOffset = 0;
+    let marksDone = false, logDone = false;
     let rawMarks = [], rawLogs = [];
     let pages = 0, truncated = false;
 
@@ -1133,7 +1138,10 @@ class CareSync {
       const params = new URLSearchParams({
         action: 'load', mode: 'range', t: Date.now(),
         dateFrom: dates[0], dateTo: dates[dates.length - 1],
-        limit: String(PAGE), offset: String(offset)
+        limit: String(PAGE), offset: String(offset),
+        logOffset: String(logOffset),
+        marksDone: marksDone ? 'true' : 'false',
+        logDone: logDone ? 'true' : 'false'
       });
       const url = SYNC_URL + '?' + params.toString();
       const data = await this._requestWithRetry(url, {
@@ -1145,21 +1153,41 @@ class CareSync {
       rawLogs = rawLogs.concat(data.atzimes_log || []);
       pages++;
 
-      // Serveris pats pateiks, vai ir vēl lapas.
-      if (data.done === true) break;
+      // Servera mērījumi. Tas ir fakti, nevis minējumi — ar to var redzēt,
+      // kur tiek pavadīts laiks, ja kaut kas izskatās dārgi.
+      if (data._diag) {
+        const d = data._diag;
+        const ph = Object.entries(d.phasesMs || {})
+          .map(([k, v]) => k + '=' + v + 'ms').join(' ');
+        console.log('[sync] servera mērījumi: ' +
+          d.getRangeCalls + ' getRange zvani, ' +
+          d.cellsRead + ' šūnas, ' + d.openById + ' openById | ' + ph +
+          (d.notes && d.notes.length ? ' | ' + d.notes.join('; ') : '') +
+          (d.sheetRows ? ' | ' + JSON.stringify(d.sheetRows) : ''));
+      }
 
-      // Divas lapas vienā pieprasījumā, tāpēc katrai savs offset. Kustamies
-      // pa mazāko, lai neizlēktu rindas tai tabulai, kurai vēl tās ir.
-      const next = Math.min(
-        Number(data.nextOffset || 0),
-        Number(data.logNextOffset || 0)
-      );
-      if (!isFinite(next) || next <= offset) {
+      // Serveris pats pateiks, vai katrai tabulai ir vēl lapas.
+      marksDone = marksDone || data.marksDone === true;
+      logDone = logDone || data.logDone === true;
+      if (marksDone && logDone) break;
+
+      // Serveris datumu filtru skenē no lapas BEIGĀS, tāpēc offset var būt
+      // NEGATĪVS un katra nākamā lapa ir mazāka par pašreizējo. Virzienu
+      // ņemam no servera, nevis no offset zīmes — pirmajā pieprasījumā offset
+      // ir 0, un tā zīme vēl neko nepasaka.
+      const dir = data.scanDirection === 'reverse' ? -1 : 1;
+      const offA = Number(data.nextOffset || 0);
+      const offB = Number(data.logNextOffset || 0);
+      const prevOffset = offset, prevLogOffset = logOffset;
+      if (!marksDone) offset = offA;
+      if (!logDone) logOffset = offB;
+      const progressed = (marksDone || (offA - prevOffset) * dir > 0) &&
+                          (logDone || (offB - prevLogOffset) * dir > 0);
+      if (!progressed) {
         console.warn('[sync] atzīmju lapošana apstājās: neprogresējošs offset', offset);
         truncated = true;
         break;
       }
-      offset = next;
       if (onProgress) onProgress('Ielādēju aprūpes ierakstus: ' + rawMarks.length + ' …');
       await new Promise(r => setTimeout(r, 0)); // Atlaide UI starp lapām
     }
@@ -1321,7 +1349,10 @@ class CareSync {
       const next = (data.nextOffset !== undefined) ? data.nextOffset : (offset + marks.length);
       if (data.done === true) break;
       if (marks.length === 0 && logs.length === 0) break;
-      if (next <= offset) break;
+      // Šeit filtrs ir pēc klienta, tāpēc serveris skenē no augšas un offset
+      // ir pozitīvs. Tomēr pārbaudām virzienu, lai loģika būtu noturīga arī
+      // tad, ja servera skenēšanas virziens kādreiz mainās.
+      if (offset < 0 ? (next >= offset) : (next <= offset)) break;
       offset = next;
     }
 
