@@ -1,4 +1,8 @@
-const SHEET_ID = '1OQAdiHsuQEwy180b68oHQ9xxELFV2_CkqDJY7ej0P5E';
+// ⚠️ Šis ir GALVENĀS datu lapas ID. Izvietojot pēc datu maiņas šeit ir
+// jāupdaugina VIENMĒRĪGI ar SHEET_ID failā js/config.js, un pēc tam skriptu
+// jāizvieto no jauna. Ja to neizdarāt, serveris lasīs veco lapu, bet
+// klientu domā, ka dati ir jaunajā.
+const SHEET_ID = '1uUf-qZKm5ovEVJaJbzjRn5RR5k3-b__3OlNBNdqT6os';
 const TZ = 'Europe/Riga';
 
 function formatSheetDateValue(headerKey, value) {
