@@ -93,6 +93,11 @@ const Transport = {
     // paliek ieraksti, kas netika nosūtīti ("Ir nesaglabāti dati!").
     // JSONP rakstīšanai strādāja stabili, tāpēc tam pietiek īss probes.
     ACTION_FETCH_TIMEOUT: 8000,
+  // fetch IZMEKLĒŠANAS limits lasīšanai. Tas atbild uz jautājumu "vai
+  // CORS/404 bloķē fetch ceļu?", nevis "vai GAS būs ātrs?". Normāla
+  // aukstā sākuma ielāde mērīta 4.6–12.3s, tāpēc 15s aptver to bez
+  // ļaujot iztērēt visu 35s budžetu nekam, kas noteikti nedarbosies.
+  FETCH_PROBE_TIMEOUT: 15000,
     FETCH_FAILURES_BEFORE_STICKY: 2,
 
   shouldSkipFetch(url) {
@@ -257,14 +262,36 @@ async function requestData(url, timeout) {
   // fetch ceļš neizmanto callback parametru — GAS tad atgriež tīru JSON
   const jsonUrl = url.replace(/([?&])callback=[^&]*&?/, '$1').replace(/[?&]$/, '');
 
+  // ⚠️ BUDŽETS. `timeout` ir visas ŠĀ pieprasījuma maksimālais laiks, nevis
+  // katra transporta atsevišķais limits. Vecākais kods to padzina abiem:
+  //
+  //     fetchRequest(jsonUrl, timeout)        // 35s
+  //     jsonpRequest(url, timeout)             // vēl 35s  → 70s
+  //
+  // un tad _requestWithRetry to atkārtoja vēlreiz → līdz 140s. Tas bija
+  // tieši tas, ko lietotājs redzēja žurnālā: "mēģinājums 1/2, 70012ms"
+  // un kopējā sinhronizācija 85 sekundes.
+  //
+  // Tagad: fetch ir IZMEKLĒŠANA (vai CORS/404 to bloķē?) un tā saņem savu
+  // mazo budžetu. JSONP saņem PĀRĒJU no visas budžeta, tāpēc kopējais
+  // laiks vienmēr ietilpst izsauktāja ierobežojumā.
+  const budget = timeout || Transport.JSONP_TIMEOUT;
+  const elapsed = () => ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
+  const isAction = Transport._modeKey(url) === 'action';
+
+  // Izmeklēšanai pietiek 15s. Mērījumi (2026-09-28) pret jauno deploy
+  // URL: 4.6 / 5.2 / 5.7 / 5.9 / 12.1 / 12.3 s — tāpēc 15s aptver
+  // visu normālu gadījumu, arī auksto sākumu, bet neļauj 35s iztērēt
+  // tam, kas acīmredzami nedarbosies.
+  const probeTimeout = isAction
+    ? Transport.ACTION_FETCH_TIMEOUT
+    : Math.min(Transport.FETCH_PROBE_TIMEOUT, budget);
+
   if (!Transport.shouldSkipFetch(url)) {
-    // Rakstīšanai (action=...) īsāks probes — skaidrojums pie ACTION_FETCH_TIMEOUT.
-    const isAction = Transport._modeKey(url) === 'action';
-    const fetchTimeout = timeout || (isAction ? Transport.ACTION_FETCH_TIMEOUT : Transport.FETCH_TIMEOUT);
     try {
-      const result = await fetchRequest(jsonUrl, fetchTimeout);
+      const result = await fetchRequest(jsonUrl, probeTimeout);
       Transport.noteSuccess(true);
-      PERF.sub('transport', 'fetch', (_nowMs() - t0));
+      PERF.sub('transport', 'fetch', elapsed());
       return result;
     } catch (err) {
       Transport.noteFetchFailure(url, err);
@@ -272,17 +299,23 @@ async function requestData(url, timeout) {
       // konsolē nerādītos desmiti identisku 404 rindu.
       if (_throttleLog('jsonp-fallback:' + Transport._modeKey(url), 30000)) {
         console.warn(
-          '[sync] fetch neizdevās (' + err.message + ') → pāreju uz JSONP. ' +
+          '[sync] fetch neizdevās (' + err.message + ' pēc ' + Math.round(probeTimeout / 1000) +
+          's) → pāreju uz JSONP. ' +
           'Pēc ' + Transport.FETCH_FAILURES_BEFORE_STICKY + ' kļūdām transports tiks fiksēts uz JSONP visai sesijai.'
         );
       }
     }
   }
 
-  // jsonpRequest() pats pievieno callback parametru
-  const data = await jsonpRequest(urlWithCacheBuster, timeout || Transport.JSONP_TIMEOUT);
+  // jsonpRequest() pats pievieno callback parametru. Saņem TIKAI
+  // atlikušo no sākotnējā budžeta, lai kopējais laiks nepārsniedz
+  // izsauktāja ierobežojumu. Grīda ir 1000ms — zem tās pieprasījums
+  // jebkurā gadījumā neatgrieztos, un tā tomēr ir mazāka par jebkuru
+  // reālu budžetu (2000–35000ms).
+  const remaining = Math.max(1000, budget - elapsed());
+  const data = await jsonpRequest(urlWithCacheBuster, remaining);
   Transport.noteSuccess(false);
-  PERF.sub('transport', 'jsonp', (_nowMs() - t0));
+  PERF.sub('transport', 'jsonp', elapsed());
   return data;
 }
 
@@ -1082,9 +1115,14 @@ class CareSync {
   // vienam pieprasījumam, un katrs mēģinājums atkārtoja to pašu 404→JSONP
   // ķēdi. Rezultāts bija 126 sekundes tukša ekrāna.
   //
-  // Jaunā loģika: 2 mēģinājumi, 25s timeout, 800ms/2000ms atkāpe,
-  // kopējā ceļa izmaksas ierobežotas. Nevis tā vietā mēģināt ilgāk —
-  // ātrāk atdot kļūdu un strādāt ar vietējiem datiem.
+  // Jaunā loģika: 2 mēģinājumi, kopējais budžets, 800ms/2000ms atkāpe.
+  // Nevis tā vietā mēģināt ilgāk — ātrāk atdot kļūdu un strādāt ar
+  // vietējiem datiem.
+  //
+  // ⚠️ `timeout` ir KOPĒJĀIS budžets visam pieprasījumam, nevis limits
+  // katram mēģinājumam. Vecākais kods katram no diviem mēģinājumiem
+  // nodeva 35s, tāpēc bootstrap varēja ilgt 70s — tieši to lietotājs
+  // redzēja žurnālā ("mēģinājums 1/2, 70012ms").
   // ─────────────────────────────────────────────────────────────────────────
   async _requestWithRetry(url, options = {}) {
     const {
@@ -1094,14 +1132,24 @@ class CareSync {
       onProgress = null
     } = options;
     const backoff = [800, 2000];
+    const budgetStart = _nowMs();
     let lastErr;
 
     for (let attempt = 0; attempt < attempts; attempt++) {
+      // Šim mēģinājumam atliekas TIKAI budžeta atlikums.
+      const left = timeout - (_nowMs() - budgetStart);
+      if (left <= 0) {
+        // Budžets izlietots. Labāk ātrāk atdot kļūdu un strādāt ar
+        // vietējiem datiem nekā turpināt gaidīt.
+        console.warn('[sync] ' + label + ': budžets ' + timeout + 'ms izlietots pirms ' +
+          'mēģinājuma ' + (attempt + 1) + ' — pārtraucu');
+        break;
+      }
       const started = _nowMs();
       try {
         return await PERF.net(label, (hooks) => {
           hooks.onSent();
-          return requestData(url, timeout);
+          return requestData(url, left);
         });
       } catch (e) {
         const spent = _nowMs() - started;

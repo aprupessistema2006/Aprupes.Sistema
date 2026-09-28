@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aprupes-sistema-v41'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v42'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -36,25 +36,37 @@ const STATIC_ASSETS = [
   'logo/logo_admin.png'
 ];
 
+// ⚠️ Precachējam TIEŠI tās adreses, ko lapas pieprasa, ar to pašu
+// `?v=` parametru. Bez tā precache ieraksti un lapu pieprasījumi
+// nesakrīt, un bezsaimes režīmā fails netiek atrasts vispār.
+//
+// BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
+// test_deploy_consistency.js.
+const BUILD_VERSION = '20260928-2330';
+
+// Koda failus precachējam ar versijas parametru, pārējos — bez tā.
+const withVersion = (path) =>
+  /\.(?:js|css)$/.test(path) ? path + '?v=' + BUILD_VERSION : path;
+
 self.addEventListener('install', (event) => {
-  console.log('[SW-v41] Installing new service worker (cache:', CACHE_NAME, ')');
+  console.log('[SW-v42] Installing new service worker (cache:', CACHE_NAME, ')');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW-v41] Precaching static assets');
-      return cache.addAll(STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' })));
+      console.log('[SW-v42] Precaching static assets (BUILD', BUILD_VERSION + ')');
+      return cache.addAll(STATIC_ASSETS.map(withVersion).map(url => new Request(url, { cache: 'reload' })));
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW-v41] Activating new service worker');
+  console.log('[SW-v42] Activating new service worker');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[SW-v41] Deleting old cache:', name);
+            console.log('[SW-v42] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
@@ -73,7 +85,7 @@ self.addEventListener('activate', (event) => {
         // "Atjaunot" — tāpēc viņš jau ir beidzis darbu un neko
         // nezaudē. clients.claim() augstāk joprojām nodrošina, ka
         // jaunais kods sāk darboties tūlīt nākamajā navigācijā.
-        console.log('[SW-v41] Aktivizācija pabeigta. Klienti netiek pārlādēti —' +
+        console.log('[SW-v42] Aktivizācija pabeigta. Klienti netiek pārlādēti —' +
           ' atjauninājumu lietotājs apstiprina pats (skat. UpdateNotifier).');
       })
   );
@@ -181,42 +193,69 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For static assets, use cache-first but strip query params for matching
-  // (js/app.js?v=123 matches cached js/app.js)
-  const urlNoQuery = new URL(event.request.url);
-  urlNoQuery.search = '';
-  const cacheKey = new Request(urlNoQuery.toString(), { ignoreSearch: true });
+  // ── KODA FAILI (js/css) ──────────────────────────────────────────────────
+  //
+  // ⚠️ ⚠️ Lielākā klūda, kas šai lietojumai jebkad bijusi.
+  //
+  // Vecākais kods šeit darīja šo:
+  //
+  //     const urlNoQuery = new URL(event.request.url);
+  //     urlNoQuery.search = '';            // izmet ?v=20260928-2230
+  //     const cacheKey = new Request(urlNoQuery.toString(), { ignoreSearch: true });
+  //     caches.match(cacheKey) → ja atrasts, atgriež to
+  //
+  // Tāpēc katrs `?v=` bumpojums HTML lapās bija BEZDARBĪGS. Service
+  // worker izmeta versijas parametru un atgrieza kešoto kopiju — mūžmūžīgi.
+  // Lietotājs redzēja veco atjauninājuma baneri, vecus kļūdas, vecus
+  // ierakstus, un neviens versijas bumpojums to nevarēja mainīt.
+  //
+  // Tāpēc šeit:
+  //   • kešes atslēga SAGLABĀ query parametrus → dažādas versijas ir
+  //     dažādi ieraksti, un jaunais URL ir kešā trūstošs;
+  //   • STRATĒĠIJA: vispirms tīkls (vienmēr svaigs kods), keše kā
+  //     rezerves variants, ja ir bezsaime.
+  //
+  // Kāpēc tīkls-vispirms, nevis keše-vispirms: šī programma pārmaiņas
+  // datus no IndexedDB, nevis no SW kešes, tāpēc tīkla izmantošana nepalieina
+  // ielādes laiku. Bet tā garantē, ka lietotājs vienmēr izmanto TO versiju,
+  // kura ir izvietota.
+  const isCodeAsset = /\.(?:js|css)$/.test(url.pathname);
 
-  // For .xlsx and other binary assets, prefer network to avoid stale cache
-  const isBinaryAsset = urlNoQuery.pathname.endsWith('.xlsx') ||
-                        urlNoQuery.pathname.endsWith('.xls') ||
-                        urlNoQuery.pathname.endsWith('.png') ||
-                        urlNoQuery.pathname.endsWith('.jpg') ||
-                        urlNoQuery.pathname.endsWith('.jpeg');
+  // Kešes atslēga AR query parametru. Tas ir galvenais, kas padara
+  // `?v=` bumpošanu par darbīgu.
+  const cacheKey = event.request;
 
-  if (isBinaryAsset) {
+  if (isCodeAsset) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-store', credentials: 'same-origin' })
         .then((response) => {
-          if (response.ok) {
+          if (response && response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
+            caches.open(CACHE_NAME)
+              .then((cache) => cache.put(cacheKey, clone))
+              .catch(() => {});
           }
           return response;
         })
-        .catch(() => caches.match(cacheKey))
+        .catch(() => caches.match(cacheKey).then((cached) => {
+          if (cached) return cached;
+          return new Response('Bezsaime', { status: 508 });
+        }))
     );
     return;
   }
 
+  // Pārējie faili (attēli, xlsx, favicon) — keše-vispirms ar precīzu atslēgu.
   event.respondWith(
     caches.match(cacheKey).then((cached) => {
       if (cached) return cached;
       return fetch(event.request)
         .then((response) => {
-          if (response.ok) {
+          if (response && response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
+            caches.open(CACHE_NAME)
+              .then((cache) => cache.put(cacheKey, clone))
+              .catch(() => {});
           }
           return response;
         })
