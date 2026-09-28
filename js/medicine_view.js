@@ -75,6 +75,17 @@ class MedicineView {
     const loadingText = document.getElementById('loadingText');
     if (overlay) overlay.style.display = 'flex';
 
+    let splashHidden = false;
+    const hideSplash = () => {
+      if (splashHidden) return;
+      splashHidden = true;
+      if (overlay) overlay.style.display = 'none';
+      const splash = document.getElementById('splashScreen');
+      if (splash) splash.style.display = 'none';
+    };
+
+    const splashTimeout = setTimeout(hideSplash, 20000);
+
     try {
       await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
@@ -85,9 +96,8 @@ class MedicineView {
     } catch (e) {
       console.error('[medicine] init error:', e);
     } finally {
-      if (overlay) overlay.style.display = 'none';
-      const splash = document.getElementById('splashScreen');
-      if (splash) splash.style.display = 'none';
+      clearTimeout(splashTimeout);
+      hideSplash();
     }
 
     window.addEventListener('syncComplete', (e) => {
