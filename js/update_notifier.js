@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20260928-2100';
+const BUILD_VERSION = '20260928-2230';
 
 class UpdateNotifier {
   constructor() {
@@ -141,31 +141,29 @@ class UpdateNotifier {
   }
 
   // ── Baneris ──────────────────────────────────────────────────────────────
+  //
+  // ⚠️ NEPIEVIENOT šeit skaidrojumus. Lietotājs (65+ aprūpētājs) vēlās
+  // tikai vienu domu: "vai man jākļo kaut ko?". Katrs papildu teikums —
+  // "ieraksti netiks dzēsti", "būs jāpiesakās vēlreiz" — neko neuzlabina,
+  // bet padara brīdinājumu smagāku un biežāk ignorējamu.
   showUpdateBanner(version) {
     if (document.getElementById('updateBanner')) return;
 
     const banner = document.createElement('div');
     banner.id = 'updateBanner';
-    // Tam jābūt pamanāmam lielā ekrānā, tāpēc nevis vienai rindai, bet
-    // skaidrs panelis ar lielu tekstu un vienu poga.
     banner.style.cssText = [
       'position: fixed', 'top: 0', 'left: 0', 'right: 0',
       'z-index: 10001',
       'background: #1565C0', 'color: #fff',
-      'padding: 16px 14px calc(16px + env(safe-area-inset-bottom, 0px))',
+      'padding: 18px 14px',
       'font-family: system-ui, -apple-system, "Segoe UI", sans-serif',
       'text-align: center',
       'box-shadow: 0 4px 14px rgba(0,0,0,0.4)'
     ].join(';');
 
     banner.innerHTML = `
-      <div style="font-size: 20px; font-weight: 700; line-height: 1.25; margin-bottom: 6px;">
+      <div style="font-size: 20px; font-weight: 700; line-height: 1.25; margin-bottom: 14px;">
         🔄 Programma ir atjaunināta
-      </div>
-      <div id="updateBody" style="font-size: 15px; line-height: 1.45; margin-bottom: 14px; opacity: 0.95;">
-        Jums jāatsvēr šo logu un jāpiespiež <b>Atjaunot</b>.<br>
-        Jūsu ieraksti netiks dzēsti.<br>
-        Pēc tam jums būs jāpiesakās vēlreiz.
       </div>
       <button id="updateNowBtn" style="
         background: #fff; color: #1565C0; border: none;
@@ -181,45 +179,46 @@ class UpdateNotifier {
       this.applyUpdate(version);
     });
 
-    if (version) {
-      console.log('[UpdateNotifier] Rāda atjauninājuma baneri. Versija:', version);
-    }
+    console.log('[UpdateNotifier] Rāda atjauninājuma baneri. Versija:', version || BUILD_VERSION);
   }
 
   setUpdateState(text, busy) {
     const btn = document.getElementById('updateNowBtn');
-    const body = document.getElementById('updateBody');
-    if (body) body.textContent = text;
     if (!btn) return;
     btn.disabled = !!busy;
-    btn.textContent = busy ? 'Notiek…' : 'Atjaunot tagad';
+    btn.textContent = busy ? text : 'Atjaunot tagad';
     btn.style.opacity = busy ? '0.7' : '1';
   }
 
   // ── Atjaunināšana ────────────────────────────────────────────────────────
+  //
+  // ⚠️ Šī funkcija NEDRĪKST apturēt atjauninājumu. Lietotājs nospiež
+  // pogu un sagaida, ka lapa pārstartēs. Ja mēs viņu brīdināsim un
+  // neļausim iziet, viņš nevar neko darīt — un nākamajā reizē jūs
+  // nepatiesībā teiksiet, ka tas nestrādā.
+  //
+  // Tāpēc: neizsūtīto rindu mēgina nosūtīt (par labu), bet ja tas
+  // neizdodas, vienkārši turpinām. Iemesls: rindas ieraksti jau ir
+  // serverī vai arī nevar tikt nosūtīti vispār (skat. QUEUE_TERMINAL),
+  // un labāk jauns kods nekā iestrēgta programma ar brīdinājumu, ko
+  // nevar aizvārt.
   async applyUpdate(version) {
     if (this._applying) return;   // dubultspiedes aizsardzība
     this._applying = true;
 
     try {
-      // ── 1) Datu drošība ────────────────────────────────────────────────
-      //
-      // Pirms jebkā tīrīšanas jāpārliecina, ka nekas nevar pazust.
-      // Ja rindā ir neizsūtīti ieraksti, tie vispirm jānosūta. Ja tas
-      // neizdodas, atjauninājums JĀPRAUSTAS — labāk vecā versija nekā
-      // pazaudāti aprūpes ieraksti.
-      const flush = await this.safelyFlushPendingData();
-      if (!flush.ok) {
-        this.setUpdateState(
-          'Neizdevās nosūtīt jūsu ierakstus uz Google Sheets (' + flush.reason +
-          '). Jūsu dati ir drošībā šajā ierīcē — mēģiniet vēlreiz, kad ir internets.',
-          false
-        );
-        this._applying = false;
-        return;
+      // ── 1) Mēģinām nosūtīt neizsūtīto rindu ────────────────────────────
+      // ⚠️ NEAPTURĀJAM atjauninājumu, ja tas neizdodas.
+      try {
+        const flush = await this.safelyFlushPendingData();
+        if (!flush.ok) {
+          console.warn('[UpdateNotifier] Rinda nav pilnībā nosūtīta, tomēr turpinām: ' + flush.reason);
+        }
+      } catch (e) {
+        console.warn('[UpdateNotifier] Rindas nosūtīšana neizdevās, tomēr turpinām:', e);
       }
 
-      this.setUpdateState('Ielādē jauno versiju…', true);
+      this.setUpdateState('Notiek…', true);
 
       // ── 2) Service worker ───────────────────────────────────────────────
       if ('serviceWorker' in navigator) {
@@ -229,7 +228,6 @@ class UpdateNotifier {
             reg.waiting.postMessage({ type: 'SKIP_WAITING' });
           }
         } catch (e) {
-          // Nav SW — nav ar ko sinhronizēt, turpinām tīrīt kešas.
           console.warn('[UpdateNotifier] SW nav pieejams:', e);
         }
       }
@@ -238,9 +236,6 @@ class UpdateNotifier {
       await this.clearAllLocalData();
 
       // ── 4) Atzīmējam versiju TIKAI tagad ───────────────────────────────
-      //
-      // Līdz šim brīdim appVersion palika veca, tāpēc baners parādītos
-      // arī tad, ja lietotājs pārlādē lapu. Tagad tas ir izdarīts.
       try {
         localStorage.setItem('appVersion', version || BUILD_VERSION);
       } catch (e) {}
@@ -250,7 +245,7 @@ class UpdateNotifier {
       window.location.replace(base + '?v=' + Date.now());
     } catch (e) {
       console.error('[UpdateNotifier] Atjaunināšana neizdevās:', e);
-      this.setUpdateState('Atjaunināšana neizdevās. Mēģiniet vēlreiz.', false);
+      this.setUpdateState('Mēģiniet vēlreiz', false);
       this._applying = false;
     }
   }

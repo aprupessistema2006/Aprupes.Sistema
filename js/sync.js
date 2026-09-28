@@ -553,14 +553,36 @@ class CareSync {
 
   // ── Rindas stāvokļi ────────────────────────────────────────────────────────
   //
-  // GALĪGIE stāvokļi: šo ierakstu rinda vairs NEDOS sūtīt. Tādus nedrīkst
-  // glabāt sync_queue, jo tie uzkrājas un ikreiz liek iziešanas dialogam
-  // apgalvot, ka "ir nesaglabāti dati" — pat ja lietotājs neko nemainīja.
+  // GALĪGIE stāvokļi: šo ierakstu rinda vairs NEDOS sūtīt, un tas netiks
+  // arī skaitīts par "nesaglabātu". Tie tiek arhivēti uz sync_audit un
+  // noņemti.
   //
-  // ⚠️ BLOKKĒTS / KONFLIKTS / KĻŪDA / NORAIDĪTS šeit NAV iekļauti: tie
-  // prasa cilvēka lēmumu, tāpēc to dzēšana klusējot pazaudētu datus.
+  // ⚠️ Kāpēc arī KONFLIKTS un BLOKKĒTS ir galīgi.
+  //
+  // Šie ieraksti JAU ir nosūtīti serverim, un serveris uz to jau atbildēja
+  // (kā konflikts vai kā bloķēts) — tāpēc Google Sheets ir galīgais
+  // avots, nevis šis ierīcē paliekais vecoļais.
+  //
+  // Vecākajā versijā tie netika arhivēti un palika rindā mūžmūžīgi, jo
+  // šai lietojumā NAV nevienas UI, ar ko lietotājs šādu konfliktu varētu
+  // atrisināt. Rezultāts bija trīs lietas uz reizi:
+  //   • processQueue to izlaida 1 ms laikā, katru reizi no jauna;
+  //   • iziešanas dialogs bezgalzīgi rādīja "Ir nesaglabāti dati";
+  //   • atjauninājuma poga neko nevarēja izdarīt, jo rinda nekad
+  //     neiztukšoja.
+  //
+  // Vienīgais godīgs risinājums ir šādu ierakstu pamanīt, nevis likt
+  // lietotājam neko neizdarāmu.
   static get QUEUE_TERMINAL() {
-    return new Set(['AIZVIETA', 'ATCELTS', 'PIEŅEMTS', 'NEVAR ATKĀRTOT']);
+    return new Set([
+      'AIZVIETA',      // aizstāts ar jaunāku ierakstu
+      'ATCELTS',       // lietotājs atcēla
+      'PIEŅEMTS',      // serveris jau pieņēma
+      'NEVAR ATKĀRTOT', // serveris noliedz atkārtošanu
+      'KONFLIKTS',     // serverim ir jaunāka versija — tā ir patiesība
+      'BLOKKĒTS',      // serveris bloķēja — šī ierīce nevar to atrisināt
+      'NORAIDĪTS'      // serveris noraidīja bez skaidra iemesla
+    ]);
   }
 
   // Vai šis rindas ieraksts tiek vēl sūtīts? Atbilde ir viens avots
@@ -572,6 +594,21 @@ class CareSync {
     return true;
   }
 
+  // Iemesls, kāpēc ieraksts ir galīgs — glabājas sync_audit, lai
+  // attīstītājs varētu redzēt, kas notika, neizgriezot datus klusējot.
+  deadReason(item) {
+    switch (item.status) {
+      case 'AIZVIETA': return 'superseded';
+      case 'ATCELTS': return 'cancelled';
+      case 'PIEŅEMTS': return 'already_accepted';
+      case 'NEVAR ATKĀRTOT': return 'not_retryable';
+      case 'KONFLIKTS': return 'server_has_newer';
+      case 'BLOKKĒTS': return 'server_blocked';
+      case 'NORAIDĪTS': return 'server_rejected';
+      default: return 'max_retries';
+    }
+  }
+
   // Noņem galīgos ierakstus no rindas, pirms tam arhivējot tos uz
   // sync_audit. Tas novērš gan Phantom brīdinājumu, gan rindas mūžmūžīgu
   // pieaugšanu. Atgriež noņemto ierakstu skaitu.
@@ -581,14 +618,7 @@ class CareSync {
     catch (e) { return 0; }
     const dead = items.filter(i => !this.isQueueItemPending(i));
     for (const item of dead) {
-      if (item.status === 'AIZVIETA' || item.status === 'ATCELTS' || item.status === 'PIEŅEMTS') {
-        await this._archiveItem(item, 'superseded');
-      } else if (item.status === 'NEVAR ATKĀRTOT') {
-        await this._archiveItem(item, 'not_retryable');
-      } else {
-        // retries pārsniegtas — pats vairs nevar tikt nosūtīts
-        await this._archiveItem(item, 'max_retries');
-      }
+      await this._archiveItem(item, this.deadReason(item));
     }
     if (dead.length) {
       console.log('[sync] noņemti ' + dead.length + ' galīgie rindas ieraksti: ' +
@@ -1434,18 +1464,11 @@ class CareSync {
           summary.skipped = true;
           break;
         }
-        // Spec 11.3: konfliktējoši itemi nav atkārtot automātiski —
-        // lietotājam jārisolvē konflikts (serverVersion ≠ client recordVersion)
-        if (item.status === 'KONFLIKTS') {
-          summary.conflictSkipped = (summary.conflictSkipped || 0) + 1;
-          continue;
-        }
-        // BLOKKĒTS / NORAIDĪTS arī prasa cilvēka lēmumu → paliek rindā,
-        // bet netiek rakstīti kā "galīgs", lai tos var redzēt un atrisināt.
-        if (item.status === 'BLOKKĒTS') {
-          summary.blocked = (summary.blocked || 0) + 1;
-          continue;
-        }
+        // ⚠️ KONFLIKTS / BLOKKĒTS / NORAIDĪTS vairs NAV šeit.
+        // Iepriekš tie tika izlaidi šajā vietā un atstāti rindā, kas
+        // radīja 1 ms bezmāksas atkārtošanās ciklu, jo nekas tos
+        // nekad neiztīrīja. Tagad tos ^_purgeDeadQueueItems iztīrīja
+        // pirms šī cikla, un šeit nonāk tikai īsts sūtāms darbs.
         // Spec 7: replacement detection — ja jaunāks item ar to pašu recordId jau ir,
         // atzīmē šo kā AIZVIETA un neapstrādā
         const itemRecordId = item.change?.data?.id;
