@@ -209,6 +209,7 @@ function routeActionData(data) {
     if (action === 'updateClient') return handleUpdate(data, 'klienti');
     if (action === 'updateEmployee') return handleUpdate(data, 'darbinieki');
     if (action === 'mark') return handleMark(data);
+  if (action === 'setShift') return handleSetShift(data);
     if (action === 'createTask') return handleCreateTask(data);
     if (action === 'updateTask') return handleUpdateTask(data);
     return { success: true };
@@ -815,6 +816,50 @@ function buildLogRow(headers, colMap, data) {
     }
   });
   return row;
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// MAIŅAS TIPS — atsevišķa, viegla darbība.
+//
+// Kāpēc nevis handleUpdate? handleUpdate raksta VISUS nosūtītos laukus un
+// palielina `version` kolonnu. Maiņa tips to nedrīkst darīt: `version` ir
+// OCC (optimistiskās sinhronizācijas) mehānisma pamatā, un tā ieslēgtība
+// šeit radītu konfliktus administratora darbinieku rediģēšanā, neizmantojot
+// neko labu.
+//
+// Kāpēc bez globālas slēdzena? Tā ir viena šūnas rakstīšana. Slēdzene
+// serializētu šo ar katru aprūpes atzīmi, kuras ir daudz svarīgākas, un
+// ar 200 klientiem rindas kļūtu garāka nevis īsāka.
+//
+// Kļūda ir NEKritiska: maiņas tips jau ceļo līdz katrai atzīmei, tāpēc
+// ja šis rakstījums neizdodas, nekas netiek zaudēts.
+// ───────────────────────────────────────────────────────────────────────
+function handleSetShift(data) {
+  const d = (data && data.data) || data || {};
+  const empId = d.employeeId || d.employee_id || d.id;
+  const shift = String(d.maina_tips || d.mainaTips || '').trim().toLowerCase();
+
+  if (!empId) return { success: false, error: 'Nav darbinieka id' };
+  // Tikai divas atļautās vērtības. Viss pārējais tiek noraidīts, nevis
+  // rakstīts, lai neprecīzi dati nekad nenonāk tabulā.
+  if (shift !== 'diennakts' && shift !== 'dienas') {
+    return { success: false, error: 'Nezinams maiņas tips: ' + shift };
+  }
+
+  const sheet = getSheet('darbinieki');
+  ensureColumns(sheet, ['maina_tips']);
+  const row = findRow(sheet, [['id', empId]]);
+  if (!row) {
+    return { success: false, error: 'Darbinieks nav atrasts', employeeId: empId };
+  }
+
+  const current = String(row.data.maina_tips || '').trim().toLowerCase();
+  if (current === shift) {
+    return { success: true, changed: false, maina_tips: shift, employeeId: empId };
+  }
+
+  setCellValue(sheet, row.row, 'maina_tips', shift);
+  return { success: true, changed: true, maina_tips: shift, employeeId: empId };
 }
 
 function handleMark(data) {

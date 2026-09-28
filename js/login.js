@@ -993,6 +993,7 @@ showRoleSelector(emp) {
 
     const shiftTypeInput = document.querySelector('input[name="shiftType"]:checked');
     const mainaTips = shiftTypeInput ? shiftTypeInput.value : 'diennakts';
+    const sheetShift = String((employee && (employee.maina_tips || employee.mainaTips)) || '').trim().toLowerCase();
 
     // Ja izvēlējās lomu — izmantot to, citāk pirmo
     const chosenRole = employee.chosenRole || (employee.lomas || [])[0];
@@ -1012,6 +1013,18 @@ showRoleSelector(emp) {
     sessionStorage.setItem('careUser', JSON.stringify(user));
     this.user = user;
     this.showSuccess(user);
+
+    // Atspoguļot izvēlēto maiņu tipu Google Sheet darbinieka ierakstā.
+    // Sūtām TIKAI tad, ja tā patiešām atšķiras no tās, kas jau tur ir —
+    // pārmaiņu grafiks ir mainīgs, bet lieks pieprasījums katrā ielādē
+    // nav nekas labs. Tas NOTIEK ārpus `await` — ielāde negaidīs serveri.
+    if (this.sync && typeof this.sync.syncShift === 'function' && sheetShift !== mainaTips) {
+      try {
+        this.sync.syncShift(user.id, mainaTips);
+      } catch (e) {
+        console.warn('[login] maiņas tipa sinhronizācija neizdevās (nav kritiska):', e);
+      }
+    }
   }
 
   showSuccess(user) {

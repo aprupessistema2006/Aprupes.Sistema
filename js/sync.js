@@ -1869,6 +1869,53 @@ class CareSync {
     return result;
   }
 
+  // ───────────────────────────────────────────────────────────────────────
+  // MAIŅAS TIPS UZ SERVERI.
+  //
+  // Izvēle notiek katrā ielādē (grafiks ir mainīgs), tāpēc tā JAU ceļo
+  // līdz katrai atzīmei kā mainaTips. Šis papildina tikai vienu lietu:
+  // darbinieka ieraksts Google Sheet rāda, kas šobrīd ir uz kurā maiņā.
+  //
+  // Trīs apzināti lēmumi:
+  //   1. TIEŠS jsonpAction, nevis rinda. Rindas ieraksts parādītos kā
+  //      "nesaglabāts" un dzenātu lietotāju prom no programmas par nieku.
+  //   2. Sūtām TIKAI tad, ja vērtība patiešām mainās. Katrs ielādējums
+  //      bez izmaiņām būtu lieks pieprasījums — ar 200 klientiem tas
+  //      ir troksnis, nevis dati.
+  //   3. Kļūda NEDRĪKST bloķēt ielādi. Maiņa tips jau ir katrā atzīmē,
+  //      tāpēc neizdevušais rakstījums neko neizjaud.
+  // ───────────────────────────────────────────────────────────────────────
+  async syncShift(employeeId, shift) {
+    const value = String(shift || '').trim().toLowerCase();
+    if (!employeeId || (value !== 'diennakts' && value !== 'dienas')) {
+      return { skipped: true };
+    }
+    try {
+      const res = await jsonpAction('setShift', {
+        employeeId: employeeId,
+        maina_tips: value
+      });
+      if (res && res.success) {
+        // Vecāks serveris nezin 'setShift' un atgriež success:true bez
+        // `changed`. Tāpēc apgalvot, ka kaut kas tika atjaunināts, drīkst
+        // TIKAI kad serveris to skaidri apstiprina.
+        if (res.changed === true) {
+          console.log('[sync] maiņas tips atjaunināts serverī:', employeeId, '->', value);
+        } else {
+          console.log('[sync] maiņas tips pārbaudīts, izmaiņu nav:', employeeId, '->', value);
+        }
+      } else {
+        console.warn('[sync] maiņas tips nenosūtīts:', res && res.error);
+      }
+      return res;
+    } catch (e) {
+      // Vecāks serveris var nezināt 'setShift'. Tas ir normāli — nekas
+      // neizjaud, jo maiņa tips jau ceļo līdz katrai atzīmei.
+      console.warn('[sync] maiņas tipa sinhronizācija izlaižusies (nav kritiska):', e && e.message);
+      return { skipped: true, error: e && e.message };
+    }
+  }
+
   // Spec: Migrācija actionId → operationId un version kolonnas sākotnējai sync
   async runMigrations() {
     const migratedKey = 'migration_v3_complete';
