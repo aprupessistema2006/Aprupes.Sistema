@@ -20,6 +20,7 @@ test_*.js
 visas_aprupes_lapas_dati.txt
 .cursor/
 .kilo/
+!backend/gas_webhook.gs
 backend/
 docs/
 js/demo_aprupetajs.html
