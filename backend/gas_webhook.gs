@@ -1884,30 +1884,43 @@ function handleMark(data) {
        ? (atzimesColMap['last_modified'] !== undefined ? String(existingMarkData[atzimesColMap['last_modified']]) : '')
        : '';
 
-     // Spec 8: OCC — ja klients nosūtījis lastModified, salīdzina ar servera last_modified.
-     // Ja servera versija ir jaunāka nekā klients, konflikts.
-     if (existingMarkRow > 0 && m.lastModified && existingMarkVersion) {
-       const clientVer = String(m.lastModified).trim();
-       const serverVer = existingMarkVersion.trim();
-       if (clientVer !== '' && serverVer !== '' && clientVer !== serverVer) {
-         if (operationId) {
-           updateOperationResult(operationId, {
-             result: 'conflict',
-             statusCode: 409,
-             officialRecordId: existingMarkId
-           });
-         }
-         return {
-           conflict: true,
-           success: false,
-           error: 'Konflikts: atzīme ir mainījusies.',
-           serverVersion: serverVer,
-           recordId: existingMarkId
-         };
-       }
-     } else if (existingMarkRow > 0 && m.lastModified && !existingMarkVersion) {
-       // Server doesn't have last_modified yet for this mark — accept and set it
-     }
+      // Spec 8: OCC — ja klients nosūtījis lastModified, salīdzina ar servera last_modified.
+      //
+      // ⚠️ VECĀ KĻŪDA, kas dzēsa lietotāju datus.
+      // Vecais kod salīdzināja VIRKNĒS:
+      //     if (clientVer !== serverVer) -> KONFLIKTS
+      // Klients sūta "2026-09-29T11:59:13.732Z", bet Google Sheet šūnā
+      // glabā Date objektu, kas attēlojas kā "9/29/2026". Šīs divas
+      // virknes NAV VIENĀDAS un nekad nevar būt — tāpēc KATRS
+      // labojums jau esošai atzīmei tika noraidīts kā konflikts, un rindas
+      // tika pārnestas uz sync_audit kā "galīgie", t.i. DATI ZUDA.
+      //
+      // TAGAD mēs salīdzinām LAIKUS, nevis virknes, un ja servera vērtību
+      // nevar sapārost (piem. vecā "9/29/2026" bez laika daļas), mēs to
+      // neuzskatām par konfliktu, bet ļaujam saglabāt. Datu zudums ir
+      // daudz sliktāks par pazaudētu konflikta noteikšanu.
+      if (existingMarkRow > 0 && m.lastModified && existingMarkVersion) {
+        const clientVer = String(m.lastModified).trim();
+        const serverVer = existingMarkVersion.trim();
+        if (isServerNewer(clientVer, serverVer)) {
+          if (operationId) {
+            updateOperationResult(operationId, {
+              result: 'conflict',
+              statusCode: 409,
+              officialRecordId: existingMarkId
+            });
+          }
+          return {
+            conflict: true,
+            success: false,
+            error: 'Konflikts: atzīme ir mainījusies.',
+            serverVersion: serverVer,
+            recordId: existingMarkId
+          };
+        }
+      } else if (existingMarkRow > 0 && m.lastModified && !existingMarkVersion) {
+        // Server doesn't have last_modified yet for this mark — accept and set it
+      }
 
     const updates = []; // Batch updates to apply at once
 
@@ -1992,8 +2005,18 @@ function handleMark(data) {
         }
       }
       // Atjaunina last_modified (OCC)
+      //
+      // ⚠️ Rakstām ISO 8601 VIRKNI, nevis Date objektu.
+      // Date objektu Google Sheets attēlo kā "9/29/2026" — bez laika
+      // daļas, tāpēc nākamā salīdzināšana nevarēja noteikt, kurš
+      // ieraksts ir jaunāks. ISO virkne noapaļojās bez zudumiem.
       if (atzimesColMap['last_modified'] !== undefined) {
-        updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['last_modified'] + 1, value: modificationTime });
+        updates.push({
+          sheet: atzimesSheet,
+          row: existingMarkRow,
+          col: atzimesColMap['last_modified'] + 1,
+          value: Utilities.formatDate(modificationTime, TZ, "yyyy-MM-dd'T'HH:mm:ss")
+        });
       }
       
       const markId = atzimesData[existingMarkRow - 2][atzimesColMap['id']];
@@ -2491,6 +2514,17 @@ function createResponse(status, data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
 
+  // Vai SERVERA versija ir jaunāka par klienta. Tā atgriež true TIKAI tad,
+  // ja mēs VARAM pārliecināties, ka serveris jaunāks. Ja kaut ko nevar
+  // sapārst, mēs atgriežam false — lai lietotāja ieraksts netiktu
+  // iznīcināts uz nezināma pamata.
+  function isServerNewer(clientVer, serverVer) {
+    const c = parseTimestamp(clientVer);
+    const s = parseTimestamp(serverVer);
+    if (!c || !s) return false;          // nevar lāgt — nebloķējam
+    return s.getTime() > c.getTime();
+  }
+
 function parseTimestamp(value) {
   if (!value) return null;
   if (value instanceof Date) {
@@ -2505,6 +2539,25 @@ function parseTimestamp(value) {
       parseInt(dateOnly[2], 10) - 1,
       parseInt(dateOnly[3], 10)
     );
+  }
+  // ⚠️ Google Sheets Date šūnu attēlo kā "9/29/2026" (m/d/yyyy) vai
+  // "29.09.2026" (d.m.yyyy) atkarībā no lapas lokalizācijas. Bez šī
+  // formāta šādas vērtības nevarēja sapārost, un katrs labojums tika
+  // uzskatīts par konfliktu.
+  const slashed = text.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/);
+  if (slashed) {
+    const a = parseInt(slashed[1], 10);
+    const b = parseInt(slashed[2], 10);
+    const y = parseInt(slashed[3], 10);
+    // Ja pirmais skaitlis > 12, tas noteikti ir diena (d.m.yyyy).
+    // Citādi mēs pieņemam m/d/yyyy, kas ir Google noklusējums.
+    if (a > 12 && b <= 12) {
+      return new Date(y, b - 1, a);
+    }
+    if (b > 12) {
+      return new Date(y, a - 1, b);
+    }
+    return new Date(y, b - 1, a);
   }
   const full = text.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:?\d{2})?$/);
   if (full) {
