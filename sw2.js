@@ -1,4 +1,8 @@
-const CACHE_NAME = 'aprupes-sistema-v49'; // SW never intercepts cross-origin JSONP
+// ⚠️ Kešas nosaukumam JĀBŪT jauns katrā versijā. Ja tas paliek tāds pats,
+// `activate` nopirksīs veco kešu, bet jaunais SW joprojām izmantojtu to pašu
+// kešu — un vecās rindas (ar vecajiem `?v=`) paliktu tur.
+// 20260929-0830: atzīmes skenēšanas labojums + mērījumi.
+const CACHE_NAME = 'aprupes-sistema-v50'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -42,31 +46,31 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20260928-3115';
+const BUILD_VERSION = '20260929-0830';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>
   /\.(?:js|css)$/.test(path) ? path + '?v=' + BUILD_VERSION : path;
 
 self.addEventListener('install', (event) => {
-  console.log('[SW-v49] Installing new service worker (cache:', CACHE_NAME, ')');
+  console.log('[SW-v50] Installing new service worker (cache:', CACHE_NAME, ')');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW-v49] Precaching static assets (BUILD', BUILD_VERSION + ')');
+      console.log('[SW-v50] Precaching static assets (BUILD', BUILD_VERSION + ')');
       return cache.addAll(STATIC_ASSETS.map(withVersion).map(url => new Request(url, { cache: 'reload' })));
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW-v49] Activating new service worker');
+  console.log('[SW-v50] Activating new service worker');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[SW-v49] Deleting old cache:', name);
+            console.log('[SW-v50] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
@@ -85,7 +89,7 @@ self.addEventListener('activate', (event) => {
         // "Atjaunot" — tāpēc viņš jau ir beidzis darbu un neko
         // nezaudē. clients.claim() augstāk joprojām nodrošina, ka
         // jaunais kods sāk darboties tūlīt nākamajā navigācijā.
-        console.log('[SW-v49] Aktivizācija pabeigta. Klienti netiek pārlādēti —' +
+        console.log('[SW-v50] Aktivizācija pabeigta. Klienti netiek pārlādēti —' +
           ' atjauninājumu lietotājs apstiprina pats (skat. UpdateNotifier).');
       })
   );

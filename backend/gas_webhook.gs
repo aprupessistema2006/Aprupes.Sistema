@@ -195,26 +195,46 @@ function findRow(sheet, conditions) {
 // Skenē TIKAI meklējamās kolonnas, partijās pa 2000 rindām, lai atmiņā
 // nekad nebūtu vairāk par 2000 šūnām vienlaik (nevis 225 000 × 17).
 // Atgriež rindas ABSOLŪTO NUMURU vai null.
+//
+// ⚠️ Skenēšana sākas no LAPAS BEIGĀM. Tas ir būtiski ātrāk nekā no augšas:
+// katra partija nolasīšana no 225 930 rindu kolonnas maksā ~18 s, un
+// `handleMark` to izsauca vairākas reizes — tas bija 74 sekundes uz vienu
+// ierakstu. Bet meklējamie ID (operation_id, action_id) vienmēr ir nesen
+// pievienotie, tāpē tie atrodas lapas beigās un pirmajā partijā.
+//
+// Secībai šeit NAV nozīmes (meklējam vienu konkrētu ID, nevis diapazonu),
+// tāpē droši var sākt no beigām. Ja ID tomēr nav beigās, pēc beigām
+// skenēšanas sekos pārskats no sākuma — rezultāts ir tāds pats.
 function scanWantedColumns(sheet, wanted, lastRow) {
   const BATCH = 2000;
-  for (let s = 2; s <= lastRow; s += BATCH) {
-    const n = Math.min(BATCH, lastRow - s + 1);
-    // Katrai meklējamajai kolonnai — viena šaura nolasīšana.
-    const cols = wanted.map(w => {
-      const vals = sheet.getRange(s, w.colIdx + 1, n, 1).getValues();
-      const out = new Array(n);
-      for (let i = 0; i < n; i++) out[i] = String(vals[i][0]);
-      return out;
-    });
-    for (let i = 0; i < n; i++) {
-      let match = true;
-      for (let k = 0; k < wanted.length; k++) {
-        if (cols[k][i] !== wanted[k].want) { match = false; break; }
+
+  function scanRange(from, to) {
+    for (let s = from; s <= to; s += BATCH) {
+      const n = Math.min(BATCH, to - s + 1);
+      const cols = wanted.map(w => {
+        const vals = sheet.getRange(s, w.colIdx + 1, n, 1).getValues();
+        const out = new Array(n);
+        for (let i = 0; i < n; i++) out[i] = String(vals[i][0]);
+        return out;
+      });
+      _diag.getRangeCalls += wanted.length;
+      _diag.cellsRead += wanted.length * n;
+      for (let i = 0; i < n; i++) {
+        let match = true;
+        for (let k = 0; k < wanted.length; k++) {
+          if (cols[k][i] !== wanted[k].want) { match = false; break; }
+        }
+        if (match) return s + i;
       }
-      if (match) return s + i;
     }
+    return null;
   }
-  return null;
+
+  // 1) No beigām uz priekšu (ātrs ceļš jaunākiem ID)
+  const fromEnd = scanRange(lastRow, 2);
+  if (fromEnd !== null) return fromEnd;
+  // 2) No sākuma (vecāki ID, ja tie joprojām lietoti)
+  return scanRange(2, lastRow);
 }
 
 function setCellValue(sheet, rowNum, field, value) {
@@ -1182,9 +1202,15 @@ function handleMark(data) {
   const mFieldNormalized = signatureFieldAlias(m.field || '');
   m.field = mFieldNormalized;
 
+  // ⚠️ Diagnostika. Rakstīšanas ceļš agrāk nebija mērīts, un tas slēpa
+  // 74 sekundes uz vienu `mark`. Tagad katrs posms ir redzams.
+  _diag.notes.push('action=' + (data && data.action ? data.action : '?'));
+
   ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks', 'last_modified', 'version']);
   ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
-  ensureColumns(klientiSheet, ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id']);
+  _phase('ensureColumnsMark', function () {
+    ensureColumns(klientiSheet, ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id']);
+  });
 
   const lock = LockService.getScriptLock();
   try {
@@ -1197,7 +1223,7 @@ function handleMark(data) {
     // --- operation_registry dedup (spec 12.2) ---
     // Pirms apstrādes pārbauda operation_id. Ja ir eksistējošs rezultāts — atgriež to.
     if (operationId) {
-      const opFound = findOperation(operationId);
+      const opFound = _phase('findOperation', function () { return findOperation(operationId); });
       if (opFound) {
         const opResult = String(opFound.data.result || '').trim().toLowerCase();
         if (opResult) {
