@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20260929-0920';
+const BUILD_VERSION = '20260929-0930';
 
 class UpdateNotifier {
   constructor() {
@@ -121,18 +121,35 @@ class UpdateNotifier {
       currentVersion = manifest.version;
     } catch (e) {
       console.warn('[UpdateNotifier] version.json nepieejams:', e);
-      // Nav versijas manifesta → nevaram pārliecināties, ka versija ir
-      // tāda pati. Tāpēc rāda baneri, ja vien mēs patiešām neesam
-      // jau šajā versijā.
-      if (this.storedVersion() !== BUILD) this.showUpdateBanner(BUILD);
+      // ⚠️ Bez manifesta nevaram salīdzināt ar jauno versiju. Bet poga
+      // TIKAI tad, ja `appVersion` ir zināms UN atšķiras no tā, ko
+      // pašreiz ielādējam. Bez šī papildus apstākļa katrs lietotājs ar
+      // jaunu kodu, bet vēl neizspiesta "Atjaunot tagad", saņemtu
+      // kļūdīgu brīdinājumu — un `applyUpdate()` dzēstu vietējo datu
+      // glabājumu. Kļūdīgs brīdinājums ir ļaunāks nekā pārdots brīdinājums.
+      const stored = this.storedVersion();
+      if (stored && stored !== BUILD) this.showUpdateBanner(BUILD);
       return;
     }
 
-    const stored = this.storedVersion();
-    if (stored && stored !== currentVersion) {
+    // ⚠️⚠️ IEPRIEKŠĒJĀ LOGIKA ŠEIT BIJA NEPAREEJA.
+    //
+    //   if (stored && stored !== currentVersion) { ... }
+    //
+    // `appVersion` tiek rakstīts TIKAI `applyUpdate()` iekšienē — tāpēc
+    // lietotājs, kas vēl neko nav atjauninājis, to nekad neiegūst, un
+    // nosacījums nekad neizpildās. Rezultāts: poga "Atjaunot tagad"
+    // neparādījās NEBE NEKAD, pat ja ir jauna versija.
+    //
+    // Pareizais avots ir PAŠREIZĒJAIS KODS, nevis localStorage. Ja ielādētais
+    // kods jau ir jaunākais, mēs esam tur, kur vajag būt, un poga nav
+    // vajadzīga. Ja kods ir vecāks par manifestu — poga jāparāda, neatkarīgi
+    // no tā, ko lietotājs jebkad ir klikšķis.
+    if (BUILD !== currentVersion) {
       this.showUpdateBanner(currentVersion);
     }
-    // ⚠️ NEDRĪKST šeit rakstīt appVersion — skatīt 1. noteikumu augstāk.
+    // ⚠️ NEDRĪKST šeit citā rakstīt appVersion — to dara tikai
+    // `applyUpdate()`, pēc veiksmīgas datu nolasīšanas uz serveri.
   }
 
   storedVersion() {
