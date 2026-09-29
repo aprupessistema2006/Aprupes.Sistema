@@ -704,49 +704,75 @@ function handleLoadData(params) {
     let exhausted = false;
 
     if (reverseScan) {
-      // ⚠️ Šeit ir fundamentāls ierobežojums: `scannedTo` nevar būt vietējais
-      // mainīgais, jo katrs HTTP pieprasījums sāk funkciju no jauna. Tas nozīmē,
-      // ka katrā pieprasījumā mēs skenējam no jauna, un lapošanai JĀBŪT
-      // noteiktai, izmantojot tikai `offset` (negatīvu = "jau atgriezti").
+      // ⚠️ ŠEIT BIJA REĀLS DATU ZAUDĒJUMS. Es lasīju pēdējās `target` FIZISKĀS
+      // rindas un, ja atrastu mazāk par `target`, atzīmēju `exhausted = true`.
+      // Bet tas ir nepareizi: mazāk par `target` nozīmē, ka logā bija
+      // ne-atbilstošas rindas, NEVIS ka viss ir izskatīts. 2000. atbilstība
+      // tad atradās virs loga un tika zaudēta. Dzīvā pārbaude to pierādīja:
+      // jaunais izvietojums atgrieza 1999 rindas, vecais 2000, un trūka
+      //   m_1790223929000 | 2026-09-25 | slimnica | SAC
       //
-      // Vienkāršs, pārbaudāms algoritms:
-      //  1. Nolasām pēdējās `target` + `limit` rindas no lapas beigām — tas ir
-      //     logs, kas aptver visas iespējamās pirmās lapas rindas.
-      //  2. No tā izfiltrējam atbilstošās, pārvērsim uz augšupejošu.
-      //  3. `skip = -offset` — noņemam rindas, kas jau atgrieztas.
-      // Tā mēs vienmēr skenējam vienu un to pašu logu, kas ir deterministisks
-      // un katrai lapai identisks. Ja logā neiznāk pietiekami, mēs to
-      // paplašinām (target + limit) — tas ir dārgi, bet notiek TIKAI reti.
-      const need = target;   // kolonnas rindas, kas mums jāskata no beigām
-      const lo = Math.max(2, lastRow - need + 1);
-      const t0 = _t();
-      const block = cols.map(c => {
-        const rng = sheet.getRange(lo, c.i + 1, lastRow - lo + 1, 1);
-        if (c.date) return rng.getValues().map(r => normalizeDateCell(r[0]));
-        return rng.getValues().map(r => String(r[0]).trim());
-      });
-      _diag.phases.scanFilterCols = (_diag.phases.scanFilterCols || 0) + (_t() - t0);
-      _diag.getRangeCalls += cols.length;
-      _diag.cellsRead += cols.length * (lastRow - lo + 1);
+      // ⚠️ OTRĀ KĻŪDA, ko tests noķēra: kad logs paplašinās, katra nākamā
+      // kārta dod VECĀKAS rindas. Tās jāpievieno masīva PRIEKŠĀ, nevis
+      // beigā — citādi kopējā secība kļūst ne-monotona (20001, tad 15503)
+      // un contīgo bloku apvienošana nokļūst uz ~2000 atsevišķiem lasījumiem.
+      //
+      // Katrs HTTP pieprasījums šo dara no jauna, bet tas ir deterministiski:
+      // katrā kārtā tiek lasīta TIKAI JAUNA daļa (`scannedFrom` → `lo`).
+      let windowSize = Math.max(target, 2000);
+      let scannedFrom = lastRow + 1;   // 2-based; virs tā nekas nav skatīts
+      exhausted = true;
 
-      // Skenējam no beigām uz priekšu, kamēr savācām `target`.
-      const local = [];
-      for (let r = lastRow; r >= lo && local.length < target; r--) {
-        const j = r - lo;
-        let ok = true;
-        for (let k = 0; k < cols.length; k++) {
-          const v = block[k][j];
-          if (cols[k].date) {
-            if (!v) { ok = false; break; }
-            if (filters.dateFrom && v < filters.dateFrom) { ok = false; break; }
-            if (filters.dateTo && v > filters.dateTo) { ok = false; break; }
-          } else if (v !== cols[k].val) { ok = false; break; }
+      while (true) {
+        const lo = Math.max(2, scannedFrom - windowSize);
+        const cnt = scannedFrom - lo;  // rindas šajā kārtā
+        if (cnt <= 0) { exhausted = true; break; }
+
+        const t0 = _t();
+        const block = cols.map(c => {
+          const rng = sheet.getRange(lo, c.i + 1, cnt, 1);
+          if (c.date) return rng.getValues().map(r => normalizeDateCell(r[0]));
+          return rng.getValues().map(r => String(r[0]).trim());
+        });
+        _diag.phases.scanFilterCols = (_diag.phases.scanFilterCols || 0) + (_t() - t0);
+        _diag.getRangeCalls += cols.length;
+        _diag.cellsRead += cols.length * cnt;
+
+        // Skenējam no `scannedFrom-1` uz `lo`. `local` ir JAUNĀKĀS → VECĀKAS.
+        const local = [];
+        const need = target - matchRows.length;
+        for (let r = scannedFrom - 1; r >= lo && local.length < need; r--) {
+          const j = r - lo;
+          let ok = true;
+          for (let k = 0; k < cols.length; k++) {
+            const v = block[k][j];
+            if (cols[k].date) {
+              if (!v) { ok = false; break; }
+              if (filters.dateFrom && v < filters.dateFrom) { ok = false; break; }
+              if (filters.dateTo && v > filters.dateTo) { ok = false; break; }
+            } else if (v !== cols[k].val) { ok = false; break; }
+          }
+          if (ok) local.push(r);
         }
-        if (ok) local.push(r);
+
+        // ⚠️ Pievienojam PRIEKŠĀ, un `local` jābūt APGRIEZTAM. `local` tika
+        // savākts no `scannedFrom-1` uz lejup, tāpē tas ir JAUNĀKĀS → VECĀKAS
+        // (descending). Šī kārta skenēja ZEMĀKAS rindas par jau savāktajām,
+        // tāpē tās ir vecākas un jāstāv masīva sākumā, AUGŠUPEJOŠĀ secībā.
+        //
+        // Bez `.reverse()` secība būtu ne-monotona (20001, tad 15503), un
+        // contīgo bloku apvienošana nokristu uz ~2000 atsevišķiem getRange
+        // zvaniem. Tas bija redzams arī testa skaitļos: 2002 zvani.
+        if (local.length > 0) {
+          matchRows.unshift.apply(matchRows, local.reverse());
+        }
+
+        scannedFrom = lo;   // nākamā kārta lasīs TIKAI zemāk par `lo`
+        if (matchRows.length >= target) { exhausted = false; break; }
+        if (lo <= 2) { exhausted = true; break; }   // sasniegta lapas sākums
+        windowSize = Math.min(nRows, windowSize * 2);
+        _diag.notes.push('logu paplašināju līdz rindai ' + lo);
       }
-      // Pārvērsim uz augšupejošu, lai contīgo bloku apvienošana strādā.
-      for (let i = local.length - 1; i >= 0; i--) matchRows.push(local[i]);
-      exhausted = matchRows.length < target;
     } else {
       for (let i = 0; i < nRows && matchRows.length < target; i++) {
         let ok = true;
