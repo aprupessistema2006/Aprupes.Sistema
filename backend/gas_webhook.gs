@@ -1960,7 +1960,17 @@ function handleMark(data) {
       });
     }
 
-    const eventTime = getEventTimeFromPayload(m, existingEventTime || modificationTime, m.date);
+    // Slimnīcas statusa maiņa ir JAUNS notikums, kas notiek tagad.
+    //
+    // ⚠️ Bez šī izņēmuma notikuma laiks pārņemtas veco atzīmes laiku
+    // (existingEventTime), un tad žurnālā parādās DIVAS rindas ar
+    // identisku notikuma laiku. Tās pēc tam nevar atšķirt, kura ir
+    // jaunākā, un klients paliek bloķēts kā slimnīcā pat tad, ja statusu
+    // tikko nomainīja uz "atgriezies SAC".
+    const eventTimeBase = isStatusToggle
+      ? modificationTime
+      : (existingEventTime || modificationTime);
+    const eventTime = getEventTimeFromPayload(m, eventTimeBase, m.date);
     const eventDateRiga = formatDate(eventTime);
     const eventTimeRiga = formatTimeOnly(eventTime);
     const eventDateTimeRiga = formatDateTimeLV(eventTime);
@@ -2725,7 +2735,19 @@ function getLatestClientStatus(logData, logColMap, clientId) {
     if (String(logData[i][lauksCol]).toLowerCase() !== 'statuss') continue;
     const et = getEventTimeFromRow(logData[i], logColMap);
     if (!et) continue;
-    if (!latestTime || et.getTime() > latestTime.getTime()) {
+    // ⚠️ SVARĪGI: izmantojam `>=`, nevis `>`.
+    //
+    // Statusa maiņa uz jau esošu atzīmi var **neatšķirīties** no iepriekšējā
+    // notikuma laika (piem. slimnīcas statuss pārslēgts vēlāk, bet
+    // notikuma_laiks paliek vecais). Tad žurnālā ir divas rindas ar
+    // IDENTISKU laiku, un vecais kods ar `>` paņēma PIRMĒJU no tām —
+    // t.i. saglabāja "hospitalizēts slimnīcā" pat tad, ja lietotājs
+    // tikko bija atzīmējis "atgriezies SAC". Rezultāts: klients palika
+    // bloķēts, lai gan statuss bija mainīts.
+    //
+    // Žurnāls ir RĀDĀTS hronoloģiskā secībā, tāpēc vienāda laika gadījumā
+    // vēlākā rinda ir jaunākā. Ar `>=` mēs to ievērojam deterministiski.
+    if (!latestTime || et.getTime() >= latestTime.getTime()) {
       latestTime = et;
       latestValue = String(logData[i][vertCol != null ? vertCol : 0] || '');
     }
