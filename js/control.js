@@ -271,15 +271,29 @@ class ControlPanel {
     searchEl.addEventListener('input', () => {
       const term = searchEl.value.trim().toLowerCase();
       selectEl.innerHTML = '';
-      originalOptions.forEach(opt => {
+      const matches = originalOptions.filter(opt => {
+        if (!opt.value) return true; // Always keep placeholder
         const text = opt.textContent.toLowerCase();
-        if (!term || text.includes(term)) selectEl.appendChild(opt.cloneNode(true));
+        return !term || text.includes(term);
       });
-      // Atjauno izvēlēto vērtību, ja tā vēl ir pieejama
-      const saved = selectEl.dataset.selectedValue;
-      if (saved) {
-        const opt = selectEl.querySelector(`option[value="${saved}"]`);
-        if (opt) opt.selected = true;
+      matches.forEach(opt => selectEl.appendChild(opt.cloneNode(true)));
+
+      // Ja vienādi atbilst viens clients — atlasīt to automātiski
+      const realMatches = matches.filter(o => o.value);
+      if (term && realMatches.length === 1) {
+        selectEl.value = realMatches[0].value;
+      } else if (term && realMatches.length > 1) {
+        selectEl.value = '';
+      }
+    });
+
+    // Pēc atlasīšanas notīrīt meklēšanas lauku
+    selectEl.addEventListener('change', () => {
+      if (selectEl.value) {
+        searchEl.value = '';
+        selectEl.innerHTML = '';
+        originalOptions.forEach(opt => selectEl.appendChild(opt.cloneNode(true)));
+        selectEl.value = selectEl.value;
       }
     });
   }

@@ -46,13 +46,13 @@
       <p class="export-help" data-i18n="exportHelp">Izvēlies mēnesi un klientu, tad noklikšķini "Lejupielādēt".</p>
       <div class="export-row">
         <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="exportMonth" required></label>
-        <label>
+        <div class="client-search-wrap">
           <span data-i18n="client">Klients</span>: 
-          <input type="text" id="exportClientSearch" placeholder="🔍 Meklēt klientu..." autocomplete="off" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
-          <select id="exportClient" required style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+          <input type="text" id="exportClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
+          <select id="exportClient" required style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
             <option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option>
           </select>
-        </label>
+        </div>
         <button id="exportBtn" class="btn-primary" data-i18n="exportExcel">📥 Lejupielādēt Excel</button>
       </div>
     </section>
@@ -62,13 +62,13 @@
       <p class="export-help" data-i18n="monthViewHelp">Izvēlies mēnesi un klientu, lai redzētu vizuālo apskatu.</p>
       <div class="export-row">
         <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="monthViewMonth" required></label>
-        <label>
+        <div class="client-search-wrap">
           <span data-i18n="client">Klients</span>: 
-          <input type="text" id="monthViewClientSearch" placeholder="🔍 Meklēt klientu..." autocomplete="off" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
-          <select id="monthViewClient" required style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+          <input type="text" id="monthViewClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
+          <select id="monthViewClient" required style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
             <option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option>
           </select>
-        </label>
+        </div>
         <button id="renderMonthView" class="btn-primary" data-i18n="renderMonth">👁️ Apskatīt</button>
       </div>
       <div id="monthViewContainer" class="month-view-container"></div>
