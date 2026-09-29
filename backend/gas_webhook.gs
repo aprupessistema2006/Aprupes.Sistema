@@ -1389,6 +1389,27 @@ function _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m) {
     if (row >= 2 && row - 2 < arr.length) arr[row - 2] = sheet.getRange(row, 1, 1, lastCol).getValues()[0];
   }
 
+  // ⚠️ N+1. Vienā klientā var būt simti žurnāla rindu. Ja katru lasītu
+  // atsevišķi, tas ir simti `getRange` zvani un katrs no tiem uz šī
+  // servera maksā ~0,5–2 s. Tāpēc rindas SALĪM KOJUMS un lasām pa
+  // partijām — desmit rindu vietā viens zvans.
+  function putMany(arr, sheet, lastCol, rows) {
+    if (!rows || rows.length === 0) return;
+    const sorted = rows.slice().sort(function (a, b) { return a - b; });
+    let i = 0;
+    while (i < sorted.length) {
+      let j = i;
+      while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j++;
+      const startRow = sorted[i];
+      const n = sorted[j] - sorted[i] + 1;
+      if (startRow >= 2 && startRow - 2 + n <= arr.length) {
+        const vals = sheet.getRange(startRow, 1, n, lastCol).getValues();
+        for (let k = 0; k < n; k++) arr[startRow - 2 + k] = vals[k];
+      }
+      i = j + 1;
+    }
+  }
+
   // 1) Dublējuma pārbaude pēc action_id
   if (m.actionId && atzimesColMap['action_id'] !== undefined) {
     const r = _phase('ctx_actionId', function () {
@@ -1425,8 +1446,7 @@ function _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m) {
     const markId = atz[keyRow - 2][atzimesColMap['id']];
     if (markId) {
       _phase('ctx_logForMark', function () {
-        _textFindAll(logSheet, logColMap['atzimes_id'] + 1, String(markId), 2)
-          .forEach(r => put(log, logSheet, lastColL, r));
+        putMany(log, logSheet, lastColL, _textFindAll(logSheet, logColMap['atzimes_id'] + 1, String(markId), 2));
       });
     }
   }
@@ -1434,8 +1454,7 @@ function _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m) {
   // 4) Šī klienta visas žurnāla rindas (slimnica/status pārbaudē)
   if (m.clientId && logColMap['klients_id'] !== undefined) {
     _phase('ctx_logForClient', function () {
-      _textFindAll(logSheet, logColMap['klients_id'] + 1, String(m.clientId), 2)
-        .forEach(r => put(log, logSheet, lastColL, r));
+      putMany(log, logSheet, lastColL, _textFindAll(logSheet, logColMap['klients_id'] + 1, String(m.clientId), 2));
     });
   }
 
