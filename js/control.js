@@ -99,11 +99,13 @@ class ControlPanel {
           this.renderAll();
           await this.setupTasksUI();
           await this.renderTasksList();
+          this._refreshClientSearch();
         },
         onServerData: async () => {
           await this.loadData();
           this.renderAll();
           await this.renderTasksList();
+          this._refreshClientSearch();
           Perf.markUI('UI atjaunināts pēc servera datiem');
         },
         onProgress: (msg) => {
@@ -266,19 +268,19 @@ class ControlPanel {
     const selectEl = document.getElementById(selectId);
     if (!searchEl || !selectEl) return;
 
-    const originalOptions = Array.from(selectEl.querySelectorAll('option'));
-
+    // Always read fresh options from the select element (not a snapshot)
+    // because loadData() populates it after setupUI().
     searchEl.addEventListener('input', () => {
       const term = searchEl.value.trim().toLowerCase();
+      const currentOptions = Array.from(selectEl.querySelectorAll('option'));
       selectEl.innerHTML = '';
-      const matches = originalOptions.filter(opt => {
+      const matches = currentOptions.filter(opt => {
         if (!opt.value) return true; // Always keep placeholder
         const text = opt.textContent.toLowerCase();
         return !term || text.includes(term);
       });
       matches.forEach(opt => selectEl.appendChild(opt.cloneNode(true)));
 
-      // Ja vienādi atbilst viens clients — atlasīt to automātiski
       const realMatches = matches.filter(o => o.value);
       if (term && realMatches.length === 1) {
         selectEl.value = realMatches[0].value;
@@ -287,14 +289,18 @@ class ControlPanel {
       }
     });
 
-    // Pēc atlasīšanas notīrīt meklēšanas lauku
     selectEl.addEventListener('change', () => {
       if (selectEl.value) {
         searchEl.value = '';
-        selectEl.innerHTML = '';
-        originalOptions.forEach(opt => selectEl.appendChild(opt.cloneNode(true)));
-        selectEl.value = selectEl.value;
       }
+    });
+  }
+
+  _refreshClientSearch() {
+    // Pēc datu ielādes atjauno meklēšanas laukus ar pilno opciju sarakstu
+    ['exportClientSearch', 'monthViewClientSearch'].forEach(searchId => {
+      const el = document.getElementById(searchId);
+      if (el) el.value = '';
     });
   }
 
