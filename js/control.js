@@ -282,9 +282,11 @@ class ControlPanel {
       matches.forEach(opt => selectEl.appendChild(opt.cloneNode(true)));
 
       const realMatches = matches.filter(o => o.value);
-      if (term && realMatches.length === 1) {
+      if (!term) {
+        selectEl.value = ''; // atgriezt uz placeholdru
+      } else if (realMatches.length === 1) {
         selectEl.value = realMatches[0].value;
-      } else if (term && realMatches.length > 1) {
+      } else if (realMatches.length > 1) {
         selectEl.value = '';
       }
     });
