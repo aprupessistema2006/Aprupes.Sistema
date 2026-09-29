@@ -40,7 +40,7 @@
   --med-trend-bg: #eef4fb;
   --med-ok: #0f5734;          /* ✅ normāli */
   --med-ok-bg: #eef9f2;
-  --med-ink: #0d0d0d;
+  --med-ink: #16212c;
   --med-mute: #3f4a5a;
   --med-line: #b6c1cc;        /* redzamas skaidras līnijas un malas */
 }
@@ -259,9 +259,8 @@
 
 .med-hint {
   font-size: 12px;
-  color: #000000;
+  color: var(--med-mute);
   padding: 6px 4px 0;
-  font-weight: 700;
 }
 .med-hint.small { font-size: 11px; padding-top: 2px; }
 
@@ -275,7 +274,7 @@
 .med-sum {
   font-size: 13px;
   font-weight: 700;
-  color: #000000;
+  color: var(--med-ink);
   background: #f2f5f8;
   border-radius: 8px;
   padding: 3px 8px;
@@ -287,9 +286,9 @@
 .med-client-reasons { display: flex; flex-direction: column; gap: 3px; }
 .med-reason {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.35;
-  color: #000000;
+  color: var(--med-ink);
 }
 .med-reason.crit { color: var(--med-crit); }
 .med-reason.warn { color: #b9770e; }
@@ -298,11 +297,11 @@
 .med-ok {
   background: #eafaf0;
   border: 1px solid #bfe8ce;
-  color: #000000;
+  color: #1e7a46;
   border-radius: 12px;
   padding: 14px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   text-align: center;
 }
 .med-ok.big { margin: 12px 0; }
@@ -417,19 +416,18 @@
 .med-detail-id h2 {
   margin: 0;
   font-size: 22px;
-  color: #000000;
+  color: var(--med-ink);
   line-height: 1.2;
 }
-.med-detail-meta { font-size: 13px; color: #000000; margin-top: 2px; font-weight: 600; }
-.med-detail-contact { font-size: 13px; color: #000000; margin-top: 2px; font-weight: 600; }
+.med-detail-meta { font-size: 13px; color: var(--med-mute); margin-top: 2px; }
+.med-detail-contact { font-size: 13px; color: var(--med-mute); margin-top: 2px; }
 
 .med-detail-date {
   font-size: 12px;
-  color: #000000;
+  color: var(--med-mute);
   margin: 10px 0 0;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--med-line);
-  font-weight: 700;
 }
 
 /* ── Klienta skats: 4 fiksēti bloki vienā secībā (spec §6) ─────────────── */
