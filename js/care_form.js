@@ -1551,37 +1551,77 @@ try {
   }
 
   // Pārliecina, ka šī klienta dati ir ielādēti pirms formas atvēršanas.
-  // Pirmkārt pārbauda IDB — ja _loadRecentMarks jsau ielādējis, dati jau ir.
-  // Ja nav — ielādē tikai šī klienta pēdējās 7 dienas.
+  //
+  // ⚠️ VECĀ BEZGAUMĒJUŠA KĻŪDA, kas pārtrauca redzēt kolēģa darbu:
+  //   if (clientHasRecent) return { marks: [], logs: [] };
+  // Tas pārtrauca servera izsaukumu, tiklīdz klientam IndexedDB ir VAINĀK
+  // VIENA veca rinda. Rezultāts: ja kolēģs ieraksta kaut ko, tā ierīce to
+  // vairs nekad neatgriež — pat mēnesi vēlāk. Klients liecina, ka nevar
+  // redzēt, ko darījis kolēģis.
+  //
+  // TAGAD: ja klientam NAV datu, mēs gaidām (formu nevar zīmēt tukšu).
+  // Ja dati IR, mēs zīmējam uzreiz no IndexedDB un atsvaidzinājam fonā, lai
+  // ātrums paliek tāds pats, bet dati ir svaigi.
+  //
+  // Atsvaidzināšana ņem TIKAI šodienas un vakara datumu. Tas ir maza izmaksa
+  // (`TextFinder` pēc klienta) un tas aptver visu, ko kolēģis var būt
+  // darījis šodien, ko arī sauc par klientu.
   async ensureClientDataLoaded() {
     if (!window.careSync || typeof window.careSync.loadClientRange !== 'function') return;
     if (!this.clientId) return;
-    if (this._clientDataLoaded) return;
     if (this._clientDataLoading) { return this._clientDataLoading; }
 
     // Pārbaudam, vai marks jau ir IDB (no _loadRecentMarks vai _loadMarksPaged)
     const existingMarks = await this.db.getAll('atzimes');
     const clientHasRecent = existingMarks.some(m =>
       (m.clientId === this.clientId || m.klientsId === this.clientId || m.klients_id === this.clientId || m.klientsId === this.clientId));
-    if (clientHasRecent) {
-      this._clientDataLoaded = true;
-      console.log('[care_form] Klients jau ir IDB (no _loadRecentMarks)');
-      return { marks: [], logs: [] };
+
+    if (!clientHasRecent) {
+      // ⚠️ Klientam vispār nav datu — bez ielādes forma būtu tukša un
+      // aprūpētājs varētu nejauši ierakstīt virs tukšas vietas.
+      const to = this.getToday();
+      const from = this.getOffsetDate(-7);
+      this._clientDataLoading = window.careSync.loadClientRange(this.clientId, from, to)
+        .then(r => {
+          this._clientDataLoaded = true;
+          console.log('[care_form] klienta dati ielādēti:', 'marks=' + (r.marks || []).length, 'logs=' + (r.logs || []).length);
+          return r;
+        })
+        .catch(e => {
+          console.warn('[care_form] klienta datu ielāde neizdevās:', e.message);
+          return null;
+        });
+      return this._clientDataLoading;
     }
 
-    const to = this.getToday();
-    const from = this.getOffsetDate(-7); // tikai 7 dienas — ātri, GAS neslogo
-    this._clientDataLoading = window.careSync.loadClientRange(this.clientId, from, to)
-      .then(r => {
-        this._clientDataLoaded = true;
-        console.log('[care_form] klienta dati ielādēti:', 'marks=' + (r.marks || []).length, 'logs=' + (r.logs || []).length);
-        return r;
-      })
-      .catch(e => {
-        console.warn('[care_form] klienta datu ielāde neizdevās:', e.message);
-        return null;
-      });
-    return this._clientDataLoading;
+    // Data jau ir — zīmēsim uzreiz, atsvaidzināsim fonā.
+    this._clientDataLoaded = true;
+    this._scheduleClientRefresh();
+    return { marks: [], logs: [] };
+  }
+
+  // Fonā ielādē šodienas un vakara datus un pārzīmē formu, ja kaut kas
+  // mainījās. Tas notiek AR ļoti mazu aizturi pēc pirmā zīmēšanas.
+  _scheduleClientRefresh() {
+    if (this._clientRefreshScheduled) return;
+    this._clientRefreshScheduled = true;
+    // 250 ms aizturi — lai pirmais zīmēšanas posms noteikti pabeidzas.
+    setTimeout(async () => {
+      const to = this.getToday();
+      const from = this.getOffsetDate(-1);   // vakars + šodiena
+      try {
+        const r = await window.careSync.loadClientRange(this.clientId, from, to);
+        const n = (r && r.marks ? r.marks.length : 0) + (r && r.logs ? r.logs.length : 0);
+        console.log('[care_form] fona atsvaidzināšana:', 'jaunās rindas=' + n);
+        if (!n) return;   // nekas jauns — nepārzīmējam liekā
+        await Promise.all([this.loadMarks(), this.loadHistory(), this.loadAllClientMarks()]);
+        this.renderForm();
+        this.renderHistory();
+        this.updateHospitalStatusUI();
+      } catch (e) {
+        console.warn('[care_form] fona atsvaidzināšana neizdevās:', e.message);
+      }
+    }, 250);
   }
 
   async loadAllClientMarks() {

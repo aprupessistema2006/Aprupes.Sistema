@@ -3,9 +3,9 @@ const CONFIG = {
   // Uzkopējama ar version.json un HTML ?v= parametriem. Šis lauks pats
   // nekur netiek lasīts (skripti izmanto version.json), bet tas ir jātur
   // saskaņots, lai neviens uz to nepaliekoties nepareizas versijas.
-  VERSION: '20260929-1048',
+  VERSION: '20260929-1441',
 
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbzISC61MA8nT8a00jY0EIYcpOfBeYQ1DALnkjIV7NaSNVMpjP74Z64RCWFxOSOXKr3r/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbwsW5xns0rOECVKku9HDwiLZ3gZydFSF9Kay6siW30eGc_LymwHMGFfsCJEd_pqi07xiA/exec',
 
   // ⚠️ Šis lauks klientā netiek lasīts — patieso nolasījumu dara
   // backend/gas_webhook.gs (SHEET_ID, 1. rinda). Šeit tas ir tikai

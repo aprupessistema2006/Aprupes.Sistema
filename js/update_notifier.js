@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20260929-1048';
+const BUILD_VERSION = '20260929-1441';
 
 class UpdateNotifier {
   constructor() {
@@ -37,6 +37,7 @@ class UpdateNotifier {
     this.versionParam = '?v=' + BUILD_VERSION;
     this.init();
     this.checkVersionOnPageLoad();
+    this.ensureReloadButton();
 
     // index.html inline pārbaude notiek pirms šī faila ielādes. Tā
     // atklāj versiju agrāk (pirms SW var pārķert), tāpēc tā atzīmē
@@ -205,6 +206,62 @@ class UpdateNotifier {
     btn.disabled = !!busy;
     btn.textContent = busy ? text : 'Atjaunot tagad';
     btn.style.opacity = busy ? '0.7' : '1';
+  }
+
+  // ── Vienmēr redzamā "ielādēt svaisto kodu" poga ───────────────────────────
+  //
+  // ⚠️ KĀPĒC ŠĪ POGA IR NEPIECIEŠAMA.
+  //
+  // Service worker kešo HTML un JS failus. Kad kods tiek izmainīts un
+  // atjaunināts uz GitHub, pārlūks turpina rādīt VECU versiju no kešas —
+  // lietotājs redz veco programmu un domā, ka izmaiņas "nestrādā".
+  // Bez šīs pogas vienīgais veids to notīrīt bija manuāli
+  // Ctrl+Shift+R, ko 65+ aprūpētājs nekad nedarīs.
+  //
+  // ⚠️ ŠĪ POGA INTENTIONĀLI NEDZĒŠ NEDAR KO.
+  //
+  // Atjauninājuma banera "Atjaunot tagad" (applyUpdate) tīra visu
+  // IndexedDB un visu kešu — tas ir liels, destruktīvs trieciens un to
+  // drīkst darīt TIKAI tad, ja ir apstiprināta jauna versija.
+  //
+  // Šī poga ir ikdienas lietošanai: tā pārlādē lapu ar
+  // ?v=force_update=1, kas liek apgalvot versijai un iztīrīt TIKAI
+  // kešu (nevis ierīces datus). Lietotāja ieraksti paliek neskartī.
+  ensureReloadButton() {
+    if (document.getElementById('freshReloadBtn')) return;
+    if (!document.body) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'freshReloadBtn';
+    btn.type = 'button';
+    btn.textContent = 'Ielādēt jaunāko versiju';
+    btn.title = 'Pārlādē lapu un ielādēt pašu jaunāko kodu. Jūsu ieraksti netiek dzēsti.';
+    btn.style.cssText = [
+      'position:fixed', 'right:12px', 'bottom:12px', 'z-index:99999',
+      'padding:9px 14px', 'border-radius:8px', 'cursor:pointer',
+      'border:1px solid #b9c4cf', 'background:#fff', 'color:#1f3b57',
+      'font-size:12px', 'font-weight:600', 'line-height:1.2',
+      'box-shadow:0 2px 8px rgba(0,0,0,.18)', 'max-width:180px'
+    ].join(';');
+
+    btn.addEventListener('click', () => {
+      btn.disabled = true;
+      btn.textContent = 'Ielādēju…';
+      try {
+        // Mēs negribām dzēst ierīces datus — tie ir aprūpes ieraksti.
+        // Tīrīm TIKAI kešu, lai nākamo reizi ielādētu jauno kodu.
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+        }
+      } catch (e) { /* nav SW — nav ko tīrīt */ }
+      const u = new URL(window.location.href);
+      u.searchParams.set('force_update', '1');
+      // Caur skriptu parametriem, lai pats HTML tiktu ielādēts svaigi,
+      // nevis no kešas (tam ir atšķirīgs URL).
+      window.location.replace(u.toString());
+    });
+
+    document.body.appendChild(btn);
   }
 
   // ── Atjaunināšana ────────────────────────────────────────────────────────
