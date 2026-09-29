@@ -258,44 +258,80 @@ class ControlPanel {
       onlyEdited.addEventListener('change', () => this.renderHistory());
     }
 
-    // Real-time client search — input virs select, filtrē opcijas rakstot
-    this._setupClientSearch('exportClientSearch', 'exportClient');
-    this._setupClientSearch('monthViewClientSearch', 'monthViewClient');
+    // Real-time client autocomplete — dropdown zem lauka
+    this._setupClientAutocomplete('exportClientSearch', 'exportClientList', 'exportClient');
+    this._setupClientAutocomplete('monthViewClientSearch', 'monthViewClientList', 'monthViewClient');
   }
 
-  _setupClientSearch(searchId, selectId) {
+  _setupClientAutocomplete(searchId, listId, hiddenId) {
     const searchEl = document.getElementById(searchId);
-    const selectEl = document.getElementById(selectId);
-    if (!searchEl || !selectEl) return;
+    const listEl = document.getElementById(listId);
+    const hiddenEl = document.getElementById(hiddenId);
+    if (!searchEl || !listEl || !hiddenEl) return;
 
-    // Always read fresh options from the select element (not a snapshot)
-    // because loadData() populates it after setupUI().
-    searchEl.addEventListener('input', () => {
-      const term = searchEl.value.trim().toLowerCase();
-      const currentOptions = Array.from(selectEl.querySelectorAll('option'));
-      selectEl.innerHTML = '';
-      const matches = currentOptions.filter(opt => {
-        if (!opt.value) return true; // Always keep placeholder
-        const text = opt.textContent.toLowerCase();
-        return !term || text.includes(term);
-      });
-      matches.forEach(opt => selectEl.appendChild(opt.cloneNode(true)));
+    let activeIndex = -1;
+    let currentResults = [];
 
-      const realMatches = matches.filter(o => o.value);
-      if (!term) {
-        selectEl.value = ''; // atgriezt uz placeholdru
-      } else if (realMatches.length === 1) {
-        selectEl.value = realMatches[0].value;
-      } else if (realMatches.length > 1) {
-        selectEl.value = '';
+    const render = () => {
+      if (!currentResults.length) {
+        listEl.innerHTML = '<div class="client-autocomplete-empty">Nav atrastu klientu</div>';
+        listEl.style.display = 'block';
+        return;
+      }
+      listEl.innerHTML = currentResults.map((c, i) => {
+        const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
+        return `<div class="client-autocomplete-item ${i === activeIndex ? 'active' : ''}" data-id="${c.id || c.ID}" data-name="${this.escapeHtml(name.trim())}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</div>`;
+      }).join('');
+      listEl.style.display = 'block';
+    };
+
+    const filter = (term) => {
+      const t = term.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (!t) {
+        currentResults = this.allClients;
+      } else {
+        currentResults = this.allClients.filter(c => {
+          const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return name.includes(t);
+        });
+      }
+      activeIndex = -1;
+      render();
+    };
+
+    const selectClient = (c) => {
+      hiddenEl.value = c.id || c.ID;
+      searchEl.value = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
+      listEl.style.display = 'none';
+      hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    searchEl.addEventListener('input', (e) => filter(e.target.value));
+
+    listEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.client-autocomplete-item');
+      if (!item) return;
+      const id = item.dataset.id;
+      const c = this.allClients.find(x => String(x.id || x.ID) === String(id));
+      if (c) selectClient(c);
+    });
+
+    searchEl.addEventListener('keydown', (e) => {
+      if (!currentResults.length) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = (activeIndex + 1) % currentResults.length; render(); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex = (activeIndex - 1 + currentResults.length) % currentResults.length; render(); }
+      if (e.key === 'Enter') { e.preventDefault(); if (activeIndex >= 0) selectClient(currentResults[activeIndex]); }
+      if (e.key === 'Escape') { listEl.style.display = 'none'; }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#' + searchId) && !e.target.closest('#' + listId)) {
+        listEl.style.display = 'none';
       }
     });
 
-    selectEl.addEventListener('change', () => {
-      if (selectEl.value) {
-        searchEl.value = '';
-      }
-    });
+    // Inicializēt ar visiem klientiem
+    filter('');
   }
 
   _refreshClientSearch() {

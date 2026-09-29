@@ -48,10 +48,11 @@
         <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="exportMonth" required></label>
         <div class="client-search-wrap">
           <span data-i18n="client">Klients</span>: 
-          <input type="text" id="exportClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
-          <select id="exportClient" required style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
-            <option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option>
-          </select>
+          <div class="client-autocomplete" id="exportClientAuto">
+            <input type="text" id="exportClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
+            <div class="client-autocomplete-list" id="exportClientList"></div>
+          </div>
+          <input type="hidden" id="exportClient" required>
         </div>
         <button id="exportBtn" class="btn-primary" data-i18n="exportExcel">📥 Lejupielādēt Excel</button>
       </div>
@@ -64,10 +65,11 @@
         <label><span data-i18n="month">Mēnesis</span>: <input type="month" id="monthViewMonth" required></label>
         <div class="client-search-wrap">
           <span data-i18n="client">Klients</span>: 
-          <input type="text" id="monthViewClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
-          <select id="monthViewClient" required style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
-            <option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option>
-          </select>
+          <div class="client-autocomplete" id="monthViewClientAuto">
+            <input type="text" id="monthViewClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
+            <div class="client-autocomplete-list" id="monthViewClientList"></div>
+          </div>
+          <input type="hidden" id="monthViewClient" required>
         </div>
         <button id="renderMonthView" class="btn-primary" data-i18n="renderMonth">👁️ Apskatīt</button>
       </div>
