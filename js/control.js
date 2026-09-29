@@ -255,6 +255,33 @@ class ControlPanel {
     if (onlyEdited) {
       onlyEdited.addEventListener('change', () => this.renderHistory());
     }
+
+    // Real-time client search for export and month view dropdowns
+    this._setupClientSearch('exportClientSearch', 'exportClient');
+    this._setupClientSearch('monthViewClientSearch', 'monthViewClient');
+  }
+
+  _setupClientSearch(searchId, selectId) {
+    const searchEl = document.getElementById(searchId);
+    const selectEl = document.getElementById(selectId);
+    if (!searchEl || !selectEl) return;
+
+    // Store original options
+    const originalOptions = Array.from(selectEl.querySelectorAll('option'));
+
+    searchEl.addEventListener('input', () => {
+      const term = searchEl.value.trim().toLowerCase();
+      selectEl.innerHTML = '';
+      originalOptions.forEach(opt => {
+        const text = opt.textContent.toLowerCase();
+        if (!term || text.includes(term)) {
+          selectEl.appendChild(opt);
+        }
+      });
+      // Restore selected value if still present
+      const selected = selectEl.querySelector(`option[value="${selectEl.dataset.selectedValue || ''}"]`);
+      if (selected) selected.selected = true;
+    });
   }
 
   setupLanguageSwitcher() {
