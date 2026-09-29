@@ -2162,6 +2162,33 @@ function handleMark(data) {
 // laikā tā ir bezmaksas (0 zvani).
 var _ensuredCols = {};
 
+// ⚠️ `_ensuredCols` ir kešs TIKAI vienas izpildes ietvaros. Katrs HTTP
+// pieprasījums ir jauna izpilde, tāpēc tas sākas tukšs, un `_diag` katrā
+// pieprasījumā rādīja `ensureColumns = 373–1396 ms` — 5 lapas × 2 zvani
+// pirms katra pieprasījuma, pat ja nekas netika mainīts.
+//
+// Šeit tiek pievienots PIESTĀVĪGS atzīmes: kad shēma ir pārbaudīta, tā
+// tiek atzīmēta Script Properties, un nākamie pieprasījumi to izlaiž.
+//
+// ⚠️ ŠĪ IR TIKAI DARĪT, KAD SHĒMA TIEK MAINĪTA. Katru reizi, kad kodā
+// pievieno vai noņem kolonnu, ir jāpiedaļina `SCHEMA_VERSION`. Tas ir
+// iespējama neuzticamības vieta: ja kāds manuāli izdzēs kolonnu, tas tiks
+// pamanīts tikai pēc šī īpašuma izdzēšanas. Savukārt, ja īpašums ir
+// nepareizs, rakstīšana aizietu nepareizā kolonnā.
+const SCHEMA_VERSION = 'v3';
+
+function _schemaReady() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty('aprupes_schema_' + SCHEMA_VERSION) === '1';
+  } catch (e) { return false; }
+}
+
+function _setSchemaReady() {
+  try {
+    PropertiesService.getScriptProperties().setProperty('aprupes_schema_' + SCHEMA_VERSION, '1');
+  } catch (e) { /* ignorējam — tad nākamais pieprasījums pārbaudīs vēlreiz */ }
+}
+
 // 🔧 Atgriež galvenes rindu (arī pēc kolonnu pievienošanas), ja tā tika
 // nolasīta, vai `null`, ja šī izpilde jau bija pārbaudījusi kolonnas.
 // Ātriem zvaniem tas nozīmē, ka galvenes rinda tiek nolasīta VIENREIZ,
@@ -2185,6 +2212,18 @@ function ensureColumns(sheet, requiredColumns) {
   }
   if (toCheck.length === 0) return null;   // ✅ 0 zvani
 
+  // ⚠️ Piestāvīgs ātrums. Ja shēma jau ir apstiprināta, katrai lapai nav
+  // jālasa galvenes rinda — tas noņem 2 zvanus uz katru no 5 lapām, un tas
+  // bija lielākais fiksētais izmaksas postenis katrā pieprasījumā.
+  //
+  // `toCheck.length > 0` ar no šeit ir Vecais skēns, kas pārbauda arī tās
+  // kolonnas, ko šī izpilde jau apstiprināja, bet kuras šī izpilde vēl nav
+  // atzīmējusi. Pēc pirmā pilnā pārbaudes šis ceļš vairs netiek izmantots.
+  if (_schemaReady() && toCheck.length === requiredColumns.length) {
+    for (var k = 0; k < toCheck.length; k++) seen[normalizeKey(toCheck[k])] = true;
+    return null;
+  }
+
   var lastCol = sheet.getLastColumn();
   if (lastCol < 1) return null; // Sheet is empty — no columns to inspect
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
@@ -2197,6 +2236,9 @@ function ensureColumns(sheet, requiredColumns) {
   // Atzīmējam pārbaudītās — arī tās, kas jau bija vietā, jo tās pēc tam
   // nevar izzust.
   for (var j = 0; j < toCheck.length; j++) seen[normalizeKey(toCheck[j])] = true;
+  // Shēma ir pārbaudīta visā, nevis tikai šajā izpildē — nākamie
+  // pieprasījumi to izlaiž (skatīt `_schemaReady`).
+  _setSchemaReady();
   // ⚠️ Atgriežam galveni ARĀ pievienotajām kolonnām. Ja atgrieztu
   // sākotnējo, kolonnu vārdnīca būtu neprecīza un rakstīšana aizietu
   // nepareizā kolonnā.
