@@ -1606,9 +1606,14 @@ function handleMark(data) {
   // 74 sekundes uz vienu `mark`. Tagad katrs posms ir redzams.
   _diag.notes.push('action=' + (data && data.action ? data.action : '?'));
 
+  // `ensureColumns` jau nolasīja galvenes rindu. Agrāk tā tika nolasīta
+  // VĒL REIZ, lai uzbūvētu kolonnu vārdnīcu — divas identiskas nolasīšanas
+  // uz katru no trim lapām, ~0,4 s katra uz šī servera.
+  let atzimesHeaders = null;
+  let logHeaders = null;
   _phase('ensureColumns', function () {
-    ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks', 'last_modified', 'version', 'atslēga']);
-    ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
+    atzimesHeaders = ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks', 'last_modified', 'version', 'atslēga']);
+    logHeaders = ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
   });
   _phase('ensureColumnsMark', function () {
     ensureColumns(klientiSheet, ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id']);
@@ -1661,8 +1666,10 @@ function handleMark(data) {
     const logLastRow = logSheet.getLastRow();
     
     // Build column maps once
-    const atzimesHeaders = atzimesSheet.getRange(1, 1, 1, atzimesSheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
-    const logHeaders = logSheet.getRange(1, 1, 1, logSheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    // ⚠️ Rezerve: ja `ensureColumns` šajā izpuldē neizpildīja galvenes
+    // rindu (tā jau bija pārbaudīta), to nolasām pašreizējā brīdī.
+    if (!atzimesHeaders) atzimesHeaders = atzimesSheet.getRange(1, 1, 1, atzimesSheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    if (!logHeaders) logHeaders = logSheet.getRange(1, 1, 1, logSheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
     const atzimesColMap = {};
     const logColMap = {};
     atzimesHeaders.forEach((h, i) => { atzimesColMap[normalizeKey(h)] = i; });
@@ -2017,8 +2024,14 @@ function handleMark(data) {
 // laikā tā ir bezmaksas (0 zvani).
 var _ensuredCols = {};
 
+// 🔧 Atgriež galvenes rindu (arī pēc kolonnu pievienošanas), ja tā tika
+// nolasīta, vai `null`, ja šī izpilde jau bija pārbaudījusi kolonnas.
+// Ātriem zvaniem tas nozīmē, ka galvenes rinda tiek nolasīta VIENREIZ,
+// nevis divreiz — vienu reizi šeit, otru tās pašas lapas kolonnu vārdnīcai.
+// Divas nolasīšanas bija tukšas tāpēc, ka katrs `getRange` uz šī servera
+// maksā ~0,4 s.
 function ensureColumns(sheet, requiredColumns) {
-  if (!sheet) return;
+  if (!sheet) return null;
   var key;
   try { key = sheet.getName(); } catch (e) { key = null; }
   if (!key) key = 'id_' + (sheet.getSheetId ? sheet.getSheetId() : 'x');
@@ -2032,10 +2045,10 @@ function ensureColumns(sheet, requiredColumns) {
     var c = requiredColumns[i];
     if (!seen[normalizeKey(c)]) toCheck.push(c);
   }
-  if (toCheck.length === 0) return;   // ✅ 0 zvani
+  if (toCheck.length === 0) return null;   // ✅ 0 zvani
 
   var lastCol = sheet.getLastColumn();
-  if (lastCol < 1) return; // Sheet is empty — no columns to inspect
+  if (lastCol < 1) return null; // Sheet is empty — no columns to inspect
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
   var missing = toCheck.filter(col => !headers.some(h => normalizeKey(h) === normalizeKey(col)));
   if (missing.length > 0) {
@@ -2046,6 +2059,10 @@ function ensureColumns(sheet, requiredColumns) {
   // Atzīmējam pārbaudītās — arī tās, kas jau bija vietā, jo tās pēc tam
   // nevar izzust.
   for (var j = 0; j < toCheck.length; j++) seen[normalizeKey(toCheck[j])] = true;
+  // ⚠️ Atgriežam galveni ARĀ pievienotajām kolonnām. Ja atgrieztu
+  // sākotnējo, kolonnu vārdnīca būtu neprecīza un rakstīšana aizietu
+  // nepareizā kolonnā.
+  return headers.concat(missing);
 }
 
 function handleCreateTask(data) {
