@@ -675,12 +675,60 @@ class CareSync {
     // vienīgais papildus datu ielādes ceļš; pārējo vēsturi ielādē tikai
     // konkrēta klienta atvēršanai.
     this.RECENT_DAYS = 3;
-    // Cik reižu var atkārtot sūtīšanu, pēc kā ieraksts vairs netiks
-    // nosūtīts un tiek pārcists uz sync_audit. To NEskait kā "nesaglabāts":
-    // ieraksts, kuru vairs nevar nosūtīt, joprojām ir ierīcē, bet arī
-    // nevar tikt pazaudēts, atkārtojot sinhronizāciju.
-    this.MAX_QUEUE_RETRIES = 5;
+    // ⚠️ ŠIS Limits vairs NEDARBOJAS un to nedrīkst atjaunot.
+    //
+    // Vecajā uzvedībā pēc 5 neizdevušiem mēģinājumiem ieraksts tika
+    // arhivēts un DZĒSTS no rindas. Ar 2 sekunžu intervāliem tas nozīmēja,
+    // ka ~7 sekunšu tīkla mirkšņis nezaudēja datus, kura patiesībā bija
+    // derīgi. Tagad pārejošas kļūdas (tīkls, timeout, nepieejamība)
+    // nekad nepārtrauk sūtīšanu — tās nav lēmums, tās ir "vēl nav".
+    this.MAX_QUEUE_RETRIES = 5;   // ⚠️ vairs netiek izmantots kā filtrs
     this._setupOfflineDetection();
+    this._startQueuePump();
+  }
+
+  // ── Fona sūtīšana ──────────────────────────────────────────────────────────
+  //
+  // ⚠️ KĀPĒC TAS VAJADZ (2026-09-29)
+  //
+  // Agrāk rindu apstrādāja TIKAI trīs brīžos: pēc saglabāšanas, pēc datu
+  // ielādes un `online` notikumā. Ja telefonā pārslāca no WiFi uz mobilo
+  // vai Signāls mirkst un atgriežas, NEKAD nenotika neviens no šiem
+  // trim brīžiem — ieraksts palika rindā līdz nākamajai lietotnes
+  // atvēršanai, kas aprūpētājai nozīmē "nepieciešams, bet nezināms".
+  //
+  // Šis pulkstis pārbauda rindu ik pēc minūtes un, ja kaut kas ir
+  // neizsūtīts, mēģina to atsūtīt. Tas notiek FONĀ, netraucē nevienu
+  // ekrānu un netērē enerģiju, ja rinda ir tukša — tad tiek izlasīts
+  // tikai skaitlis no IndexedDB.
+  _startQueuePump() {
+    if (this._queuePump) return;          // jau palaists
+    this._queuePump = setInterval(() => {
+      // Nevis Visible lapā vai jau strādā — neko darīt nevajag.
+      if (this._queueProcessing) return;
+      this.getUnsyncedCount()
+        .then(n => {
+          // Indikators jāatjaunina pat tad, ja neko nav ko sūtīt —
+          // citādi pēdējais ieraksts var palikt redzams, pat ja
+          // fona sūtīšana to jau ir panākusi.
+          this._renderUnsyncedBadge(n);
+          if (n > 0) this.processQueue().catch(() => {});
+        })
+        .catch(() => {});
+    }, 60_000);
+
+    // Lietotājs atgriežas pie ekrāna — tas ir brīdis, kurā ir visvairāk
+    // lietderīgi agresīvi mēģināt atsūtīt. Līdz šim tas notika tikai
+    // ielādē, kas uz telefonā var būt vairākas minūtes atpakaļ.
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        if (this._queueProcessing) return;
+        this.getUnsyncedCount()
+          .then(n => { if (n > 0) this.processQueue().catch(() => {}); })
+          .catch(() => {});
+      });
+    }
   }
 
   // ── Rindas stāvokļi ────────────────────────────────────────────────────────
@@ -719,11 +767,39 @@ class CareSync {
 
   // Vai šis rindas ieraksts tiek vēl sūtīts? Atbilde ir viens avots
   // gan skaitīšanai dialogā, gan rindas apstrādei.
+  //
+  // ⚠️ DATU ZUDUMA KĻŪDA, kas tika novērsta 2026-09-29
+  //
+  // Vecajā kodā bija arī šis:
+  //     if ((item.retries || 0) >= this.MAX_QUEUE_RETRIES) return false;
+  //
+  // Tā nozīmēja, ka pēc 5 mēģinājumiem ieraksts kļuva "miris" un
+  // `_purgeDeadQueueItems()` to arhivēja un DZĒSA no rindas. Ar
+  // `backoff = [800, 2000]` pieci mēģinājumi aizņem apmēram 7 sekundes —
+  // tātad TĪKLA MIRKŠĆIS UZ 10 SEKUNDĒM nezaudēja datus. Ne tikai
+  // neizdevās nosūtīt, bet gan pavisam izmeta aprūpes ierakstu, kura
+  // patiesībā bija derīgs, un `sync_audit` pat neuzglabāja vērtību —
+  // tikai ID, lauku un mēģinājumu skaitu.
+  //
+  // TIKAI servera GALĪGIE lēmumi var padarīt ierakstu galīgu. Tīkla
+  // kļūda, servera nepieejamība vai timeout nav galīgs lēmums — tas
+  // ir "vēl nav", un tāds ieraksts tiek sūtīts atkal un atkal, līdz
+  // tas patiešām nonāk Google Sheetā.
   isQueueItemPending(item) {
     if (!item) return false;
     if (CareSync.QUEUE_TERMINAL.has(item.status)) return false;
-    if ((item.retries || 0) >= this.MAX_QUEUE_RETRIES) return false;
     return true;
+  }
+
+  // Cik ilgi jāgaida pirms nākamā mēģinājuma. Pakāpeniski aug, lai
+  // neķildētu Google, bet NEKAD neapstājas.
+  //
+  // Vecajā skēns bija `Math.min(attempt, backoff.length - 1)` — tas
+  // nofiksēja intervālu uz 2 sekundēm uz visiem mēģinājumiem pēc trešā.
+  retryDelayMs(attempt) {
+    const a = Math.max(0, attempt - 1);
+    // 15 s → 30 s → 60 s → ... → 10 min
+    return Math.min(15_000 * Math.pow(2, a), 600_000);
   }
 
   // Iemesls, kāpēc ieraksts ir galīgs — glabājas sync_audit, lai
@@ -737,7 +813,7 @@ class CareSync {
       case 'KONFLIKTS': return 'server_has_newer';
       case 'BLOKKĒTS': return 'server_blocked';
       case 'NORAIDĪTS': return 'server_rejected';
-      default: return 'max_retries';
+      default: return 'unknown';
     }
   }
 
@@ -830,6 +906,90 @@ class CareSync {
       const event = new CustomEvent('syncStatusChange', { detail: status });
       window.dispatchEvent(event);
     } catch (e) {}
+  }
+
+  // ── Pastāvīgais "nav nosūtīts" indikators ────────────────────────────────
+  //
+  // ⚠️ KĀPĒC TAS NEVAR BŪT PAZIŅOJUMS
+  //
+  // Aprūpētājs strādā blakus klientam, nevis pie ekrāna. Ieskatoties uz
+  // telefonu, nevis uz Jāni. Īss paziņojums (2 sekundes) šeit ir nepiemērots:
+  // brīdinājums par to, ka dati vēl nav Google Sheetā, ir jābūt redzamam
+  // TIEKAM, kamēr tas ir aktuāls — nevis līdz paziņojums izgaist.
+  //
+  // Šis indikators:
+  //   • parādās TIKAI tad, kad ir neizsūtīti ieraksti;
+  //   • pazūd automātiski, tiklīdz rinda ir tukša;
+  //   • nav jāaizvērš ar roku — tas nav paziņojums;
+  //   • dod "Mēģināt tagad" pogu, lai negaidītu nākamo minūtes pārbaudi.
+  _renderUnsyncedBadge(count) {
+    if (typeof document === 'undefined' || !document.body) return;
+    const ID = 'unsyncedBadge';
+    let el = document.getElementById(ID);
+
+    if (!count || count <= 0) {
+      if (el) el.parentNode.removeChild(el);
+      return;
+    }
+
+    if (!el) {
+      el = document.createElement('div');
+      el.id = ID;
+      el.style.cssText = [
+        'position: fixed', 'bottom: 0', 'left: 0', 'right: 0',
+        'z-index: 10002',
+        'background: #B26A00', 'color: #fff',
+        'padding: 10px 14px',
+        'font-family: system-ui, -apple-system, "Segoe UI", sans-serif',
+        'font-size: 15px', 'font-weight: 600',
+        'display: flex', 'align-items: center', 'gap: 10px',
+        'flex-wrap: wrap',
+        'box-shadow: 0 -3px 12px rgba(0,0,0,0.28)',
+        'padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px))'
+      ].join(';');
+
+      const label = document.createElement('span');
+      label.style.cssText = 'flex: 1 1 auto; min-width: 160px;';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Mēģināt tagad';
+      btn.style.cssText = [
+        'background: #fff', 'color: #B26A00', 'border: none',
+        'padding: 9px 16px', 'border-radius: 8px',
+        'font-size: 15px', 'font-weight: 700', 'cursor: pointer'
+      ].join(';');
+      btn.addEventListener('click', () => {
+        btn.disabled = true;
+        btn.textContent = 'Sūtu…';
+        this.processQueue()
+          .catch(() => {})
+          .finally(() => { btn.disabled = false; btn.textContent = 'Mēģināt tagad'; });
+      });
+
+      el.appendChild(label);
+      el.appendChild(btn);
+      document.body.appendChild(el);
+    }
+
+    const label = el.firstChild;
+    if (label) {
+      label.textContent = count === 1
+        ? '⏳ 1 ieraksts vēl nav Google Sheetā'
+        : '⏳ ' + count + ' ieraksti vēl nav Google Sheetā';
+    }
+  }
+
+  // Atjaunina gan paziņojumu, gan pastāvīgo indikatoru. Izsauc no visur,
+  // kur mainās rindas stāvoklis.
+  async _refreshUnsyncedIndicator() {
+    try {
+      const n = await this.getUnsyncedCount();
+      this._renderUnsyncedBadge(n);
+      return n;
+    } catch (e) {
+      return 0;
+    }
   }
 
   async checkConnection() {
@@ -1341,12 +1501,12 @@ class CareSync {
           ', ' + Math.round(spent) + 'ms): ' + (e && e.message)
         );
 
-        if (attempt < attempts - 1) {
-          if (onProgress) {
-            try { onProgress('Pārbaudu savienojumu ar Google... (mēģinājums ' + (attempt + 2) + ')'); } catch (cbErr) {}
+          if (attempt < attempts - 1) {
+            if (onProgress) {
+              try { onProgress('Pārbaudu savienojumu ar Google... (mēģinājums ' + (attempt + 2) + ')'); } catch (cbErr) {}
+            }
+            await new Promise(r => setTimeout(r, this.retryDelayMs(attempt + 1)));
           }
-          await new Promise(r => setTimeout(r, backoff[Math.min(attempt, backoff.length - 1)]));
-        }
       }
     }
     throw lastErr;
@@ -1680,11 +1840,15 @@ class CareSync {
       await this._purgeDeadQueueItems();
       const items = (await this.db.getAll('sync_queue')).filter(i => this.isQueueItemPending(i));
       if (items.length === 0) {
+        this._renderUnsyncedBadge(0);
         this._updateSyncStatus(navigator.onLine ? 'Saglabāts' : 'Nav savienojuma');
         return summary;
       }
 
-      const MAX_RETRIES = this.MAX_QUEUE_RETRIES;
+      // ⚠️ `MAX_RETRIES` vairs NAV izmantojams kā filtrs. Vecajā kodā tas
+      // pēc 5 mēģinājumiem padarīja ierakstu galīgu un tas tika DZĒSTS.
+      // Tagad tīkla kļūda nekad nepārtrauk sūtīšanu — ieraksts paliek rindā
+      // tik ilgi, cik nepieciešams, līdz tas nonāk Google Sheetā.
       const sorted = items.slice().sort((a, b) => a.timestamp - b.timestamp);
       for (const item of sorted) {
         if (deadline && Date.now() > deadline) {
@@ -1797,14 +1961,20 @@ class CareSync {
           item.retries = (item.retries || 0) + 1;
           item.lastError = errorMsg;
           item.status = 'KĻŪDA';
-          if ((item.retries || 0) >= MAX_RETRIES) {
-            summary.permanentlyFailed++;
-          }
+          // ⚠️ Tīkla kļūda NAV galīga. Vecajā kodaj šeit bija
+          // `if (retries >= MAX_RETRIES) summary.permanentlyFailed++` —
+          // tas bija melīgs skaitītājs, jo patiesībā nekas nebija galīgs,
+          // ieraksts palika rindā un tika sūtīts atkal. Tagad šis
+          // skaitītājs ir NULLE, un tas precīzi atspoguļo, ka nekas
+          // nav neatgriezts neatgriezis.
           await this.db.put('sync_queue', item);
           summary.failed++;
         }
       }
       summary.remaining = await this.getUnsyncedCount();
+      // Indikators parādās uzreiz, nevis tikai dialoga iziešanas brīdī —
+      // aprūpētājs bieži neizmanto iziešanas dialogu vispār.
+      this._renderUnsyncedBadge(summary.remaining);
       const status = summary.remaining > 0 ? 'Gaida nosūtīšanu' : (navigator.onLine ? 'Saglabāts' : 'Nav savienojuma');
       this._updateSyncStatus(summary.synced || summary.failed
         ? status + ' (✓' + summary.synced + ' ✗' + summary.failed + ')'
