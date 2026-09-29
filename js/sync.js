@@ -88,7 +88,32 @@ function readTransportDead() {
 }
 
 const Transport = {
-  mode: 'fetch',              // 'fetch' | 'jsonp'
+  // ───────────────────────────────────────────────────────────────────────
+  // TRANSPORTA IEVĒLE (2026-09-29)
+  //
+  // ⚠️ KĀPĒC JSONP IR NOKLUSUMIS
+  //
+  // Mērījumi reālajā lietojumā (telefons + dators, viena un tā pati lapa):
+  //   • Visi RAKSTĪŠANAS pieprasījumi gāja caur JSONP un bija veiksmīgi.
+  //   • fetch uz telefona TIMEOUToja katru reizi (8s), pat tad, ja serveris
+  //     bija pilnīgi vesels un atbilda par 1,2–1,8s.
+  //   • Katrs neizdevušais fetch zondeja 8s (rakstīšana) vai 15s (lasīšana)
+  //     tukšas gaidīšanas pirms pārslēgšanās uz JSONP.
+  //   • Servera aukstais starts ir 4–9,3s, tāpēc ACTION_FETCH_TIMEOUT = 8s
+  //     uz lēnāku ierīci bija GARANTĒTS timeout, lai gan serveris bija vesels.
+  //
+  // JSONP izmanto <script> tagu — tam NAV CORS prasību, tāpēc tas strādā
+  // IDENTISKI uz telefonu, planšeti un datoru. Tas ir vienīgais transports,
+  // kura uzvedību var garantēt visās ierīcēs.
+  //
+  // LĒMUMS: JSONP ir noklusējums. fetch vairs netiek mēģināts PIRMS tam —
+  // mēs to izmantojam TIKAI kā rezerves ceļu, ja JSONP neizdodas. Tas
+  // noņem 8–15s kļūdas zondēšanu no katras ielādes.
+  //
+  // Ja kādreiz tomēr vēlēsies atgriezties uz fetch kā noklusējumu, tas ir
+  // VIENA rinda:  Transport.mode = 'fetch';
+  // ───────────────────────────────────────────────────────────────────────
+  mode: 'jsonp',              // 'jsonp' (noklusējums) | 'fetch'
   fetchFailures: 0,
   fetchOk: 0,
   jsonpOk: 0,
@@ -100,17 +125,15 @@ const Transport = {
 
     FETCH_TIMEOUT: 20000,       // bija 120000 — GAS aukstais starts ir 3–10s
     JSONP_TIMEOUT: 25000,       // bija 120000
-    // RAKSTĪŠANAI īsāks fetch probes. Aprūpētājs nospilda laukus un gaida
-    // apstiprinājumu — ja katrs ieraksts izmēģina 20 s fetch timeout un tad
-    // pārnes uz JSONP, desmit lauku saglabāšana izmaksā 200 s, un rindā
-    // paliek ieraksti, kas netika nosūtīti ("Ir nesaglabāti dati!").
-    // JSONP rakstīšanai strādāja stabili, tāpēc tam pietiek īss probes.
-    ACTION_FETCH_TIMEOUT: 8000,
-  // fetch IZMEKLĒŠANAS limits lasīšanai. Tas atbild uz jautājumu "vai
-  // CORS/404 bloķē fetch ceļu?", nevis "vai GAS būs ātrs?". Normāla
-  // aukstā sākuma ielāde mērīta 4.6–12.3s, tāpēc 15s aptver to bez
-  // ļaujot iztērēt visu 35s budžetu nekam, kas noteikti nedarbosies.
-  FETCH_PROBE_TIMEOUT: 15000,
+    // ⚠️ Šis Timeout bija 8000ms, bet novērotā realitāte ir 4–9,3s aukstajā
+    // startā un 1,2–1,8s silenī. Astes sekundes BEZ MARĒĶINĀJUMA nozīmēja,
+    // ka katrs rakstīšanas pieprasījums uz lēnāku ierīci tika nogadāts, lai
+    // gan serveris bija vesels — tāpēc rindas kavējās un parādījās kļūdas,
+    // kuras neko neizteica.
+    ACTION_FETCH_TIMEOUT: 20000,
+  // fetch limits lasīšanai (šis vairs netiek izmantots kā noklusējums,
+  // bet paliek, ja kāds manuāli pārslēdz uz fetch).
+  FETCH_PROBE_TIMEOUT: 20000,
     FETCH_FAILURES_BEFORE_STICKY: 2,
 
   shouldSkipFetch(url) {
@@ -177,7 +200,7 @@ const Transport = {
   },
 
   reset() {
-    this.mode = 'fetch';
+    this.mode = 'jsonp';
     this.fetchFailures = 0;
     this.fetchOk = 0;
     this.jsonpOk = 0;
@@ -202,13 +225,12 @@ const Transport = {
 
 if (typeof globalThis !== 'undefined') globalThis.Transport = Transport;
 
-// Atjaunotais lēmums jābūt redzams, nevis neredzams. Lietotājs redzēs
-// vienu rindu, un tā paskaidro, kāpēc ielāde neapmaksā 15s zondi.
-if (Transport.fetchKnownDead) {
+// transports lēmums jābūt redzams, nevis neredzams.
+if (Transport.mode === 'jsonp') {
   console.log(
-    '[sync] ⏩ TRANSPORTS: atjaunota atmiņa — fetch šai ierīcei neizdodas, ' +
-    'tāpēc sākam ar JSONP. Ielāde neapmaksās 15s izmeklēšanu. ' +
-    '(Lai aizmirstu: localStorage.removeItem("' + TRANSPORT_DEAD_KEY + '"))'
+    '[sync] ⏩ TRANSPORTS: JSONP (noklusējums). Tas strādā identiski uz ' +
+    'telefonu, planšeti un datoru, jo tam nav CORS prasību. ' +
+    '(fetch kā rezerve, ja JSONP neizdodas)'
   );
 }
 
@@ -346,36 +368,54 @@ async function requestData(url, timeout) {
     ? Transport.ACTION_FETCH_TIMEOUT
     : Math.min(Transport.FETCH_PROBE_TIMEOUT, budget);
 
-  if (!Transport.shouldSkipFetch(url)) {
-    try {
-      const result = await fetchRequest(jsonUrl, probeTimeout);
-      Transport.noteSuccess(true);
-      PERF.sub('transport', 'fetch', elapsed());
-      return result;
-    } catch (err) {
-      Transport.noteFetchFailure(url, err);
-      // Par to pašu ceļu brīdinām ne vairāk kā reizi 30 sekundēs, lai
-      // konsolē nerādītos desmiti identisku 404 rindu.
-      if (_throttleLog('jsonp-fallback:' + Transport._modeKey(url), 30000)) {
-        console.warn(
-          '[sync] fetch neizdevās (' + err.message + ' pēc ' + Math.round(probeTimeout / 1000) +
-          's) → pāreju uz JSONP. ' +
-          'Pēc ' + Transport.FETCH_FAILURES_BEFORE_STICKY + ' kļūdām transports tiks fiksēts uz JSONP visai sesijai.'
-        );
-      }
-    }
-  }
-
+  // JSONP ir NOKLUSĒJUMS (skat. Transport komentu). Tas strādā identiski
+  // uz telefonu, planšeti un datoru, jo <script> tagam nav CORS prasību.
+  //
   // jsonpRequest() pats pievieno callback parametru. Saņem TIKAI
   // atlikušo no sākotnējā budžeta, lai kopējais laiks nepārsniedz
   // izsauktāja ierobežojumu. Grīda ir 1000ms — zem tās pieprasījums
   // jebkurā gadījumā neatgrieztos, un tā tomēr ir mazāka par jebkuru
   // reālu budžetu (2000–35000ms).
   const remaining = Math.max(1000, budget - elapsed());
-  const data = await jsonpRequest(urlWithCacheBuster, remaining);
-  Transport.noteSuccess(false);
-  PERF.sub('transport', 'jsonp', elapsed());
-  return data;
+
+  if (Transport.mode !== 'fetch') {
+    try {
+      const data = await jsonpRequest(urlWithCacheBuster, remaining);
+      Transport.noteSuccess(false);
+      PERF.sub('transport', 'jsonp', elapsed());
+      return data;
+    } catch (jsonpErr) {
+      // JSONP neizdevās. Tas ir nega zīme — mēģinām fetch kā rezervi,
+      // lai mēs nekad nepaliktos bez datiem.
+      console.warn('[sync] JSONP neizdevās (' + jsonpErr.message +
+        '), mēģinu fetch kā rezerves ceļu.');
+      const fbTimeout = Math.max(3000, Math.min(Transport.FETCH_TIMEOUT, budget - elapsed()));
+      const data = await fetchRequest(jsonUrl, fbTimeout);
+      Transport.noteSuccess(true);
+      PERF.sub('transport', 'fetch (rezerve)', elapsed());
+      return data;
+    }
+  }
+
+  // Režīms 'fetch' (manuāli pārslēgts). Tas ir veco ceļu, ja kāds to vēlas.
+  try {
+    const result = await fetchRequest(jsonUrl, probeTimeout);
+    Transport.noteSuccess(true);
+    PERF.sub('transport', 'fetch', elapsed());
+    return result;
+  } catch (err) {
+    Transport.noteFetchFailure(url, err);
+    if (_throttleLog('jsonp-fallback:' + Transport._modeKey(url), 30000)) {
+      console.warn(
+        '[sync] fetch neizdevās (' + err.message + ' pēc ' + Math.round(probeTimeout / 1000) +
+        's) → pāreju uz JSONP.'
+      );
+    }
+    const data = await jsonpRequest(urlWithCacheBuster, Math.max(1000, budget - elapsed()));
+    Transport.noteSuccess(false);
+    PERF.sub('transport', 'jsonp', elapsed());
+    return data;
+  }
 }
 
 // Request deduplication — prevent parallel identical requests
