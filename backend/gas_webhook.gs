@@ -30,6 +30,9 @@ function formatSheetDateValue(headerKey, value) {
 // Tā mērīšana, nevis minēšana — lai redzētu, kur tiek pavadīts laiks.
 // ───────────────────────────────────────────────────────────────────────
 var _diag = { getRangeCalls: 0, cellsRead: 0, openById: 0, phases: {}, notes: [] };
+// Skripta sākuma laiks. Ļauj aprēķināt, cik daudz no kopējā laika iztika
+// ārpus izmērītajiem posmiem.
+var _startedAt = Date.now();
 
 function _t() { return new Date().getTime(); }
 
@@ -291,13 +294,22 @@ function wrapResponse(params, data) {
   // secinājumi par to, kāds kods ir izvietots, bija nepareizi, jo es
   // minēju, nevis mērīju.
   if (data && typeof data === 'object') {
+    // `totalMs` ir laiks no skripta sākuma. Salīdzinot ar `phasesMs`
+    // summu, tas rāda, cik daudz laika palika ārpus izmērītajiem
+    // posmiem — GAS palaišanā, tīkla zvanos un JSON apstrādē.
     data._diag = {
       getRangeCalls: _diag.getRangeCalls,
       cellsRead: _diag.cellsRead,
       openById: _diag.openById,
       phasesMs: _diag.phases,
       notes: _diag.notes,
-      sheetRows: _diag.sheetRows
+      sheetRows: _diag.sheetRows,
+      totalMs: Date.now() - _startedAt,
+      phasesSumMs: (function () {
+        let s = 0;
+        for (const k in _diag.phases) s += _diag.phases[k];
+        return s;
+      })()
     };
   }
   const json = JSON.stringify(data);
@@ -1441,24 +1453,47 @@ function _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m) {
     put(atz, atzimesSheet, lastColA, keyRow);
   }
 
-  // 3) Žurnāla rindas šai atzīmei (pirmā ar notikuma laiku — kā pirms tam)
-  if (keyRow > 0 && atzimesColMap['id'] !== undefined && logColMap['atzimes_id'] !== undefined) {
-    const markId = atz[keyRow - 2][atzimesColMap['id']];
-    if (markId) {
-      _phase('ctx_logForMark', function () {
-        putMany(log, logSheet, lastColL, _textFindAll(logSheet, logColMap['atzimes_id'] + 1, String(markId), 2));
-      });
-    }
-  }
-
-  // 4) Šī klienta visas žurnāla rindas (slimnica/status pārbaudē)
+  // 3) Šī klienta visas žurnāla rindas (slimnica/status pārbaudē).
+  //    ⚠️ Šis skēns TIEK darīts UZREZ, nevis atlikts. Slimnīcas statusa
+  //    pārbaude notiek PIRMS "vērtība tāda pati" atvārtes, tāpēc tā
+  //    atlikšana nozīmētu mainīt atbildi no `blocked` uz `already_processed`.
   if (m.clientId && logColMap['klients_id'] !== undefined) {
     _phase('ctx_logForClient', function () {
       putMany(log, logSheet, lastColL, _textFindAll(logSheet, logColMap['klients_id'] + 1, String(m.clientId), 2));
     });
   }
 
-  return { atzimesData: atz, logData: log };
+  // 4) Šī atzīmes žurnāla rindas.
+  //
+  //    ⚠️ Tās JĀBŪT jau ielādētas augstāk esošajā klienta skēnā. Katra
+  //    atzīmes žurnāla rinda satur arī `klients_id`, un atzīmes atslēga
+  //    arī ietver klienta id. Tāpēc "šai atzīmei" rindas ir TIEK ĀRVAL
+  //    no "šī klienta" rindām, un atsevišķs skēns būtu dublēts darbs
+  //    par ~1 s uz katru pieprasījumu.
+  //
+  //    Šis skēns paliek TIKAI degradētai situācijai, kad `klients_id`
+  //    kolonnas nav vispār un klienta skēns nevarēja notikt.
+  const markId = (keyRow > 0 && atzimesColMap['id'] !== undefined)
+    ? atz[keyRow - 2][atzimesColMap['id']]
+    : null;
+  const clientScanDone = logColMap['klients_id'] !== undefined;
+  let markLogLoaded = false;
+  const loadMarkLog = function () {
+    if (markLogLoaded || clientScanDone) return;
+    markLogLoaded = true;
+    if (!markId || logColMap['atzimes_id'] === undefined) return;
+    _phase('ctx_logForMark', function () {
+      putMany(log, logSheet, lastColL, _textFindAll(logSheet, logColMap['atzimes_id'] + 1, String(markId), 2));
+    });
+  };
+
+  return {
+    atzimesData: atz,
+    logData: log,
+    keyRow: keyRow,
+    markId: markId,
+    loadMarkLog: loadMarkLog
+  };
 }
 
 // Tā pati atslēga, bet no esošās rindas. ⚠️ Šeit `periods` NEDRĪKst saņemt
@@ -1571,8 +1606,10 @@ function handleMark(data) {
   // 74 sekundes uz vienu `mark`. Tagad katrs posms ir redzams.
   _diag.notes.push('action=' + (data && data.action ? data.action : '?'));
 
-  ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks', 'last_modified', 'version', 'atslēga']);
-  ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
+  _phase('ensureColumns', function () {
+    ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks', 'last_modified', 'version', 'atslēga']);
+    ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
+  });
   _phase('ensureColumnsMark', function () {
     ensureColumns(klientiSheet, ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id']);
   });
@@ -1610,10 +1647,12 @@ function handleMark(data) {
         }
       } else {
         // Register new operation — deduplication_valid_until = 180 dienas
-        registerOperation(
-          operationId, m.employeeId, 'mark',
-          m.clientId || null, m.lastModified || ''
-        );
+        _phase('registerOperation', function () {
+          registerOperation(
+            operationId, m.employeeId, 'mark',
+            m.clientId || null, m.lastModified || ''
+          );
+        });
       }
     }
 
@@ -1663,28 +1702,39 @@ function handleMark(data) {
       }
     }
 
-    // Find existing mark in memory
+    // Find existing mark.
+    // `_loadMarkContext` jau atrada rindu pēc atslēgas, un tā ir TĀ PATI
+    // rinda, ko atradtu šis cikls (abas ņem pirmo atbilsmi failā no
+    // augšas). Šeit vairs nav ko skēnot — 225 931 iterācijas velti.
     let existingMarkRow = -1;
     let existingMarkValue = '';
-    for (let i = 0; i < atzimesData.length; i++) {
-      if (String(atzimesData[i][atzimesColMap['klients_id']]) === String(m.clientId || '') &&
-          String(atzimesData[i][atzimesColMap['darbinieks_id']]) === String(m.employeeId || '') &&
-          String(atzimesData[i][atzimesColMap['datums']]) === String(m.date || '') &&
-          String(atzimesData[i][atzimesColMap['periods']]) === String(m.shift || 'R') &&
-          String(atzimesData[i][atzimesColMap['kategorija']]) === String(m.category || '') &&
-          String(atzimesData[i][atzimesColMap['lauka_nosaukums']]) === String(m.field || '')) {
-        existingMarkRow = i + 2; // +2 because data starts at row 2 (1-indexed, plus header)
-        existingMarkValue = String(atzimesData[i][atzimesColMap['vertiba']]);
-        break;
+    if (ctx.keyRow > 0) {
+      existingMarkRow = ctx.keyRow;
+      existingMarkValue = String(atzimesData[existingMarkRow - 2][atzimesColMap['vertiba']]);
+    } else if (atzimesColMap[MARK_KEY_COL] === undefined) {
+      // ⚠️ Rezerves variants: ja `atslēga` kolonnas vispār nav lapa,
+      // meklēšana pa atslēgu nevarēja notikt, tāpēc pārbaudām komponentus.
+      for (let i = 0; i < atzimesData.length; i++) {
+        if (String(atzimesData[i][atzimesColMap['klients_id']]) === String(m.clientId || '') &&
+            String(atzimesData[i][atzimesColMap['darbinieks_id']]) === String(m.employeeId || '') &&
+            String(atzimesData[i][atzimesColMap['datums']]) === String(m.date || '') &&
+            String(atzimesData[i][atzimesColMap['periods']]) === String(m.shift || 'R') &&
+            String(atzimesData[i][atzimesColMap['kategorija']]) === String(m.category || '') &&
+            String(atzimesData[i][atzimesColMap['lauka_nosaukums']]) === String(m.field || '')) {
+          existingMarkRow = i + 2; // +2 because data starts at row 2 (1-indexed, plus header)
+          existingMarkValue = String(atzimesData[i][atzimesColMap['vertiba']]);
+          break;
+        }
       }
     }
 
     const modificationTime = getModificationTimeFromPayload(m);
     const existingMarkData = existingMarkRow > 0 ? atzimesData[existingMarkRow - 2] : null;
     const existingMarkId = existingMarkData ? existingMarkData[atzimesColMap.id] : null;
-    const existingEventTime = existingMarkData
-      ? getEventTimeForExistingMark(existingMarkData, atzimesColMap, logData, logColMap, existingMarkId)
-      : null;
+    // Notikuma laiku rēķinām TIKAI rakstīšanas ceļā — skēns rādītajām
+    // žurnāla rindām maksā ~1 s, un lielākajā daļā pieprasījumu, kas
+    // šo ierakstu atkārto, rakstīšana vispār nenotiek.
+    let existingEventTime = null;
      const existingMarkVersion = existingMarkData
        ? (atzimesColMap['last_modified'] !== undefined ? String(existingMarkData[atzimesColMap['last_modified']]) : '')
        : '';
@@ -1714,12 +1764,6 @@ function handleMark(data) {
        // Server doesn't have last_modified yet for this mark — accept and set it
      }
 
-     const eventTime = getEventTimeFromPayload(m, existingEventTime || modificationTime, m.date);
-    const eventDateRiga = formatDate(eventTime);
-    const eventTimeRiga = formatTimeOnly(eventTime);
-    const eventDateTimeRiga = formatDateTimeLV(eventTime);
-    const modificationDateTimeRiga = formatDateTimeLV(modificationTime);
-
     const updates = []; // Batch updates to apply at once
 
     // Status toggle detection: category=slimnica, field=statuss
@@ -1728,7 +1772,9 @@ function handleMark(data) {
     // Server-side enforcement: if the client is currently in hospital, non-status
     // care marks must be rejected. Status toggles are always allowed.
     if (!isStatusToggle) {
-      const hospitalNow = getLatestClientStatus(logData, logColMap, m.clientId) || isClientHospitalRow(klientiSheet, m.clientId);
+      const hospitalNow = _phase('clientStatus', function () {
+        return getLatestClientStatus(logData, logColMap, m.clientId) || isClientHospitalRow(klientiSheet, m.clientId);
+      });
        if (hospitalNow) {
          if (operationId) {
            updateOperationResult(operationId, {
@@ -1743,6 +1789,24 @@ function handleMark(data) {
          };
        }
     }
+
+    // ───────────────────────────────────────────────────────────────────
+    // Notikuma laiks vajag TIKAI rakstīšanas ceļā. Žurnāla rindas šai
+    // atzīmei jau ir ielādētas ar klienta skēnu, tāpēc šeit parasti
+    // nekas nenotiek — ja nu vien klienta skēns nevarēja notikt.
+    // ───────────────────────────────────────────────────────────────────
+    if (existingMarkData) {
+      ctx.loadMarkLog();
+      existingEventTime = _phase('existingEventTime', function () {
+        return getEventTimeForExistingMark(existingMarkData, atzimesColMap, logData, logColMap, existingMarkId);
+      });
+    }
+
+    const eventTime = getEventTimeFromPayload(m, existingEventTime || modificationTime, m.date);
+    const eventDateRiga = formatDate(eventTime);
+    const eventTimeRiga = formatTimeOnly(eventTime);
+    const eventDateTimeRiga = formatDateTimeLV(eventTime);
+    const modificationDateTimeRiga = formatDateTimeLV(modificationTime);
 
     if (existingMarkRow > 0) {
       // Ja vērtība ir tā pati, neizveido duplikātu žurnāla ierakstu
