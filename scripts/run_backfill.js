@@ -26,19 +26,43 @@ if (!BASE) {
   process.exit(2);
 }
 
-function call(payload) {
+function call(payload, redirects = 0) {
   return new Promise((resolve, reject) => {
     const url = new URL(BASE);
     url.searchParams.set('data', JSON.stringify(payload));
     const t0 = Date.now();
-    https.get(url.toString(), res => {
+    const opts = {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AprupesBackfill/1.0',
+        'Accept': '*/*',
+        'Connection': 'close'
+      }
+    };
+    const req = https.get(url.toString(), opts, res => {
+      // GAS dažkārt atsūta 302 uz citu adresi. Bez sekošanas tam
+      // atbilde nonāk tukša un kļūda ir nesaprotama.
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        if (redirects >= 5) return reject(new Error('Pārāk daudz novirzīšanu'));
+        return resolve(call(payload, redirects + 1));
+      }
       let body = '';
+      res.setEncoding('utf8');
       res.on('data', d => (body += d));
       res.on('end', () => {
-        try { resolve({ json: JSON.parse(body), ms: Date.now() - t0 }); }
-        catch (e) { reject(new Error('Neatpārnesīga atbilde: ' + body.slice(0, 200))); }
+        const trimmed = body.replace(/^﻿/, '').trim();
+        if (res.statusCode !== 200 || trimmed === '') {
+          return reject(new Error(
+            `HTTP ${res.statusCode}, ${body.length} baiti. ` +
+            (trimmed === '' ? 'Tukša atbilde — parasti nozīmē GAS izpildes timeout (>6 min) vai pārāk liels viens paudiens.' : 'Atbilde: ' + trimmed.slice(0, 200))
+          ));
+        }
+        try { resolve({ json: JSON.parse(trimmed), ms: Date.now() - t0 }); }
+        catch (e) { reject(new Error('Neatpārnesīgs JSON: ' + trimmed.slice(0, 200))); }
       });
-    }).on('error', reject);
+    });
+    req.setTimeout(590000, () => { req.destroy(new Error('Laika limits (590s)')); });
+    req.on('error', reject);
   });
 }
 

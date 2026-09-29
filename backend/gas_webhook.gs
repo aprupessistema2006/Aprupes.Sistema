@@ -1391,9 +1391,11 @@ function _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m) {
 
   // 1) Dublējuma pārbaude pēc action_id
   if (m.actionId && atzimesColMap['action_id'] !== undefined) {
-    const r = _idxReady()
-      ? _textFindOne(atzimesSheet, atzimesColMap['action_id'] + 1, m.actionId, 2)
-      : _scanKeyFallback(atzimesSheet, atzimesColMap['action_id'] + 1, String(m.actionId));
+    const r = _phase('ctx_actionId', function () {
+      return _idxReady()
+        ? _textFindOne(atzimesSheet, atzimesColMap['action_id'] + 1, m.actionId, 2)
+        : _scanKeyFallback(atzimesSheet, atzimesColMap['action_id'] + 1, String(m.actionId));
+    });
     put(atz, atzimesSheet, lastColA, r);
   }
 
@@ -1401,15 +1403,19 @@ function _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m) {
   let keyRow = -1;
   if (atzimesColMap[MARK_KEY_COL] !== undefined) {
     const key = _markKeyOf(m);
-    keyRow = _idxReady()
-      ? _textFindOne(atzimesSheet, atzimesColMap[MARK_KEY_COL] + 1, key, 2)
-      : _scanKeyFallback(atzimesSheet, atzimesColMap[MARK_KEY_COL] + 1, key);
+    keyRow = _phase('ctx_markKey', function () {
+      return _idxReady()
+        ? _textFindOne(atzimesSheet, atzimesColMap[MARK_KEY_COL] + 1, key, 2)
+        : _scanKeyFallback(atzimesSheet, atzimesColMap[MARK_KEY_COL] + 1, key);
+    });
     // ⚠️ Ja atslēgas meklēšana neko neatradusi UN indekse vēl nav pilnīgs,
     // tā vēl nenozīmē, ka ieraksta nav — tā var būt legacy rinda bez
     // atslēgas. Tādā gadījumā meklējam pēc komponentēm, lai NEJAUBLĒ
     // esošu klīnisko ierakstu.
     if (keyRow === -1 && !_idxReady()) {
-      keyRow = _scanCompositeFallback(atzimesSheet, atzimesColMap, m);
+      keyRow = _phase('ctx_componentFallback', function () {
+        return _scanCompositeFallback(atzimesSheet, atzimesColMap, m);
+      });
     }
     put(atz, atzimesSheet, lastColA, keyRow);
   }
@@ -1418,15 +1424,19 @@ function _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m) {
   if (keyRow > 0 && atzimesColMap['id'] !== undefined && logColMap['atzimes_id'] !== undefined) {
     const markId = atz[keyRow - 2][atzimesColMap['id']];
     if (markId) {
-      _textFindAll(logSheet, logColMap['atzimes_id'] + 1, String(markId), 2)
-        .forEach(r => put(log, logSheet, lastColL, r));
+      _phase('ctx_logForMark', function () {
+        _textFindAll(logSheet, logColMap['atzimes_id'] + 1, String(markId), 2)
+          .forEach(r => put(log, logSheet, lastColL, r));
+      });
     }
   }
 
   // 4) Šī klienta visas žurnāla rindas (slimnica/status pārbaudē)
   if (m.clientId && logColMap['klients_id'] !== undefined) {
-    _textFindAll(logSheet, logColMap['klients_id'] + 1, String(m.clientId), 2)
-      .forEach(r => put(log, logSheet, lastColL, r));
+    _phase('ctx_logForClient', function () {
+      _textFindAll(logSheet, logColMap['klients_id'] + 1, String(m.clientId), 2)
+        .forEach(r => put(log, logSheet, lastColL, r));
+    });
   }
 
   return { atzimesData: atz, logData: log };
@@ -1796,15 +1806,19 @@ function handleMark(data) {
       const logRow = buildLogRow(logHeaders, logColMap, logRowData);
       
       // Apply all updates at once
-      updates.forEach(u => u.sheet.getRange(u.row, u.col).setValue(u.value));
-      
+      _phase('write', function () {
+        updates.forEach(u => u.sheet.getRange(u.row, u.col).setValue(u.value));
+      });
+
       // Append log row
-      if (logData.length > 0) {
-        logSheet.getRange(logLastRow + 1, 1, 1, logHeaders.length).setValues([logRow]);
-      } else {
-        logSheet.getRange(2, 1, 1, logHeaders.length).setValues([logRow]);
-      }
-      
+      _phase('writeLog', function () {
+        if (logData.length > 0) {
+          logSheet.getRange(logLastRow + 1, 1, 1, logHeaders.length).setValues([logRow]);
+        } else {
+          logSheet.getRange(2, 1, 1, logHeaders.length).setValues([logRow]);
+        }
+      });
+
       SpreadsheetApp.flush();
 
       // Keep the client's hospital status in sync (source of truth for other devices)
@@ -1877,12 +1891,16 @@ function handleMark(data) {
     const logRow = buildLogRow(logHeaders, logColMap, logRowData);
 
     // Write both rows at once
-    atzimesSheet.getRange(atzimesLastRow + 1, 1, 1, atzimesHeaders.length).setValues([markRow]);
-    if (logData.length > 0) {
-      logSheet.getRange(logLastRow + 1, 1, 1, logHeaders.length).setValues([logRow]);
-    } else {
-      logSheet.getRange(2, 1, 1, logHeaders.length).setValues([logRow]);
-    }
+    _phase('write', function () {
+      atzimesSheet.getRange(atzimesLastRow + 1, 1, 1, atzimesHeaders.length).setValues([markRow]);
+    });
+    _phase('writeLog', function () {
+      if (logData.length > 0) {
+        logSheet.getRange(logLastRow + 1, 1, 1, logHeaders.length).setValues([logRow]);
+      } else {
+        logSheet.getRange(2, 1, 1, logHeaders.length).setValues([logRow]);
+      }
+    });
     
     SpreadsheetApp.flush();
 
