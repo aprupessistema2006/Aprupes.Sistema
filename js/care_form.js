@@ -214,11 +214,17 @@ class CareFormController {
       if (overlay) overlay.style.display = 'flex';
       return; // Don't render
     } finally {
-      // ⚠️ Pārklājumu nedrīkst slēpt, ja forma NAV zīmēta. Vecajā kodā
-      // `finally` vienmēr slēpa to, tāpēc arī bloķējošais kļūdas ekrāns
-      // nekad netika redzams — lietotājs redzēja tukšu formu ar
-      // "Ielādēju datus..." un nullēm, un nevarēja saprast, kas notiek.
-      if (overlay && !this._renderedForm) overlay.style.display = 'none';
+      // ⚠️ Pārklājumu drīkst slēpt TIKAI tad, ja forma ir zīmēta.
+      //
+      // Vecajā kodā bija `!this._renderedForm` — tas bija apvērts:
+      //   • veiksmīga ielāde → forma zīmēta → pārklājums PALIKA redzams
+      //     uz ekrāna uz visiem laikiem, rādot pēdējo ziņojumu
+      //     ("✓ Klienti ielādēti.") — tā ir tā pastāvīgā ritināšana;
+      //   • kļūda → forma nav zīmēta → pārklājums tika PASLĒPTS,
+      //     tāpēc bloķējošais kļūdas ekrāns nekad netika redzams.
+      //
+      // Tagad nosacījums ir tāds, kāds bija nodomāts.
+      if (overlay && this._renderedForm) overlay.style.display = 'none';
       this._initialLoadDone = true;
     }
 
