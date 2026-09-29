@@ -705,10 +705,25 @@ function handleLoadData(params) {
     const nRows = lastRow - 1;
     if (_diag.sheetRows === undefined) _diag.sheetRows = {};
     _diag.notes.push('rows=' + nRows + ' filterCols=' + cols.length + ' reverse=' + reverseScan);
-    // ⚠️ Kolonnu MASĪVS tiek lasīts TIKAI tieva skenēšanas režīmā. Apgrieztajā
-    // režīmā lasām tikai logu, tāpē pilnas kolonnas lasīšana būtu tukša
+    // ⚠️ Klienta filtrs tiek atrisināts ar `TextFinder`, nevis ar pilnas
+    // kolonnas lasīšanu. Tas ir tāds pats paņēmiens kā `mark` ceļā: 225 930
+    // šūnas tiek lasītas tikai tad, ja klientam patiešām nav atbilstošu rindu.
+    // Ar `TextFinder` mēs iegūstam TIKAI rindu numurus, un datuma filtrs
+    // tiek piemērots tām rindām, nevis visai kolonnai.
+    //
+    // ⚠️ `TextFinder` izmantojam arī tad, ja filtrs ir pēc DARBINIEKA vai
+    // abiem vienlaikus. Agrāk šis ceļš tika atstāts vejam, jo divas
+    // `TextFinder` meklēšanas bija dārgākas par vienu pilnu kolonnu.
+    // Slodzes tests pierādīja, ka tas bija nepareizs lēmums: 180 000
+    // rindās vecais ceļš nolasīja 367 701 šūnu, lai atrastu 450 rindas.
+    // Šeit DARBINIEKA kolonnas šūnas tiek lasītas tikai kandidāta rindām,
+    // tāpēc papildu maksa ir ierobežota ar klienta ierakstu skaitu, nevis
+    // ar vispārējo rindu skaitu.
+    const useFinder = needClient || needEmp;
+    // ⚠️ Kolonnu MASĪVS tiek lasīts TIKAI vecajā skenēšanas režīmā. Apgrieztajā
+    // režīmā lasām tikai logu, tāpēc pilnas kolonnas lasīšana būtu tukša
     // darbība, kas patērētu 18 sekundes katrai lapai.
-    const colVals = reverseScan ? null : _phase('scanFilterCols', function () {
+    const colVals = (reverseScan || useFinder) ? null : _phase('scanFilterCols', function () {
       return cols.map(c => {
         if (c.date) return sheet.getRange(2, c.i + 1, nRows, 1).getValues().map(r => normalizeDateCell(r[0]));
         return sheet.getRange(2, c.i + 1, nRows, 1).getValues().map(r => String(r[0]).trim());
@@ -806,6 +821,129 @@ function handleLoadData(params) {
         windowSize = Math.min(nRows, windowSize * 2);
         _diag.notes.push('logu paplašināju līdz rindai ' + lo);
       }
+    } else if (useFinder) {
+      // ⚠️ ŠIS ir galvenais `load` optimizācijas punkts. Vecais ceļš lasīja
+      // `klients_id` un `darbinieks_id` kolonnas PILNĪBĀ (225 930 šūnas katra)
+      // tikai tāpēc, lai atrastu apmēram 2000 rindas. `TextFinder` atgriež
+      // rindas tieši faila secībā, bez šūnu nolasīšanas.
+      //
+      // Mēs vienmēr sākam no KLIENTA, ja tāds filtrs ir — tas parasti ir
+      // daudz selektīvāks par darbinieku, tāpēc kandidātu saraksts ir
+      // īsāks un visas turpmākās šūnu nolasīšanas ir lētākas.
+      const tFind = _t();
+      const cand = needClient
+        ? _textFindAll(sheet, idxClient + 1, String(filters.clientId).trim(), 2)
+        : _textFindAll(sheet, idxEmp + 1, String(filters.employeeId).trim(), 2);
+      _diag.phases.textFindRows = (_diag.phases.textFindRows || 0) + (_t() - tFind);
+      _diag.notes.push('textFind kandidāti=' + cand.length);
+
+      // ⚠️ Ja filtrs ir pēc ABIEVIEM, pārējā kolonnas vērtības tiek pārbaudītas
+      // katrai kandidāta rindai. Tas ir lētāk par pilnu kolonnas lasīšanu
+      // TIKAI tad, ja kandidātu ir ievērojami mazāk nekā rindu — un tas
+      // vienmēr ir tāds gadījums, jo klienta ieraksti ir daļa no kopējā.
+      // Ja kandidātu ir ļoti daudz, lasām pārējo kolonnu pilnībā — tas ir
+      // ātrāk par tūkstošiem atsevišķiem zvaniem.
+      const secondIdx = needClient && needEmp ? idxEmp : -1;
+      const secondVal = secondIdx >= 0 ? String(filters.employeeId).trim() : '';
+      const needSecond = secondIdx >= 0 && cand.length > 0;
+
+      // `cand` jau ir augšupejošā secībā (faila secībā), tāpē secība, ko
+      // atgriež šis ceļš, ir IDENTISKA vecajam skaidruma lasījumam: tās pašas
+      // rindas, tāds pats `offset`/`limit` izvēlējums, pats `exhausted`.
+      if (!needDate && !needSecond) {
+        // Nav papildu filtru — visas atrastās rindas derīgas.
+        for (let i = 0; i < cand.length && matchRows.length < target; i++) {
+          matchRows.push(cand[i]);
+        }
+      } else {
+        // ⚠️ Šeit ir divi konkurējoši varianti:
+        //   A) PARTIJAS: lasām tikai kandidāta rindas, contīgās grupas.
+        //      Šūnas ir maz, bet ZVANU skaits = contīgo grupu skaits, un
+        //      izkaisītu rindu gadījumā katra grupa ir garuma 1.
+        //   B) PILNA KOLONNA: `batchCols.length` zvani, bet katrs lasa
+        //      `nRows` šūnas.
+        //
+        // Es apzināti NELIETOJU izmaksu modeli, lai izvēlētos starp šiem.
+        // Divi mēģinājumi to darīt (kandidātu skaits pret `nRows / 4`, tad
+        // kalibrēts laika modelis) abi kļuva neuzticami, jo pircēju
+        // faktiskās latencies nav izmērījamas bez dzīva servera. Tā vietā
+        // tiek izmantots skaidrs, pārbaudāms SLIEKSNIS uz zvanu skaitu.
+        const batchCols = [];
+        if (needDate) batchCols.push({ i: idxDate, date: true });
+        if (needSecond) batchCols.push({ i: secondIdx, val: secondVal });
+
+        // Skaitām contīgo grupu skaitu, neizdarot nevienu `getRange` zvanu.
+        let runCount = 0;
+        for (let i = 0; i < cand.length; i++) {
+          if (i === 0 || cand[i] !== cand[i - 1] + 1) runCount++;
+        }
+        // 200 zvani uz vienu HTTP pieprasījumu ir drošs augstāko robežu:
+        // pat 2 s uz zvanu tas ir 6–7 minūtes, kas ir pārāk daudz, un pat
+        // 0,2 s uz zvanu tas ir 40 s, kas arī pārāk daudz. Tāpēc virs šī
+        // skaita mēs katru gadījumu izmantojam pilno kolonnu.
+        const MAX_RUNS = 200;
+        const useBatch = runCount * batchCols.length <= MAX_RUNS;
+        _diag.notes.push('kandidāti=' + cand.length + ' grupas=' + runCount +
+          ' zvani=' + (runCount * batchCols.length) + ' -> ' +
+          (useBatch ? 'partijas' : 'pilna kolonna'));
+        if (!useBatch) {
+          // Kandidāti ir pārāk izkaisīti, lai partijas būtu lētākas — lasām
+          // nepieciešamās kolonnas pilnībā, lai izvairītos no tūkstošiem zvaniem.
+          const full = _phase('scanFilterCols', function () {
+            return batchCols.map(c => {
+              if (c.date) return sheet.getRange(2, c.i + 1, nRows, 1).getValues().map(r => normalizeDateCell(r[0]));
+              return sheet.getRange(2, c.i + 1, nRows, 1).getValues().map(r => String(r[0]).trim());
+            });
+          });
+          _diag.getRangeCalls += batchCols.length;
+          _diag.cellsRead += batchCols.length * nRows;
+          for (let i = 0; i < cand.length && matchRows.length < target; i++) {
+            const row = cand[i];
+            let ok = true;
+            for (let k = 0; k < batchCols.length; k++) {
+              const v = full[k][row - 2];
+              if (batchCols[k].date) {
+                if (!v) { ok = false; break; }
+                if (filters.dateFrom && v < filters.dateFrom) { ok = false; break; }
+                if (filters.dateTo && v > filters.dateTo) { ok = false; break; }
+              } else if (v !== batchCols[k].val) { ok = false; break; }
+            }
+            if (ok) matchRows.push(row);
+          }
+        } else {
+          let i = 0;
+          while (i < cand.length && matchRows.length < target) {
+            const runStart = cand[i];
+            let j = i;
+            while (j + 1 < cand.length && cand[j + 1] === cand[j] + 1 && matchRows.length < target) j++;
+            const cnt = j - i + 1;
+
+            const tD = _t();
+            const dvals = (needDate
+              ? sheet.getRange(runStart, idxDate + 1, cnt, 1).getValues().map(r => normalizeDateCell(r[0]))
+              : null);
+            const svals = (needSecond
+              ? sheet.getRange(runStart, secondIdx + 1, cnt, 1).getValues().map(r => String(r[0]).trim())
+              : null);
+            _diag.phases.scanFilterCols = (_diag.phases.scanFilterCols || 0) + (_t() - tD);
+            _diag.getRangeCalls += (dvals ? 1 : 0) + (svals ? 1 : 0);
+            _diag.cellsRead += cnt * ((dvals ? 1 : 0) + (svals ? 1 : 0));
+
+            for (let k = 0; k < cnt && matchRows.length < target; k++) {
+              if (dvals) {
+                const v = dvals[k];
+                if (!v) continue;
+                if (filters.dateFrom && v < filters.dateFrom) continue;
+                if (filters.dateTo && v > filters.dateTo) continue;
+              }
+              if (svals && svals[k] !== secondVal) continue;
+              matchRows.push(runStart + k);
+            }
+            i = j + 1;
+          }
+        }
+      }
+      exhausted = matchRows.length < target;
     } else {
       for (let i = 0; i < nRows && matchRows.length < target; i++) {
         let ok = true;
