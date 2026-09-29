@@ -336,6 +336,7 @@ function routeActionData(data) {
     if (action === 'updateClient') return handleUpdate(data, 'klienti');
     if (action === 'updateEmployee') return handleUpdate(data, 'darbinieki');
     if (action === 'mark') return handleMark(data);
+    if (action === 'backfill_keys') return handleBackfillKeys(data);
   if (action === 'setShift') return handleSetShift(data);
     if (action === 'createTask') return handleCreateTask(data);
     if (action === 'updateTask') return handleUpdateTask(data);
@@ -1190,6 +1191,341 @@ function handleSetShift(data) {
   return { success: true, changed: true, maina_tips: shift, employeeId: empId };
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// ĀTRĀ RINDU MEKLĒŠANA — bez lapas nolasīšanas uz klientu
+// ───────────────────────────────────────────────────────────────────────
+// Problēma: `mark` katrā pieprasījumā nolasīja DIVAS lapas pilnībā —
+// 225 930 rindas × 17 kolonnas ≈ 7,7 milj. šūnu — lai atrastu vienu
+// ierakstu. Tas ir ~52 sekundes, un tas nav izmērojams uz lejup: pat
+// šaura 6 kolonnu skēne nozīmē 1,35 milj. šūnu ≈ 17 s.
+//
+// Risinājums: meklēšana notiek SERVERA pusē, tāpēc klientam pārsūta
+// tikai atrastās rindas, nevis visu lapu.
+//
+//  1. `atslēga` kolonna — deterministiska atslēga vienai atzīmei
+//     (klients|darbinieks|datums|periods|kategorija|lauks).
+//  2. `TextFinder` ar `matchEntireCell` → serveris atgriež pozīciju,
+//     nevis šūnu vērtības. Klientam nonāk tikai viena rinda.
+//
+// ⚠️ SEMANTIKA SAGLABĀTA. `TextFinder.findNext()` devina rindas
+// failā no augšas uz leju, tieši tāpat kā vecais cikls
+// `for (let i = 0; i < data.length; i++)`. Tātad gadījumā, kad
+// dublējumi eksistē, mēs joprojām ņemam VECĀKO rindu, nevis jaunāko —
+// tāpat kā pirms tam. Tas nav nejaušība, tā ir bijušā uzvedība.
+//
+// Rezerve: ja `atslēga` kolonna vēl nav aizpildīta visām rindām,
+// `_idxReady()` ir false un tiek izmantota šauru kolonnu skēne, kas
+// strādā pareizi, bet ir lēna. Tāpēc pēc izvietošanas jāpalaiž
+// `backfill_keys` vienu reizi — pēc tam indekse ir pilnīgs.
+// ───────────────────────────────────────────────────────────────────────
+
+// Visām neielādētajām rindām: viena koplietojama tukša rinda, lai
+// masīvs būtu indeksējams ar absolūtiem rindas numuriem, bet bez
+// 225 930 atsevišķu masīvu atmine.
+// ⚠️ `normalizeKey()` noņem rakstu zīmes, tāpēc 'atslēga' → 'atslega'.
+// Kolonnas taustiņi visur tiek ņemti ŠO formu. Rakstīt `colMap['atslēga']`
+// ir klusa kļūda: tā vienmēr ir `undefined`, kolonna netiek izmantota un
+// esošs ieraksts tiek dublēts. Šī konsta novērš tieši to.
+var MARK_KEY_COL = 'atslega';
+
+var _EMPTY_ROW = [];
+
+function _sparseRows(lastRow) {
+  const n = Math.max(0, lastRow - 1);
+  const a = new Array(n);
+  for (let i = 0; i < n; i++) a[i] = _EMPTY_ROW;
+  return a;
+}
+
+// Deterministiska atslēga vienai atzīmei. Nemainās, jo visas tā
+// sastāvdaļas (klients, darbinieks, datums, periods, kategorija, lauks)
+// ieraksta dzīvē nevar mainīties — mainās tikai `vertiba`.
+function _markKeyOf(m) {
+  return [
+    'k1',
+    String(m.clientId || '').trim(),
+    String(m.employeeId || '').trim(),
+    String(m.date || '').trim(),
+    String(m.shift || 'R').trim(),
+    String(m.category || '').trim(),
+    String(m.field || '').trim()
+  ].join('|');
+}
+
+function _idxReady() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty('atzimes_key_index_v1') === '1';
+  } catch (e) { return false; }
+}
+
+function _setIdxReady(v) {
+  try {
+    PropertiesService.getScriptProperties().setProperty('atzimes_key_index_v1', v ? '1' : '0');
+  } catch (e) { /* ignorējam */ }
+}
+
+// Servera puses meklēšana. Atgriež rindas ABSOLŪTO numuru vai -1.
+function _textFindOne(sheet, col, value, fromRow) {
+  if (!sheet || col === undefined || value === null || value === undefined) return -1;
+  const v = String(value);
+  if (v === '') return -1;
+  try {
+    const n = sheet.getMaxRows() - fromRow + 1;
+    if (n <= 0) return -1;
+    const hit = sheet.getRange(fromRow, col, n, 1)
+      .createTextFinder(v)
+      .matchCase(true)
+      .matchEntireCell(true)
+      .useRegularExpression(false)
+      .findNext();
+    return hit ? hit.getRow() : -1;
+  } catch (e) {
+    return -1;
+  }
+}
+
+// Servera puses meklēšana — visas atbilsmes faila secībā (augšas→lejas).
+function _textFindAll(sheet, col, value, fromRow) {
+  const out = [];
+  if (!sheet || col === undefined || value === null || value === undefined) return out;
+  const v = String(value);
+  if (v === '') return out;
+  try {
+    const n = sheet.getMaxRows() - fromRow + 1;
+    if (n <= 0) return out;
+    const finder = sheet.getRange(fromRow, col, n, 1)
+      .createTextFinder(v)
+      .matchCase(true)
+      .matchEntireCell(true)
+      .useRegularExpression(false);
+    let hit = finder.findNext();
+    let guard = 0;
+    while (hit && guard < 50000) {
+      out.push(hit.getRow());
+      hit = finder.findNext();
+      guard++;
+    }
+  } catch (e) { /* daļēji atrastās rindas tiek atgrieztas tādas kādas */ }
+  return out;
+}
+
+// Rezerves meklēšana pirms indeksa aizpildīšanas: skenē TIKAI
+// atslēgas kolonnas, partijās pa 2000 rindām, un atgriež VECĀKO
+// atbilsmi (mazo rindas numuru), lai semantika paliktu tāda pati.
+function _scanKeyFallback(sheet, col, key) {
+  if (!sheet || col === undefined) return -1;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  const CH = 2000;
+  let best = -1;
+  for (let end = lastRow; end >= 2; end -= CH) {
+    const start = Math.max(2, end - CH + 1);
+    const vals = sheet.getRange(start, col, end - start + 1, 1).getValues();
+    for (let i = 0; i < vals.length; i++) {
+      if (String(vals[i][0]) === key) {
+        const row = start + i;
+        if (best === -1 || row < best) best = row;
+      }
+    }
+  }
+  return best;
+}
+
+// Rezerves meklēšana pēc atslēgas komponentēm. Tas ir vajadzīgs PIRMS
+// `backfill_keys` palaišanas: legacy rindām `atslēga` ir tukša, tāpēc
+// atslēgas meklēšana atrastu neko un serveris DUBLĒTU esošu klīnisko
+// ierakstu. Tāpēc, kamēr indekss nav pilnīgs, meklējam pēc sešām
+// atsevišķām kolonnām. Lēns (~1,35 milj. šūnu), bet KORREKTS, un pēc
+// `backfill_keys` vairs nekad netiek izmantots.
+function _scanCompositeFallback(sheet, colMap, m) {
+  if (!sheet) return -1;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  const parts = [
+    ['klients_id', String(m.clientId || '')],
+    ['darbinieks_id', String(m.employeeId || '')],
+    ['datums', String(m.date || '')],
+    ['periods', String(m.shift || 'R')],
+    ['kategorija', String(m.category || '')],
+    ['lauka_nosaukums', String(m.field || '')]
+  ];
+  const cols = [];
+  for (let i = 0; i < parts.length; i++) {
+    const c = colMap[parts[i][0]];
+    if (c === undefined) return -1;   // kolonna nav — nevar droši meklēt
+    cols.push({ col: c + 1, want: parts[i][1] });
+  }
+  const CH = 2000;
+  let best = -1;
+  for (let end = lastRow; end >= 2; end -= CH) {
+    const start = Math.max(2, end - CH + 1);
+    const n = end - start + 1;
+    const vals = sheet.getRange(start, 1, n, sheet.getLastColumn()).getValues();
+    for (let i = 0; i < n; i++) {
+      const r = vals[i];
+      let ok = true;
+      for (let c = 0; c < cols.length; c++) {
+        if (String(r[cols[c].col - 1]) !== cols[c].want) { ok = false; break; }
+      }
+      if (ok) {
+        const row = start + i;
+        if (best === -1 || row < best) best = row;
+      }
+    }
+  }
+  return best;
+}
+
+// Ielādē TIKAI tās rindas, kas `mark` ceļam patiešām vajag, un pilda
+// rezultātu retajā masīvā, tā lai zemākais kods (rindas numuri kā
+// masīva indeksi) darbojas nemainīts.
+function _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m) {
+  const lastColA = atzimesSheet.getLastColumn();
+  const lastColL = logSheet.getLastColumn();
+  const atz = _sparseRows(atzimesSheet.getLastRow());
+  const log = _sparseRows(logSheet.getLastRow());
+
+  function put(arr, sheet, lastCol, row) {
+    if (row >= 2 && row - 2 < arr.length) arr[row - 2] = sheet.getRange(row, 1, 1, lastCol).getValues()[0];
+  }
+
+  // 1) Dublējuma pārbaude pēc action_id
+  if (m.actionId && atzimesColMap['action_id'] !== undefined) {
+    const r = _idxReady()
+      ? _textFindOne(atzimesSheet, atzimesColMap['action_id'] + 1, m.actionId, 2)
+      : _scanKeyFallback(atzimesSheet, atzimesColMap['action_id'] + 1, String(m.actionId));
+    put(atz, atzimesSheet, lastColA, r);
+  }
+
+  // 2) Esošā atzīme pēc atslēgas
+  let keyRow = -1;
+  if (atzimesColMap[MARK_KEY_COL] !== undefined) {
+    const key = _markKeyOf(m);
+    keyRow = _idxReady()
+      ? _textFindOne(atzimesSheet, atzimesColMap[MARK_KEY_COL] + 1, key, 2)
+      : _scanKeyFallback(atzimesSheet, atzimesColMap[MARK_KEY_COL] + 1, key);
+    // ⚠️ Ja atslēgas meklēšana neko neatradusi UN indekse vēl nav pilnīgs,
+    // tā vēl nenozīmē, ka ieraksta nav — tā var būt legacy rinda bez
+    // atslēgas. Tādā gadījumā meklējam pēc komponentēm, lai NEJAUBLĒ
+    // esošu klīnisko ierakstu.
+    if (keyRow === -1 && !_idxReady()) {
+      keyRow = _scanCompositeFallback(atzimesSheet, atzimesColMap, m);
+    }
+    put(atz, atzimesSheet, lastColA, keyRow);
+  }
+
+  // 3) Žurnāla rindas šai atzīmei (pirmā ar notikuma laiku — kā pirms tam)
+  if (keyRow > 0 && atzimesColMap['id'] !== undefined && logColMap['atzimes_id'] !== undefined) {
+    const markId = atz[keyRow - 2][atzimesColMap['id']];
+    if (markId) {
+      _textFindAll(logSheet, logColMap['atzimes_id'] + 1, String(markId), 2)
+        .forEach(r => put(log, logSheet, lastColL, r));
+    }
+  }
+
+  // 4) Šī klienta visas žurnāla rindas (slimnica/status pārbaudē)
+  if (m.clientId && logColMap['klients_id'] !== undefined) {
+    _textFindAll(logSheet, logColMap['klients_id'] + 1, String(m.clientId), 2)
+      .forEach(r => put(log, logSheet, lastColL, r));
+  }
+
+  return { atzimesData: atz, logData: log };
+}
+
+// Tā pati atslēga, bet no esošās rindas. ⚠️ Šeit `periods` NEDRĪKst saņemt
+// 'R' noklusējumu, atšķirībā no `_markKeyOf`. Vecais kods salīdzināja
+// `String(rinde.periods) === String(m.shift || 'R')`, tāpēc rinda ar tukšu
+// `periods` patiešām neatbilst atzīmei ar noklusēto 'R'. Ja šeit
+// noklusējumu pievienotu, tādas rindas kļūtu nepareizi atrodamas.
+function _markKeyFromRow(r, colMap) {
+  const g = function (name) {
+    const c = colMap[normalizeKey(name)];
+    return c === undefined ? '' : String(r[c] || '').trim();
+  };
+  return ['k1', g('klients_id'), g('darbinieks_id'), g('datums'), g('periods'), g('kategorija'), g('lauka_nosaukums')].join('|');
+}
+
+// 🔧 VIENREIZĒJS UZTURĒŠANAS PASĒMIENS. Aizpilda `atslēga` kolonnu visām
+// esošajām rindām, lai `mark` varētu meklēt ātri un precīzi.
+//
+// ⚠️ KAMĒR ŠIS NAV PABEIGTS, `_idxReady()` ir false un `mark` izmanto lēno,
+// bet KORREKTO rezerves skēni pa komponentēm. Tātad neizpildīts backfill
+// neizjauc datus — tas tikai paliek lēns. Kad pabeigts, `_idxReady()` kļūst
+// true un rezerves ceļš vairs netiek lietots.
+//
+// Lietošana: `?data={"action":"backfill_keys"}` atkārto līdz `done:true`.
+function handleBackfillKeys() {
+  const sheet = getSheet('atzimes');
+  ensureColumns(sheet, ['action_id', 'maina_tips', 'notikuma_laiks', 'last_modified', 'version', 'atslēga']);
+  const lastCol = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  const colMap = {};
+  headers.forEach((h, i) => { colMap[normalizeKey(h)] = i; });
+  const keyCol = colMap[MARK_KEY_COL];
+  if (keyCol === undefined) return { error: 'atslēga kolonna nav pieejama' };
+
+  const props = PropertiesService.getScriptProperties();
+  const lastRow = sheet.getLastRow();
+  const CHUNK = 10000;
+  let cursor = parseInt(props.getProperty('atzimes_key_cursor') || '', 10);
+  if (isNaN(cursor) || cursor < 2) cursor = 2;
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(60000); } catch (e) { return { error: 'Sistēma aizņemta, mēģini vēlreiz' }; }
+  try {
+    const end = Math.min(lastRow, cursor + CHUNK - 1);
+    if (end < cursor) {
+      props.setProperty('atzimes_key_cursor', '2');
+      _setIdxReady(true);
+      return { done: true, totalRows: lastRow, note: 'Indekss jau bija pabeigts' };
+    }
+
+    // 1) Nolasām tikai rindas ar atslēgas kolonnu + sešām komponentēm,
+    //    nevis visu rindu — tas ir 7 kolonnas, nevis 17.
+    const need = [];
+    ['klients_id', 'darbinieks_id', 'datums', 'periods', 'kategorija', 'lauka_nosaukums']
+      .forEach(n => { const c = colMap[normalizeKey(n)]; if (c !== undefined) need.push(c); });
+    need.push(keyCol);
+    const startCol = Math.min.apply(null, need);
+    const width = Math.max.apply(null, need) - startCol + 1;
+
+    // ⚠️ `colMap` un `keyCol` ir 0-bāzēti, bet `getRange` kolonnas
+    // paņem 1-bāzēti. Bez `+1` atslēgas tiktu rakstītas `last_modified`
+    // kolonnā un tā tiktu izdzīsta, kas nogāztu OCC konfliktus.
+    const rows = sheet.getRange(cursor, startCol + 1, end - cursor + 1, width).getValues();
+    const out = rows.map(r => {
+      // ⚠️ `colMap` indeksi ir absolūti (skaitīti no 1. kolonnas), tāpēc
+      // rindu pārvietojam atpakaļ uz absolūtajām pozīcijām. Citādi
+      // komponentu kolonnas tiktu lasītas no nepareizām vietām.
+      const shifted = new Array(lastCol);
+      for (let i = 0; i < width; i++) shifted[startCol + i] = r[i];
+      const cur = String(shifted[keyCol] || '').trim();
+      if (cur) return [cur];
+      return [_markKeyFromRow(shifted, colMap)];
+    });
+    sheet.getRange(cursor, keyCol + 1, end - cursor + 1, 1).setValues(out);
+
+    const next = end + 1;
+    props.setProperty('atzimes_key_cursor', String(next));
+    const done = next > lastRow;
+    if (done) {
+      props.deleteProperty('atzimes_key_cursor');
+      _setIdxReady(true);
+    }
+    return {
+      done: done,
+      fromRow: cursor,
+      toRow: end,
+      totalRows: lastRow,
+      remaining: Math.max(0, lastRow - end),
+      pct: lastRow > 1 ? Math.round((end / (lastRow - 1)) * 100) : 100,
+      indexReady: _idxReady()
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function handleMark(data) {
   const atzimesSheet = getSheet('atzimes');
   const logSheet = getSheet('atzimes_log');
@@ -1206,7 +1542,7 @@ function handleMark(data) {
   // 74 sekundes uz vienu `mark`. Tagad katrs posms ir redzams.
   _diag.notes.push('action=' + (data && data.action ? data.action : '?'));
 
-  ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks', 'last_modified', 'version']);
+  ensureColumns(atzimesSheet, ['action_id', 'maina_tips', 'notikuma_laiks', 'last_modified', 'version', 'atslēga']);
   ensureColumns(logSheet, ['id', 'atzimes_id', 'klients_id', 'darbinieks_id', 'datums', 'laiks', 'periods', 'kategorija', 'lauka_nosaukums', 'vertiba', 'skaits', 'notikuma_laiks', 'pedeja_vertiba', 'pedeja_laiks', 'darbinieks_pedejais', 'action_id', 'maina_tips']);
   _phase('ensureColumnsMark', function () {
     ensureColumns(klientiSheet, ['slimnica', 'statuss', 'statusa_laiks', 'statusa_darbinieks_id']);
@@ -1264,9 +1600,13 @@ function handleMark(data) {
     atzimesHeaders.forEach((h, i) => { atzimesColMap[normalizeKey(h)] = i; });
     logHeaders.forEach((h, i) => { logColMap[normalizeKey(h)] = i; });
     
-    // Read all data at once
-    const atzimesData = atzimesLastRow > 1 ? atzimesSheet.getRange(2, 1, atzimesLastRow - 1, atzimesHeaders.length).getValues() : [];
-    const logData = logLastRow > 1 ? logSheet.getRange(2, 1, logLastRow - 1, logHeaders.length).getValues() : [];
+    // Ielādējam TIKAI vajadzīgās rindas. Vecais kods šeit nolasīja divas
+    // lapas pilnībā (7,7 milj. šūnu, ~52 s) — pat ja bija vajadzīga viena.
+    const ctx = _phase('loadContext', function () {
+      return _loadMarkContext(atzimesSheet, logSheet, atzimesColMap, logColMap, m);
+    });
+    const atzimesData = ctx.atzimesData;
+    const logData = ctx.logData;
 
     // Dubultās ieraksta novēršana: ja ir actionId, pārbaudām vai tas jau eksistē
     if (m.actionId && atzimesColMap['action_id'] !== undefined) {
@@ -1401,9 +1741,17 @@ function handleMark(data) {
       if (m.actionId && atzimesColMap['action_id'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['action_id'] + 1, value: m.actionId });
       if (m.mainaTips && atzimesColMap['maina_tips'] !== undefined) updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['maina_tips'] + 1, value: m.mainaTips });
       // Inkrementē version kolonnu (OCC)
-      if (atzimesColMap['version'] !== undefined) {
-        const currentVer = parseInt(atzimesData[existingMarkRow - 2][atzimesColMap['version']], 10);
+      if (atzimesColMap['version'] !== undefined) {        const currentVer = parseInt(atzimesData[existingMarkRow - 2][atzimesColMap['version']], 10);
         updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap['version'] + 1, value: isNaN(currentVer) ? 1 : currentVer + 1 });
+      }
+      // 🔧 Pašizlabošanās: ja esošajā rindā `atslēga` ir tukša (legacy ieraksts,
+      // kas izveidots pirms indeksa), to aizpildām tagad. Bez tā šī rinda
+      // paliktu nemanāma adresēšanai un nākamais atjauninājums to dublētu.
+      if (atzimesColMap[MARK_KEY_COL] !== undefined) {
+        const cell = atzimesData[existingMarkRow - 2][atzimesColMap[MARK_KEY_COL]];
+        if (!String(cell || '').trim()) {
+          updates.push({ sheet: atzimesSheet, row: existingMarkRow, col: atzimesColMap[MARK_KEY_COL] + 1, value: _markKeyOf(m) });
+        }
       }
       // Atjaunina last_modified (OCC)
       if (atzimesColMap['last_modified'] !== undefined) {
@@ -1503,6 +1851,7 @@ function handleMark(data) {
       else if (nk === 'notikuma_laiks') markRow[i] = eventDateTimeRiga;
       else if (nk === 'version') markRow[i] = 1;
       else if (nk === 'last_modified') markRow[i] = modificationTime;
+      else if (nk === MARK_KEY_COL) markRow[i] = _markKeyOf(m);
     });
 
     const logId = 'l_' + Date.now() + Math.floor(Math.random() * 1000);
