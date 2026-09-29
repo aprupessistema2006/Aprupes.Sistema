@@ -3,7 +3,7 @@ const CONFIG = {
   // Uzkopējama ar version.json un HTML ?v= parametriem. Šis lauks pats
   // nekur netiek lasīts (skripti izmanto version.json), bet tas ir jātur
   // saskaņots, lai neviens uz to nepaliekoties nepareizas versijas.
-  VERSION: '20260929-1441',
+  VERSION: '20260929-1454',
 
   GAS_URL: 'https://script.google.com/macros/s/AKfycbwsW5xns0rOECVKku9HDwiLZ3gZydFSF9Kay6siW30eGc_LymwHMGFfsCJEd_pqi07xiA/exec',
 

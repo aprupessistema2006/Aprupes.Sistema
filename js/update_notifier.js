@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20260929-1441';
+const BUILD_VERSION = '20260929-1454';
 
 class UpdateNotifier {
   constructor() {
@@ -231,25 +231,103 @@ class UpdateNotifier {
     if (document.getElementById('freshReloadBtn')) return;
     if (!document.body) return;
 
+    // Ikoniņa, nevis teksta poga. Lietotājs (65+) skata ikonu, nevis
+    // lasa garu tekstu; pelēkā pirkstu zīme ir "atsvaidzināt".
     const btn = document.createElement('button');
     btn.id = 'freshReloadBtn';
     btn.type = 'button';
-    btn.textContent = 'Ielādēt jaunāko versiju';
-    btn.title = 'Pārlādē lapu un ielādēt pašu jaunāko kodu. Jūsu ieraksti netiek dzēsti.';
+    btn.setAttribute('aria-label', 'Ielādēt jaunāko versiju');
+    btn.title = 'Ielādēt jaunāko versiju';
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">' +
+      '<path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-8 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>' +
+      '</svg>';
     btn.style.cssText = [
       'position:fixed', 'right:12px', 'bottom:12px', 'z-index:99999',
-      'padding:9px 14px', 'border-radius:8px', 'cursor:pointer',
-      'border:1px solid #b9c4cf', 'background:#fff', 'color:#1f3b57',
-      'font-size:12px', 'font-weight:600', 'line-height:1.2',
-      'box-shadow:0 2px 8px rgba(0,0,0,.18)', 'max-width:180px'
+      'width:44px', 'height:44px', 'border-radius:50%',
+      'display:flex', 'align-items:center', 'justify-content:center',
+      'cursor:pointer', 'border:1px solid #b9c4cf',
+      'background:#fff', 'color:#1f3b57', 'padding:0',
+      'box-shadow:0 2px 8px rgba(0,0,0,.18)'
     ].join(';');
 
-    btn.addEventListener('click', () => {
-      btn.disabled = true;
-      btn.textContent = 'Ielādēju…';
+    btn.addEventListener('click', () => this.confirmReload(btn));
+
+    document.body.appendChild(btn);
+  }
+
+  // Apstiprinājuma logs. Bez tā poga būtu klusmā pārbaudīma mezīns laukā
+  // — neprecīzs klikšķis apņemtu pārlādēt lapu tieši darba laikā.
+  confirmReload(btn) {
+    if (document.getElementById('freshReloadOverlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'freshReloadOverlay';
+    overlay.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:100000',
+      'background:rgba(0,0,0,.45)',
+      'display:flex', 'align-items:center', 'justify-content:center',
+      'font-family:inherit'
+    ].join(';');
+
+    const box = document.createElement('div');
+    box.style.cssText = [
+      'background:#fff', 'border-radius:10px', 'padding:20px',
+      'max-width:340px', 'width:calc(100% - 40px)',
+      'box-shadow:0 8px 28px rgba(0,0,0,.3)',
+      'color:#1f3b57', 'text-align:center'
+    ].join(';');
+
+    // ⚠️ Teksts tiek likts ar textContent, nevis innerHTML — lai lietotāja
+    // ievadītais teksts nekad netiktu izpildīts kā kods.
+    const title = document.createElement('div');
+    title.textContent = 'Vai esi pārliecināts?';
+    title.style.cssText = 'font-size:16px;font-weight:700;margin-bottom:8px';
+
+    const body = document.createElement('div');
+    body.textContent = 'Programma tiks ielādēta no jauna. Jūsu ieraksti netiek dzēsti.';
+    body.style.cssText = 'font-size:13px;line-height:1.45;margin-bottom:16px';
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:10px;justify-content:center';
+
+    const yes = document.createElement('button');
+    yes.type = 'button';
+    yes.textContent = 'Jā';
+    yes.style.cssText = [
+      'padding:9px 22px', 'border-radius:7px', 'cursor:pointer',
+      'border:1px solid #1f3b57', 'background:#1f3b57', 'color:#fff',
+      'font-size:14px', 'font-weight:600'
+    ].join(';');
+
+    const no = document.createElement('button');
+    no.type = 'button';
+    no.textContent = 'Nē';
+    no.style.cssText = [
+      'padding:9px 22px', 'border-radius:7px', 'cursor:pointer',
+      'border:1px solid #b9c4cf', 'background:#fff', 'color:#1f3b57',
+      'font-size:14px', 'font-weight:600'
+    ].join(';');
+
+    const close = () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+
+    // Nē — aizvērt logu un atgriezties darbā.
+    no.addEventListener('click', close);
+    // Klikšķis uz tumšo fonu arī nozīmē "nē".
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    // Escape arī aizvērt.
+    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    setTimeout(() => { try { no.focus(); } catch (e) {} }, 0);
+
+    yes.addEventListener('click', () => {
+      close();
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '.5';
+      }
+      // Mēs negribām dzēst ierīces datus — tie ir aprūpes ieraksti.
+      // Tīrīm TIKAI kešu, lai nākamo reizi ielādētu jauno kodu.
       try {
-        // Mēs negribām dzēst ierīces datus — tie ir aprūpes ieraksti.
-        // Tīrīm TIKAI kešu, lai nākamo reizi ielādētu jauno kodu.
         if (navigator.serviceWorker && navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
         }
@@ -261,7 +339,13 @@ class UpdateNotifier {
       window.location.replace(u.toString());
     });
 
-    document.body.appendChild(btn);
+    row.appendChild(yes);
+    row.appendChild(no);
+    box.appendChild(title);
+    box.appendChild(body);
+    box.appendChild(row);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
   }
 
   // ── Atjaunināšana ────────────────────────────────────────────────────────
