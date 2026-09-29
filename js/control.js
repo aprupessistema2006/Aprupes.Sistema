@@ -256,54 +256,30 @@ class ControlPanel {
       onlyEdited.addEventListener('change', () => this.renderHistory());
     }
 
-    // Real-time client search inside the select dropdown
-    this._setupClientSelectSearch('exportClient');
-    this._setupClientSelectSearch('monthViewClient');
+    // Real-time client search — input virs select, filtrē opcijas rakstot
+    this._setupClientSearch('exportClientSearch', 'exportClient');
+    this._setupClientSearch('monthViewClientSearch', 'monthViewClient');
   }
 
-  _setupClientSelectSearch(selectId) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
+  _setupClientSearch(searchId, selectId) {
+    const searchEl = document.getElementById(searchId);
+    const selectEl = document.getElementById(selectId);
+    if (!searchEl || !selectEl) return;
 
-    const originalOptions = Array.from(select.querySelectorAll('option')).filter(o => o.value !== '__SEARCH__');
-    const searchOption = select.querySelector('option[value="__SEARCH__"]');
+    const originalOptions = Array.from(selectEl.querySelectorAll('option'));
 
-    const activateSearch = () => {
-      const rect = select.getBoundingClientRect();
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.placeholder = '🔍 Raksti, lai meklētu...';
-      input.style.cssText = 'position:absolute;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:14px;z-index:10000;background:white;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
-
-      const commit = () => {
-        const term = input.value.trim().toLowerCase();
-        select.innerHTML = '';
-        originalOptions.forEach(opt => {
-          const text = opt.textContent.toLowerCase();
-          if (!term || text.includes(term)) select.appendChild(opt.cloneNode(true));
-        });
-        if (term) {
-          const match = select.querySelector(`option:not([value=""])`);
-          if (match) match.selected = true;
-        }
-        input.remove();
-        select.style.visibility = '';
-        select.focus();
-      };
-
-      input.addEventListener('blur', () => setTimeout(commit, 200));
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); commit(); }
-        if (e.key === 'Escape') { e.preventDefault(); input.remove(); select.style.visibility = ''; select.focus(); }
+    searchEl.addEventListener('input', () => {
+      const term = searchEl.value.trim().toLowerCase();
+      selectEl.innerHTML = '';
+      originalOptions.forEach(opt => {
+        const text = opt.textContent.toLowerCase();
+        if (!term || text.includes(term)) selectEl.appendChild(opt.cloneNode(true));
       });
-      document.body.appendChild(input);
-      input.focus();
-      select.style.visibility = 'hidden';
-    };
-
-    select.addEventListener('change', () => {
-      if (select.value === '__SEARCH__') {
-        activateSearch();
+      // Atjauno izvēlēto vērtību, ja tā vēl ir pieejama
+      const saved = selectEl.dataset.selectedValue;
+      if (saved) {
+        const opt = selectEl.querySelector(`option[value="${saved}"]`);
+        if (opt) opt.selected = true;
       }
     });
   }
@@ -390,7 +366,6 @@ class ControlPanel {
     const exportClient = document.getElementById('exportClient');
     if (exportClient) {
       exportClient.innerHTML = '<option value="">— izvēlies klientu —</option>' +
-        '<option value="__SEARCH__">🔍 Meklēt...</option>' +
         this.allClients.map(c => {
           const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
           return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
@@ -400,7 +375,6 @@ class ControlPanel {
     const monthViewClient = document.getElementById('monthViewClient');
     if (monthViewClient) {
       monthViewClient.innerHTML = '<option value="">— izvēlies klientu —</option>' +
-        '<option value="__SEARCH__">🔍 Meklēt...</option>' +
         this.allClients.map(c => {
           const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
           return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
