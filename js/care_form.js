@@ -126,39 +126,65 @@ class CareFormController {
     const retryBtn = document.getElementById('retryLoadBtn');
     if (overlay) overlay.style.display = 'flex';
 
-    // Retry button handler - clears IndexedDB cache and reloads
+    // Retry button handler.
+    //
+    // ⚠️ VECĀ KĻŪDA, kas dzēsa lietotāja datus.
+    //
+    // Vecais kod pirms pārlādēšanas NOTĪRĪJA visu IndexedDB
+    // ('darbinieki', 'klienti', 'atzimes', 'atzimes_log', ...). Ja
+    // lietotājs bija bez savienojuma un nospieda šo pogu, viņš pazaudina
+    // VISUS ierakstus, ko vēl nebija izdevies nosūtīt uz Google Sheets —
+    // un nevis iegūst jaunu mēģinājumu, bet zaudina darbu.
+    //
+    // TAGAD poga tikai MĒĒĢINA vēlreiz savienoties. Dati netiek dzēsti.
     if (retryBtn) {
       retryBtn.onclick = async () => {
         retryBtn.disabled = true;
-        retryBtn.textContent = '⏳ Notīra cache...';
+        retryBtn.textContent = '⏳ Mēģinu vēlreiz...';
         try {
-          // Clear all IndexedDB stores
-          const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue', 'sync_audit'];
-          for (const store of stores) {
-            await this.db.clear(store);
-          }
-          // Reload page
-          window.location.reload();
+          await this.sync.loadInitialData((msg) => {
+            if (loadingText) loadingText.textContent = msg;
+          }, { clientId: this.clientId });
+          if (overlay) overlay.style.display = 'none';
+          await this.renderFromLocalData();
         } catch (e) {
           this.toast('Kļūda: ' + e.message, 4000);
+        } finally {
           retryBtn.disabled = false;
           retryBtn.textContent = t('retryLoad');
         }
       };
     }
 
-try {
+    try {
       const syncResult = await this.sync.loadInitialData((msg) => {
         if (loadingText) loadingText.textContent = msg;
       }, { clientId: this.clientId });
       if (syncResult && syncResult.offline) {
-        // NO FALLBACK - Google Sheets is ONLY source of truth
+        // ⚠️ IEPRIEKŠĒJĀ KĻŪDA: šeit bija `return` bez zīmēšanas, ja
+        // Google neatbildēja. Rezultāts bija TUKŠA FORMA pat tad, ja
+        // ierīcē jau bija simti ierakstu — lietotājs redzēja nullēs un
+        // "Nav ierakstu" un domāja, ka dati ir zuduši.
+        //
+        // Tagad mēs pārbaudam, vai vietējie dati IR, un ja tā, tad
+        // zīmējam tos. Brīdinājums ir nebloķējošs — darbs turpinās.
+        const hasLocal = await this.hasAnyLocalData();
+        if (hasLocal) {
+          this.toast('⚠️ Nav savienojuma ar Google Sheets. Rādu ierīcē saglabāto. ' +
+            'Ieraksti netiks dzēsti.', 6000);
+          if (overlay) overlay.style.display = 'none';
+          if (retryBtn) retryBtn.style.display = 'block';
+          await this.renderFromLocalData();
+          this._scheduleClientRefresh();
+          return;
+        }
+        // Patiesībā nav ko rādīt — tad var bloķēt ekrānu.
         this.toast('⛔ NEIZDEVĀS ielādēt datus no Google Sheets: ' + (syncResult.error || 'Nav savienojuma'), 10000);
         if (retryBtn) {
           retryBtn.style.display = 'block';
         }
         if (overlay) overlay.style.display = 'flex';
-        return; // Don't render anything - no data loaded
+        return; // Isti nav datu ne vietēji, ne serverī
       }
       // Klienta dati var nebūt vēl ielādēti (liels apjoms ielādējas fonā pa blokiem).
       // Šeit ielādējam TIKAI šī klienta pēdējās 90 dienas — ātri, bez miljoniem ierakstu.
@@ -169,6 +195,7 @@ try {
         this.loadHistory(),
         this.loadAllClientMarks()
       ]);
+      this._renderedForm = true;   // pārklājumu drīkst slēpt
       this.renderForm();
       this.renderHistory();
       this.renderSignature();
@@ -187,7 +214,11 @@ try {
       if (overlay) overlay.style.display = 'flex';
       return; // Don't render
     } finally {
-      if (overlay) overlay.style.display = 'none';
+      // ⚠️ Pārklājumu nedrīkst slēpt, ja forma NAV zīmēta. Vecajā kodā
+      // `finally` vienmēr slēpa to, tāpēc arī bloķējošais kļūdas ekrāns
+      // nekad netika redzams — lietotājs redzēja tukšu formu ar
+      // "Ielādēju datus..." un nullēm, un nevarēja saprast, kas notiek.
+      if (overlay && !this._renderedForm) overlay.style.display = 'none';
       this._initialLoadDone = true;
     }
 
@@ -1548,6 +1579,40 @@ try {
     const value = selected.dataset.value;
     const shift = selected.dataset.shift;
     await this.handleOptionSelect(shift, 'fiziologija', 'vedera_izeja', value, selected);
+  }
+
+  // Vai ierīcē vispār ir kādi dati? To izlemj, vai kļūdas gadījumā var
+  // rādīt formu vai jāpaliek bloķējošam ekrānam.
+  async hasAnyLocalData() {
+    try {
+      const marks = await this.db.getAll('atzimes');
+      if (marks && marks.length) return true;
+      const log = await this.db.getAll('atzimes_log');
+      return !!(log && log.length);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Zīmē formu no TIKAI vietējiem datiem. Tas ir glābināšanas ceļš:
+  // ja serveris neatsaka, bet ierīcē dati ir, mēs rādām TO, ko mums ir,
+  // nevis tukšu ekrānu. Lietotājs var turpināt darbu un ierakstus,
+  // kas paliks rindā, lai tiktu nosūtīti, kad savienojums atgriežas.
+  async renderFromLocalData() {
+    await this.ensureClientDataLoaded();
+    await Promise.all([
+      this.loadClient(),
+      this.loadMarks(),
+      this.loadHistory(),
+      this.loadAllClientMarks()
+    ]);
+    this._renderedForm = true;
+    this.renderForm();
+    this.renderHistory();
+    this.renderSignature();
+    this.updateHospitalStatusUI();
+    this.updateTeamSummary();
+    this.renderQuickTotals();
   }
 
   // Pārliecina, ka šī klienta dati ir ielādēti pirms formas atvēršanas.

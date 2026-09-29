@@ -1,9 +1,9 @@
 // ⚠️ Kešas nosaukumam JĀBŪT jauns katrā versijā. Ja tas paliek tāds pats,
 // `activate` nopirksīs veco kešu, bet jaunais SW joprojām izmantojtu to pašu
 // kešu — un vecās rindas (ar vecajiem `?v=`) paliktu tur.
-// 20260929-1538: klienta formas datu svaigums starp ierīcēm (fona atsvaidzināšana).
+// 20260929-1559: klienta formas datu svaigums starp ierīcēm (fona atsvaidzināšana).
 // 20260929-1048: atzīmes skenēšanas labojums + mērījumi.
-const CACHE_NAME = 'aprupes-sistema-v58'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v59'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -47,7 +47,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20260929-1538';
+const BUILD_VERSION = '20260929-1559';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>
