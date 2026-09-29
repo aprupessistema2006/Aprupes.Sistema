@@ -1556,17 +1556,46 @@ function handleMark(data) {
   }
 }
 
+// ⚠️ `ensureColumns` katru reizi darīja 2 `getRange` zvanus pat tad, ja visas
+// kolonnas jau bija vietā. Tā tiek izsaukta ~5–8 reizes uz katru pieprasījumu
+// (katrs klientu/atzīmju/logu/uzdevumu izsaukums + operation_registry), un
+// `_diag` to rādīja par 2 234 ms tīru izmaksu katrā pieprasījumā.
+//
+// Šeit vienas izpildes laikā kolonnu struktūra nevar mainīties — mēs to pati
+// esam vienīgie, kas tās pievieno, un tā notiek šīs pašas funkcijas laikā.
+// Tāpēc pārbaudīto kolonnu rezultātu var atcerēties, un otrā izsaukuma
+// laikā tā ir bezmaksas (0 zvani).
+var _ensuredCols = {};
+
 function ensureColumns(sheet, requiredColumns) {
   if (!sheet) return;
-  const lastCol = sheet.getLastColumn();
+  var key;
+  try { key = sheet.getName(); } catch (e) { key = null; }
+  if (!key) key = 'id_' + (sheet.getSheetId ? sheet.getSheetId() : 'x');
+
+  var seen = _ensuredCols[key];
+  if (!seen) { seen = _ensuredCols[key] = {}; }
+
+  // Atliekam tikai tās kolonnas, ko vēl neesam pārbaudījuši šajā izpildē.
+  var toCheck = [];
+  for (var i = 0; i < requiredColumns.length; i++) {
+    var c = requiredColumns[i];
+    if (!seen[normalizeKey(c)]) toCheck.push(c);
+  }
+  if (toCheck.length === 0) return;   // ✅ 0 zvani
+
+  var lastCol = sheet.getLastColumn();
   if (lastCol < 1) return; // Sheet is empty — no columns to inspect
-  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
-  const missing = requiredColumns.filter(col => !headers.some(h => normalizeKey(h) === normalizeKey(col)));
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  var missing = toCheck.filter(col => !headers.some(h => normalizeKey(h) === normalizeKey(col)));
   if (missing.length > 0) {
     missing.forEach((col, i) => {
       sheet.getRange(1, lastCol + 1 + i).setValue(col);
     });
   }
+  // Atzīmējam pārbaudītās — arī tās, kas jau bija vietā, jo tās pēc tam
+  // nevar izzust.
+  for (var j = 0; j < toCheck.length; j++) seen[normalizeKey(toCheck[j])] = true;
 }
 
 function handleCreateTask(data) {
