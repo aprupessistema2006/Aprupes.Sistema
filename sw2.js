@@ -1,7 +1,7 @@
 // ⚠️ Kešas nosaukumam JĀBŪT jauns katrā versijā. Ja tas paliek tāds pats,
 // `activate` nopirksīs veco kešu, bet jaunais SW joprojām izmantojtu to pašu
 // kešu — un vecās rindas (ar vecajiem `?v=`) paliktu tur.
-// 20260929-1025: atzīmes skenēšanas labojums + mērījumi.
+// 20260929-1048: atzīmes skenēšanas labojums + mērījumi.
 const CACHE_NAME = 'aprupes-sistema-v51'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
@@ -46,7 +46,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20260929-1025';
+const BUILD_VERSION = '20260929-1048';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>

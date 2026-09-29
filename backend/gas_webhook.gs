@@ -2186,7 +2186,16 @@ function _schemaReady() {
 function _setSchemaReady() {
   try {
     PropertiesService.getScriptProperties().setProperty('aprupes_schema_' + SCHEMA_VERSION, '1');
-  } catch (e) { /* ignorējam — tad nākamais pieprasījums pārbaudīs vēlreiz */ }
+    // Lasām atpakaļ, lai pārliecinātos, ka īpašums tiešām ierakstījās.
+    // Bez šī pārbaudes `catch` slēptu rakstīšanas kļūdu, un mēs konstatētu
+    // ka kešs nedarbojas, nezinot kāpēc.
+    const back = PropertiesService.getScriptProperties().getProperty('aprupes_schema_' + SCHEMA_VERSION);
+    if (back !== '1') {
+      _diag.notes.push('⚠️ setProperty neizdevās (nolasīts: ' + (back === null ? 'null' : back) + ')');
+    }
+  } catch (e) {
+    _diag.notes.push('⚠️ Script Properties kļūda: ' + (e && e.message ? e.message : e));
+  }
 }
 
 // 🔧 Atgriež galvenes rindu (arī pēc kolonnu pievienošanas), ja tā tika
@@ -2221,8 +2230,15 @@ function ensureColumns(sheet, requiredColumns) {
   // atzīmējusi. Pēc pirmā pilnā pārbaudes šis ceļš vairs netiek izmantots.
   if (_schemaReady() && toCheck.length === requiredColumns.length) {
     for (var k = 0; k < toCheck.length; k++) seen[normalizeKey(toCheck[k])] = true;
+    // ⚠️ Šis ir DIAGNOSTIKAS atzīme, nevis skaits. Ja tā parādās
+    // `_diag.notes`, tad shēmas kešs strādā. Ja tā NEPARĀDAS, tad
+    // vai nu nav izvietots šis kods, vai `setProperty` kļūdina.
+    if (key === 'atzimes') _diag.notes.push('shēmas kešs IZLETS (bez zvaniem)');
     return null;
   }
+  if (key === 'atzimes') _diag.notes.push('shēmas kešs NEPIELETO (' +
+    'ready=' + _schemaReady() + ', pārbaudāmās=' + toCheck.length + '/' +
+    requiredColumns.length + ')');
 
   var lastCol = sheet.getLastColumn();
   if (lastCol < 1) return null; // Sheet is empty — no columns to inspect
