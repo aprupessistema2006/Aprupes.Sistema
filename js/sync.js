@@ -674,7 +674,7 @@ class CareSync {
     // Cik dienu aprūpes ierakstus ielādēt sākuma ekrānam. Tas ir
     // vienīgais papildus datu ielādes ceļš; pārējo vēsturi ielādē tikai
     // konkrēta klienta atvēršanai.
-    this.RECENT_DAYS = 3;
+    this.RECENT_DAYS = 30;
     // ⚠️ ŠIS Limits vairs NEDARBOJAS un to nedrīkst atjaunot.
     //
     // Vecajā uzvedībā pēc 5 neizdevušiem mēģinājumiem ieraksts tika
