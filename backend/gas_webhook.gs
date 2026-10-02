@@ -688,7 +688,7 @@ function handleLoadData(params) {
     //
     // Ja filtrē pēc klienta vai darbinieka, virziens NAV svarīgs, jo
     // atbilstes izkaisās pa visu lapu, tāpē skenējam kā vienmēr no augšas.
-    const reverseScan = needDate && !needClient && !needEmp;
+    const reverseScan = false;
     // Klientam jāzinā, kādā virzienā skenēt, lai pareizi pārbaudītu, vai
     // lapa progresē. To nevar secināt no offset zīmes: pirmajā pieprasījumā
     // offset ir 0, bet nākamais jau būs negatīvs.
