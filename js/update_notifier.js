@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20261002-2200';
+const BUILD_VERSION = '20261002-2300';
 
 class UpdateNotifier {
   constructor() {
@@ -63,7 +63,7 @@ class UpdateNotifier {
       const base = window.location.href.split('?')[0];
       window.location.replace(base + '?v=' + Date.now());
     };
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
       navigator.serviceWorker.getRegistrations()
         .then(regs => {
           const jobs = (regs || []).map(r => r.unregister().catch(() => {}));
