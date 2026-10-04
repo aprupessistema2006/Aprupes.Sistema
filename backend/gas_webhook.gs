@@ -496,7 +496,11 @@ function handleRepairDates(data) {
           const rowNum = i + 2;
           const id = iId >= 0 ? String(row[iId]) : ('rindas ' + rowNum);
           out.changes.push({ row: rowNum, id: id, was: current, now: truth });
-          writes.push({ row: rowNum, col: iDate + 1, value: truth });
+          // ⚠️ Rakstām Date objektu, nevis tekstu. Teksta rakstīšana ir tieši
+          // tā, kas šo kolonnu sabojaja pirmo reizi (Sheets pārvērta to par
+          // datumu un iztulkojot apmainīja mēnesi ar dienu). `_dateCellValue`
+          // dod skaidru UTC pusnaktī, kas noapaļojoties nemaina dienu.
+          writes.push({ row: rowNum, col: iDate + 1, value: _dateCellValue(truth) });
         }
 
         if (apply && writes.length) {
@@ -577,7 +581,11 @@ function handleRepairDates(data) {
           const rowNum = i + 2;
           const id = iId >= 0 ? String(row[iId]) : ('rindas ' + rowNum);
           out.changes.push({ row: rowNum, id: id, was: current, now: truth });
-          writes.push({ row: rowNum, col: iDate + 1, value: truth });
+          // ⚠️ Rakstām Date objektu, nevis tekstu. Teksta rakstīšana ir tieši
+          // tā, kas šo kolonnu sabojaja pirmo reizi (Sheets pārvērta to par
+          // datumu un iztulkojot apmainīja mēnesi ar dienu). `_dateCellValue`
+          // dod skaidru UTC pusnaktī, kas noapaļojoties nemaina dienu.
+          writes.push({ row: rowNum, col: iDate + 1, value: _dateCellValue(truth) });
         }
         if (apply && writes.length) {
           writes.sort((a, b) => a.row - b.row);
