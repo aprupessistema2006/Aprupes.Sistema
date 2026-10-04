@@ -176,7 +176,18 @@ class ControlPanel {
     const today = this.todayLocal();
     const dateEl = document.getElementById('dateFilter');
     if (dateEl) {
-      dateEl.value = today;
+      // ⚠️ Agrāk šeit bija `dateEl.value = today` — panelis pēc ielādes
+      // RĀDĪJA TIKAI ŠODIENAS ierakstus. Rezultāts bija divi bojāti
+      // efekti: (1) ar bojātiem datumiem nekas šodienai neatbildeja, tāpēc
+      // bija `filtered log=0` un tukša tabula; (2) pat ar labiem datumiem
+      // bija redzamas tikai 2 no 12 ierakstiem, tāpēc kolēģu darbs šķita
+      // neesošs.
+      //
+      // Kontroliera panelis ir VIENMĒR redzams jebkurš dienas apskats — tāpēc
+      // noklusējums ir VISI ieraksti, un datuma filtrs paliek tikai tad, kad
+      // lietotājs to izvēlas pats. Īpašumtiesību josla (`updateDateModeBadge`)
+      // joprojām rāda, kāds filtrs pašreiz darbojas.
+      dateEl.value = '';
       dateEl.addEventListener('change', () => {
         this.renderAll();
         this.updateDateModeBadge();
