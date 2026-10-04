@@ -973,17 +973,25 @@ class ControlPanel {
       // Google Sheets ir vienīgais patiesības avots. Bet mēs NELĀDĒJAM visu
       // vēsturi — ielādējam tikai šī klienta izvēlēto mēnesi. Tas ir 100× mazāk
       // datu nekā pilnā vēsture, un tieši tas, ko lietotājs patiešām skata.
-      if (window.careSync && navigator.onLine) {
-        if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets pirms eksporta...';
-        await window.careSync.forceFullSync((msg) => {
-          if (loadingText) loadingText.textContent = msg;
-        });
-        const from = year + '-' + String(month).padStart(2, '0') + '-01';
+      const from = year + '-' + String(month).padStart(2, '0') + '-01';
         const daysInMonth = new Date(year, month, 0).getDate();
         const to = year + '-' + String(month).padStart(2, '0') + '-' + String(daysInMonth).padStart(2, '0');
-        if (loadingText) loadingText.textContent = 'Ielādēju klienta vēsturi...';
-        await window.careSync.loadClientRange(client.id || client.ID, from, to);
-      }
+        if (window.careSync && navigator.onLine) {
+          // ⚠️ `forceFullSync()` šeit nedarbojās ar savu komandu ("NELĀDĒJAM
+          // visu vēsturi") — tas ignorē "dati jau svaigi" logiku un ielādē
+          // VISU vēsturi, no ko izriet 100× lielāka ielāde nekā nepieciešams.
+          // Eksportā tomēr jābūt pārliecinātam, ka izskatītajā mēnesī nav
+          // neizsūtītu ierakstu, tāpēc vispirms NOSŪTAM rindu (rakstīšana),
+          // un tad ielādējam tikai šo mēnesi (lasīšana).
+          if (loadingText) loadingText.textContent = 'Nosūtu ierakstus...';
+          try {
+            await window.careSync.flushBeforeExit();
+          } catch (e) {
+            console.warn('[control] neizsūtīto rindu nosūtīšana neizdevās:', e);
+          }
+          if (loadingText) loadingText.textContent = 'Ielādēju klienta vēsturi...';
+          await window.careSync.loadClientRange(client.id || client.ID, from, to);
+        }
       
       // Reload fresh data from IndexedDB (now updated from Google Sheets)
       const allMarks = await this.db.getAll('atzimes');
@@ -1036,14 +1044,38 @@ class ControlPanel {
     try {
       // Tikai šī klienta izvēlētā mēneša vēsture — nevis visas ielādētās
       // vēstures. Skatīt konkrētu klientu ir ātrāk nekā skanēt visu.
+      //
+      // ⚠️ ⚠️ ŠEIT BIJA NEVEIKSMĪGS LĒMUMS.
+      //
+      // Vecākais kods šeit izsauca `forceFullSync()`, kas ignorē
+      // "dati jau svaigi" logiku un ielādē VISU vēsturi no jauna —
+      // pat tad, ja nekas nebija mainījies. Tas tieši pretbilda komandai
+      // vienu līniju augstāk ("tikai šī klienta izvēlētā mēneša vēsture").
+      //
+      // Mērījums 2026-10-04: katrs mēneša skata atvēršana izraisīja
+      // `load:initial` (4,5 s) + `load:recent` (2,6 s) = ~7 s servera
+      // darba, un logs to pats brīdināja: "force sync, lai gan dati jau
+      // svaigi". Konsolē redzēju sync#1…#6 vienā sesijā.
+      //
+      // Kontrolieris, kas pārbauda 10 klientus pa mēnešiem, tā vērā
+      // ~70 s tīkla, nevis ~2 s.
+      //
+      // TIEŠĀ VEIDO: mēs nosūtām savus neizsūtītos ierakstus (tas ir
+      // RAKSTĪŠANA, un bez tā kontrolieris neredzētu to, ko aprūpētājs
+      // tikko ierakstījis), un pēc tam ielādējam TIKAI izvēlēto mēnesi.
+      const from = year + '-' + String(month).padStart(2, '0') + '-01';
+      const daysInMonthM = new Date(year, month, 0).getDate();
+      const to = year + '-' + String(month).padStart(2, '0') + '-' + String(daysInMonthM).padStart(2, '0');
+
       if (window.careSync && navigator.onLine) {
-        if (loadingText) loadingText.textContent = 'Sinhronizēju datus no Google Sheets...';
-        await window.careSync.forceFullSync((msg) => {
-          if (loadingText) loadingText.textContent = msg;
-        });
-        const from = year + '-' + String(month).padStart(2, '0') + '-01';
-        const daysInMonthM = new Date(year, month, 0).getDate();
-        const to = year + '-' + String(month).padStart(2, '0') + '-' + String(daysInMonthM).padStart(2, '0');
+        if (loadingText) loadingText.textContent = 'Nosūtu ierakstus...';
+        try {
+          await window.careSync.flushBeforeExit();
+        } catch (e) {
+          // Nosūtīšanas kļūda NEDRĪKST apturēt skatu — mēnesis joprojām
+          // tiek parādīts, tikai bez pašreizējiem ierakstiem.
+          console.warn('[control] neizsūtīto rindu nosūtīšana neizdevās:', e);
+        }
         if (loadingText) loadingText.textContent = 'Ielādēju klienta vēsturi...';
         await window.careSync.loadClientRange(client.id || client.ID, from, to);
       }
