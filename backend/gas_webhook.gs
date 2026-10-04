@@ -338,10 +338,278 @@ function doPost(e) {
   }
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// DIAGNOSTIKA: neapstrādātu šūnu vērtību noplūde.
+//
+// ⚠️ KĀPĒC ŠIS VAJAG.
+//
+// Simptoms bija: `load:recent` ar diapazonu 2026-09-04 → 2026-10-04
+// atgrieza 5 rindas no 10, un datuma filtrs šķita "nestrādājošs". Bet ar
+// visu gadu (2026-01-01 → 2026-12-31) atgriezās visas 10. Tas nozīmē, ka
+// filtrs strādā — problēma ir DATU VEIDĀ, nevis loģikā.
+//
+// Cietā pierādījuma nevar iegūt no klienta: klients redz jau
+// formatētu `yyyy-MM-dd` virkni, un nezin, vai tā nāca no Date objekta vai
+// no teksta. Šeit mēs redzam šūnu TIEŠĀ veidā: tipu, `getTime()` un to,
+// ko `normalizeDateCell()` no tās saraž.
+//
+// ⚠️ TIKAI LASĪŠANA. Šī darbība neko neraksta lapā.
+// ───────────────────────────────────────────────────────────────────────
+function handleDumpRaw(data) {
+  const sheetName = (data.data && data.data.sheet) || data.sheet || 'atzimes';
+  const sheet = getSheet(sheetName);
+  if (!sheet) return { success: false, error: 'Lapa nav atrasta: ' + sheetName };
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  const dateIdx = headers.map(h => normalizeKey(h)).indexOf('datums');
+
+  const out = {
+    success: true,
+    sheet: sheetName,
+    lastRow: lastRow,
+    lastCol: lastCol,
+    headers: headers,
+    dateColIndex1Based: dateIdx >= 0 ? dateIdx + 1 : -1,
+    rows: []
+  };
+
+  if (dateIdx < 0) {
+    out.error = 'Kolonna "datums" nav atrasta';
+    return out;
+  }
+
+  // Ar numRows=0 Google atgriež 400, tāpēc šeit vienmēr vismaz 1.
+  const n = Math.max(1, lastRow - 1);
+  const raw = sheet.getRange(2, dateIdx + 1, n, 1).getValues();
+  // ID kolonnu lasām vienā reizē — nevis rindā pa vienai, kas maksā
+  // katru rindu par atsevišķu `getRange` zvanu.
+  const ids = sheet.getRange(2, 1, n, 1).getValues();
+  _diag.getRangeCalls += 2;
+  _diag.cellsRead += 2 * n;
+  for (let i = 0; i < raw.length; i++) {
+    const v = raw[i][0];
+    const isDate = v instanceof Date;
+    out.rows.push({
+      row: i + 2,
+      type: isDate ? 'Date' : (v === null ? 'null' : typeof v),
+      raw: isDate ? v.toISOString() : v,
+      getTime: isDate && !isNaN(v.getTime()) ? v.getTime() : null,
+      normalized: normalizeDateCell(v),
+      id: ids[i][0]
+    });
+  }
+  return out;
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// DATUMU LABOŠANA.
+//
+// ⚠️ KĀPĒC ŠIS VAJAG.
+//
+// `atslēga` (= `_markKeyOf()`) ir deterministiska atzīmes atslēga un tā
+// 4. lauks IR aprūpes datums, ko klients nosūtīja (`m.date`). Tas ir
+// neredaktējams — to nevar mainīt neviens pēc ieraksta.
+//
+// `datums` šūna, savukārt, tika uzglabāta kā DATES tipa šūna, un Google
+// Sheets to pārvērš pēc savas lokalizācijas. Rezultātā daļa rindu glabāja
+// datumu ar apmainītiem mēnesi/dienu: klients nosūtīja `2026-10-04`, bet
+// šūnā nonāca `2026-04-10`.
+//
+// Pētījums ar trim diapazoniem to pierādīja:
+//   2026-09-04 → 2026-10-04 → 5 rindas no 10
+//   2026-01-01 → 2026-12-31 → 10 rindas no 10
+//   2026-10-01 → 2026-10-31 → 0 rindas
+//
+// Tāpēc datuma filtrs nedarboja nevis loģikas dēļ, bet tāpēc, ka 5 rindu
+// datumā bija aprīļa/maija vērtība. Lietotājs neko nevarēja redzēt — ne savu,
+// ne kolēģu darbu, ne kontrolierim mēnesi.
+//
+// Šī darbība atjauno `datums` no `atslēgas`, tāpēc tā nav atkarīga no tā,
+// kā Sheets iztulkoja šūnu. `action_id` tiek izmantots kā rezerves avots,
+// ja `atslēga` nav pieejama.
+//
+// ⚠️ NOKLUSĒJUMĀ TIKAI SKATĪŠANA. Lai patiesiski rakstītu, jānorāda
+// `apply=1`. Tas ļauj vispirms redzēt, KO tiek mainīts.
+// ───────────────────────────────────────────────────────────────────────
+
+// Izvelk datumu no `atslēgas`: `k1|klients|darbinieks|DATUMS|...`
+function _dateFromMarkKey(key) {
+  const s = String(key || '').trim();
+  if (!s) return '';
+  const parts = s.split('|');
+  if (parts.length < 4) return '';
+  return normalizeDateCell(parts[3]);
+}
+
+// Izvelk datumu no `action_id`: `mark_<klients>_<periods>_<kat>_<lauks>_<DATUMS>_<darbinieks>`
+// ⚠️ Lauku nosaukumi var saturēt `_`, tāpēc datums tiek meklēts no BEIGAS
+// pēc 4. apakšsegas — tā ir pēdējā, kas nav dienas_laika zīme.
+function _dateFromActionId(actionId) {
+  const s = String(actionId || '').trim();
+  if (!s) return '';
+  const m = s.match(/^mark_(.+)_(\d{4}-\d{2}-\d{2})_e_\d+$/);
+  return m ? normalizeDateCell(m[2]) : '';
+}
+
+function handleRepairDates(data) {
+  const params = (data && data.data) || data || {};
+  const apply = params.apply === true || params.apply === 'true' || params.apply === 1 || params.apply === '1';
+  const report = { success: true, applied: apply, sheets: {}, totalFixed: 0 };
+
+  // ── 1) atzimes: `datums` atjaunojam no `atslēgas` ──────────────────────
+  {
+    const sheet = getSheet('atzimes');
+    const out = { scanned: 0, fixed: 0, changes: [] };
+    if (sheet && sheet.getLastRow() > 1) {
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
+      const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => normalizeKey(h));
+      const iId = headers.indexOf('id');
+      const iDate = headers.indexOf('datums');
+      const iKey = headers.indexOf(MARK_KEY_COL);
+      const iAction = headers.indexOf('action_id');
+
+      if (iDate < 0) {
+        out.error = 'kolonna datums nav atrasta';
+      } else {
+        const n = lastRow - 1;
+        const vals = sheet.getRange(2, 1, n, lastCol).getValues();
+        _diag.getRangeCalls++;
+        _diag.cellsRead += n * lastCol;
+
+        // ✅ Savācjam KO SALABOT → {rindas numurs: jaunā vērtība}.
+        // Nevis rakstām uzreiz, lai `setValues` būtu viens zvans, nevis N.
+        const writes = [];
+        for (let i = 0; i < n; i++) {
+          const row = vals[i];
+          out.scanned++;
+          const keyDate = iKey >= 0 ? _dateFromMarkKey(row[iKey]) : '';
+          const actDate = iAction >= 0 ? _dateFromActionId(row[iAction]) : '';
+          const truth = keyDate || actDate;
+          if (!truth) continue;
+          const current = normalizeDateCell(row[iDate]);
+          if (current === truth) continue;
+
+          out.fixed++;
+          const rowNum = i + 2;
+          const id = iId >= 0 ? String(row[iId]) : ('rindas ' + rowNum);
+          out.changes.push({ row: rowNum, id: id, was: current, now: truth });
+          writes.push({ row: rowNum, col: iDate + 1, value: truth });
+        }
+
+        if (apply && writes.length) {
+          // Kontīgus rakstīšanas diapazonus apvienojam vienā `setValues`.
+          writes.sort((a, b) => a.row - b.row);
+          const runs = [];
+          for (const w of writes) {
+            const last = runs[runs.length - 1];
+            if (last && w.row === last.endRow + 1 && w.col === last.col) { last.endRow = w.row; last.values.push(w.value); }
+            else runs.push({ startRow: w.row, endRow: w.row, col: w.col, values: [w.value] });
+          }
+          for (const r of runs) {
+            sheet.getRange(r.startRow, r.col, r.endRow - r.startRow + 1, 1).setValues(r.values.map(v => [v]));
+            _diag.getRangeCalls++;
+          }
+        }
+      }
+    }
+    report.totalFixed += out.fixed;
+    report.sheets.atzimes = out;
+  }
+
+  // ── 2) atzimes_log: `datums` atjaunojam no tās pašas atzīmes ───────────
+  //
+  // Logam nav `atslēgas` kolonnas. Bet tam ir `atzimes_id`, kas norāda uz
+  // konkrēto atzīmi — tāpēc datumu ņemam no jā atzīmes, kuru mēs tikko
+  // salabojām. Tāda pieeja dod vienu patiesības avotu visai rindai.
+  {
+    const sheet = getSheet('atzimes_log');
+    const out = { scanned: 0, fixed: 0, changes: [] };
+    const marks = getSheet('atzimes');
+    const truthByMarkId = {};
+
+    if (marks && marks.getLastRow() > 1) {
+      const lastRow = marks.getLastRow();
+      const lastCol = marks.getLastColumn();
+      const headers = marks.getRange(1, 1, 1, lastCol).getValues()[0].map(h => normalizeKey(h));
+      const iId = headers.indexOf('id');
+      const iKey = headers.indexOf(MARK_KEY_COL);
+      const iAction = headers.indexOf('action_id');
+      const iDate = headers.indexOf('datums');
+      if (iId >= 0 && iDate >= 0) {
+        const n = lastRow - 1;
+        const vals = marks.getRange(2, 1, n, lastCol).getValues();
+        for (let i = 0; i < n; i++) {
+          const keyDate = iKey >= 0 ? _dateFromMarkKey(vals[i][iKey]) : '';
+          const actDate = iAction >= 0 ? _dateFromActionId(vals[i][iAction]) : '';
+          // Patiesību dod prioritāti pēc `atslēgas`; ja tā nav, izmantojam
+          // JAUNO vērtību, ko mēs tikko ierakstījām.
+          truthByMarkId[String(vals[i][iId])] = keyDate || actDate || normalizeDateCell(vals[i][iDate]);
+        }
+      }
+    }
+
+    if (sheet && sheet.getLastRow() > 1) {
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
+      const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => normalizeKey(h));
+      const iId = headers.indexOf('id');
+      const iMarkId = headers.indexOf('atzimes_id');
+      const iDate = headers.indexOf('datums');
+      if (iDate < 0) {
+        out.error = 'kolonna datums nav atrasta';
+      } else {
+        const n = lastRow - 1;
+        const vals = sheet.getRange(2, 1, n, lastCol).getValues();
+        _diag.getRangeCalls++;
+        _diag.cellsRead += n * lastCol;
+        const writes = [];
+        for (let i = 0; i < n; i++) {
+          const row = vals[i];
+          out.scanned++;
+          const truth = iMarkId >= 0 ? truthByMarkId[String(row[iMarkId])] : '';
+          if (!truth) continue;
+          const current = normalizeDateCell(row[iDate]);
+          if (current === truth) continue;
+          out.fixed++;
+          const rowNum = i + 2;
+          const id = iId >= 0 ? String(row[iId]) : ('rindas ' + rowNum);
+          out.changes.push({ row: rowNum, id: id, was: current, now: truth });
+          writes.push({ row: rowNum, col: iDate + 1, value: truth });
+        }
+        if (apply && writes.length) {
+          writes.sort((a, b) => a.row - b.row);
+          const runs = [];
+          for (const w of writes) {
+            const last = runs[runs.length - 1];
+            if (last && w.row === last.endRow + 1 && w.col === last.col) { last.endRow = w.row; last.values.push(w.value); }
+            else runs.push({ startRow: w.row, endRow: w.row, col: w.col, values: [w.value] });
+          }
+          for (const r of runs) {
+            sheet.getRange(r.startRow, r.col, r.endRow - r.startRow + 1, 1).setValues(r.values.map(v => [v]));
+            _diag.getRangeCalls++;
+          }
+        }
+      }
+    }
+    report.totalFixed += out.fixed;
+    report.sheets.atzimes_log = out;
+  }
+
+  report.message = apply
+    ? ('Laboti: ' + report.totalFixed + ' rindas')
+    : ('Nepielādēts režīms — ' + report.totalFixed + ' rindas tiktu labotas. Sūtiet atkārtoji ar apply=1, lai piemērotu.');
+  return report;
+}
+
 function routeActionData(data) {
   const action = data.action;
   try {
     if (action === 'ping') return { success: true, pong: true, version: '20260927-1730' };
+    if (action === 'dump_raw') return handleDumpRaw(data);
+    if (action === 'repair_dates') return handleRepairDates(data);
     if (action === 'check_retry_not_allowed') return handleCheckRetryNotAllowed(data);
     if (action === 'createClient') return handleCreateClient(data);
     if (action === 'createEmployee') return handleCreateEmployee(data);
@@ -1040,17 +1308,140 @@ function handleLoadData(params) {
     };
   }
   
-  function normalizeDateCell(v) {
-    if (!v) return '';
-    if (v instanceof Date) {
-      if (isNaN(v.getTime())) return '';
-      return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
-    }
-    const s = String(v).trim();
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return m[1] + '-' + m[2] + '-' + m[3];
-    return s;
+  // ⚠️ Šī funkcija ir DATUMU FILTRA pamats, un katra tā kļūda ir klusa
+// datu zuduma iemesls: rinda, kas neiztur šo testu, vienkārši izkrīt no
+// rezultāta, un neviens nepamana, kāpēc aprūpētājs kolēģa darbu neredz.
+//
+// Trīs lietas, kas šeit NOTIKAS ar īstām lapām:
+//
+//  1. SKAITĻA formāts. Ja šūna ir formatēta kā datums, `getValues()` atgriež
+//     Date — to apstrādājam. Bet ja kolonnai ir formāts un vērtība ir
+//     skaitlis, tas var nākt kā dienas numurs (`46297`). Vecākais regex
+//     to nespēja atpazīt un atgriezīja `"46297"`. Stringu salīdzināšana
+//     tad bija `"46297" < "2026-09-04"` → FALSE, `"46297" > "2026-10-04"`
+//     → TRUE, un rinda tika klusējot noraidīta. Šis bija klusa datu zuduma
+//     ceļš.
+//
+//  2. PUNKTU formāts. `2026.10.04` (d.L.G.) ir rakstīšanas veidā, ko
+//     lietotāji bieži ievada. Vecākais regex pieprasīja `-`, tāpēc šī
+//     vērtība atgriezās nepārveidota un, salīdzināta ar `2026-10-04`,
+//     bija LIELĀKA (`.` ir par `-` kodā), tāpēc arī noraidīta.
+//
+//  3. Nepārprotama atzīšana. Ja nezinām, kurš ir mēnesis un kurš diena,
+//     mēs NEDRĪKST uzminēt. Šādas vērtības atgriežam tukšu un numainām,
+//     lai tās būtu redzamas `_diag` brīdinājumā, nevis klusējot zudušas.
+// ───────────────────────────────────────────────────────────────────────
+// Šūnas vērtība `datums` kolonnai.
+//
+// ⚠️ KĀPĒC NEVIS TIEŠU TEKSTU.
+//
+// Vecākais kods rakstīja `m.date` (`"2026-10-04"`) tieši šūnā kā
+// TEKSTU. Ja kolonnai lapā jau bija datuma formāts, Google Sheets pats
+// parsēja šo tekstu un glabāja to kā datuma numuru — bet iztulkojot to
+// savā lokalizācijā, daļa vērtību mainīja MĒNESI AR DIENU
+// (`2026-10-04` → `2026-04-10`).
+//
+// Šī neparedzamā pārvērtība nenozīmēja neko uz ekrāna: datuma filtrs
+// vienkārši noraidīja tās rindas, un neviens nepamana, kāpēc kolēģa darbs
+// neparādījās. Klientam nosūtīto datumu neignorēt nedrīkst — tā ir aprūpes
+// primārais dati.
+//
+// Tāpēc mēs rakstām skaidru Date objektu UTC pusnaktī. `formatDate()` ar
+// `TZ = 'Europe/Riga'` tad atgriež TĀ PAŠU dienu, jo Latvija ir UTC+2/+3 —
+// pārskats pārvieto vērtību tikai uz priekšu, nevis atpakaļ, tāpēc diena
+// nevar "pārcelties" iepriekšējā.
+//
+// ⚠️ Ja datumu nevarējām saprast (`normalizeDateCell` atgriež tukšu),
+// mēs rakstām tukšu, nevis ganumtaņus. Tukša šūna noraida filtru, bet
+// tā ir redzama `_diag` brīdinājumā — klusējoši nepareiza vērtība ir
+// daudz bīstamāka.
+// ───────────────────────────────────────────────────────────────────────
+function _dateCellValue(v) {
+  const d = normalizeDateCell(v);
+  if (!d) {
+    _diag.notes.push('datums neparsējams: ' + JSON.stringify(String(v)));
+    return '';
   }
+  const p = d.split('-');
+  return new Date(Date.UTC(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)));
+}
+
+function normalizeDateCell(v) {
+  if (v === null || v === undefined || v === '') return '';
+
+  // 1) Date objekts.
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return '';
+    return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+  }
+
+  // 2) Skaitlis. Ja vērtība ir dienas numurs (piem. 46297), pārvēršam to
+  //    datumā. ⚠️ Šo nevar izdarīt "jebkurā skaitļa" gadījumā, jo šūnā var
+  //    būt arī `uznemts_ml = 350` vai `temperatura = 39.5`. Tāpēc mēs to
+  //    atpazīstam pēc diapazona: 1 = 1899-12-30, 2958465 = 9999-12-31.
+  if (typeof v === 'number' && isFinite(v)) {
+    // ⚠️ ⚠️ ŠEIT BIJA MANA KĻŪDA, KO TESTS NOKĒRA.
+    //
+    // Es rakstīju `new Date(v * 86400000)`, kas tālēk datumu no 1970-01-01.
+    // Bet Google dienas numurs skaita no **1899-12-30**, nevis no 1970.
+    // Tāpēc 46297 nonāca 2026-10-04, bet 2096-10-03 — par 70 gadiem vēlāk.
+    //
+    // Šī kļūda nebūtu klusa: datumu filtrs to noraidītu tāpat kā
+    // neapstrādājamu vērtību. Bet tā būtu garāžu klūda, nevis skaidra.
+    //
+    // 1899-12-30 ir Google/Excel dienas numura nulle (dēļās grēka sekundes).
+    if (v >= 20000 && v <= 2958465) {
+      return Utilities.formatDate(
+        new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000), TZ, 'yyyy-MM-dd');
+    }
+    return '';
+  }
+
+  const s = String(v).trim();
+  if (!s) return '';
+
+  // 3) Pilns ISO datums vai datums + laiks. Laiku mēs ignorējam — filtrs
+  //    strādā pa dienām, nevis pa sekundēm.
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+  if (iso) return _ymd(iso[1], iso[2], iso[3]);
+
+  // 4) `YYYY.MM.DD` — rakstīšanas veids, ko lietotāji lieto.
+  const dot = s.match(/^(\d{4})[.\/](\d{1,2})[.\/](\d{1,2})(?:[T\s].*)?$/);
+  if (dot) return _ymd(dot[1], dot[2], dot[3]);
+
+  // 5) `DD.MM.YYYY` / `DD/MM/YYYY`. ⚠️ Ambaku — mēs to piepārjam TIKAI tad,
+  //    ja pirmais skaitlis ir lielāks par 12 (tad tas nevar būt mēnesis).
+  const dmy = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})(?:[T\s].*)?$/);
+  if (dmy) {
+    if (parseInt(dmy[1], 10) > 12) return _ymd(dmy[3], dmy[2], dmy[1]);
+    if (parseInt(dmy[2], 10) > 12) return _ymd(dmy[3], dmy[1], dmy[2]);
+    // Neizmējam — nezinām, kurš ir mēnesis.
+    return '';
+  }
+
+  // 6) Laika zīme vienā gātiens (piem. `20261004`).
+  const compact = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compact) return _ymd(compact[1], compact[2], compact[3]);
+
+  return '';
+}
+
+// Skaidra, pārbaudāta `YYYY-MM-DD` no trim skaitļiem. ⚠️ Atgriež tukšu,
+// ja vērtības nav reāls datums (piem. mēnesis 13 vai 31. februārī) — tas
+// ir labāk nekā klusējot atgriezt nonsense, ko filtrs tad noraidīs.
+function _ymd(y, m, d) {
+  const year = parseInt(y, 10);
+  const month = parseInt(m, 10);
+  const day = parseInt(d, 10);
+  if (!(year >= 1970 && year <= 9999)) return '';
+  if (!(month >= 1 && month <= 12)) return '';
+  if (!(day >= 1 && day <= 31)) return '';
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  // Date lēk pāri uz nākamo mēnesi (31. aprīlis → 1. maijs). Tas ir mēneša
+  // pārspēšana, nevis īsts datums.
+  if (dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) return '';
+  return year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+}
   
   function getSheetDataFiltered(sheet, filters) {
     const result = readFilteredSlice(sheet, filters, 0, filters.limit > 0 ? filters.limit : 5000);
@@ -2050,7 +2441,7 @@ function handleMark(data) {
         atzimes_id: markId,
         klients_id: m.clientId,
         darbinieks_id: m.employeeId,
-        datums: eventDateRiga,
+datums: _dateCellValue(eventDateRiga),
         laiks: eventTimeRiga,
         periods: m.shift || 'R',
         kategorija: m.category,
@@ -2112,7 +2503,7 @@ function handleMark(data) {
       if (nk === 'id') markRow[i] = id;
       else if (nk === 'klients_id') markRow[i] = m.clientId;
       else if (nk === 'darbinieks_id') markRow[i] = m.employeeId;
-      else if (nk === 'datums') markRow[i] = m.date || formatDate(new Date());
+      else if (nk === 'datums') markRow[i] = _dateCellValue(m.date || formatDate(new Date()));
       else if (nk === 'laiks') markRow[i] = eventTimeRiga;
       else if (nk === 'periods') markRow[i] = m.shift || 'R';
       else if (nk === 'kategorija') markRow[i] = m.category;
