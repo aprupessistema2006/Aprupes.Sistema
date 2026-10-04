@@ -506,7 +506,20 @@ function normalizeRow(raw) {
   const eventDate = datePart(eventTime);
   const explicitDate = row.date || row.datums || '';
   const createdDate = datePart(row.created || row.izveidots);
-  const normalizedDate = eventDate || datePart(explicitDate) || createdDate || '';
+  // ⚠️ ŠIS PIRMAKUMU PASKAIROJUMĀ BIJA KLUSS DATU ZAUDĒJUMS.
+  //
+  // `datums` ir DIENA, kurā pakalpojums tiek sniegts, un tas ir vienīgais
+  // autoritatīvais lauks. `notikuma_laiks` / `skaits` ir tikai laika zīme, un
+  // tā dažām rindām ir BOJĀTA: vecākais serveris rakstīja to ar samainītiem
+  // mēnesi un dienu (`2026-10-02` → `2026-02-10`, `2026-10-04` → `2026-04-10`).
+  //
+  // Iepriekš šeit `eventDate` tika likts PIRMS `datums`, tāpēc katrai ielādētai
+  // rindai tika pārrakstīts `datums` ar bojāto vērtību. Seka: vēstures tabula,
+  // mēneša skata diapazons (`statRange`) un "šodienas" filtrs visi rādīja
+  // februāra un novembra datumus, un oktobra mēnesis bija tukšs.
+  //
+  // `datums` ir pirmais, laika zīme — tikai rezerve.
+  const normalizedDate = datePart(explicitDate) || eventDate || createdDate || '';
   if (normalizedDate) row.datums = normalizedDate;
 
   const map = {
