@@ -880,6 +880,31 @@ class CareFormController {
     return this.marks.get(shift + '|' + category + '|' + field);
   }
 
+  // ⚠️ ŠEIT BIJA APLĀMA "Nav ieraksta".
+  //
+  // `this.marks` ir indeksēts pēc `maiņa|kategorija|lauks`, tāpēc rīta
+  // vērtību (piem. 350 ml H2O) nevar atrast, kad pašreizējā maiņa ir vakars.
+  // Karta tad rādīja «Nav ieraksta», lai gan vēsture rāda ierakstu — un
+  // aprūpētājs to pašu vērtību ievadīja OTREIZ. Tā ir datu dublēšana, nevis
+  // tikai neprecīza izvēne.
+  //
+  // Tāpēc, ja pašreizējā maiņā vērtības nav, mēs skatāmies OTRĀJĀ šodienas
+  // maiņā un rādām to ar skaidru norādi ("Rītsā"). Pašreizējās maiņas
+  // ievadīšana vienmēr paliek prioritāte, tāpēc nekas netiek aizstāts.
+  getMarkWithOtherShift(category, field) {
+    const cur = this.getMark(this.currentShift, category, field);
+    if (cur) return { mark: cur, otherShift: '' };
+    const other = this.currentShift === 'V' ? 'R' : 'V';
+    const found = this.getMark(other, category, field);
+    if (found) return { mark: found, otherShift: other };
+    return null;
+  }
+
+  otherShiftNote(shift) {
+    if (!shift) return '';
+    return shift === 'R' ? t('otherShiftMorning') : t('otherShiftEvening');
+  }
+
   renderForm() {
     this.updateCategoryStatuses();
   }
@@ -893,16 +918,18 @@ class CareFormController {
       return ' <span style="font-size:10px;color:#888;font-weight:normal;">(' + name + ')</span>';
     };
 
-    const tempMark = this.getMark(shift, 'temp', 'temperatura');
+    const tempFound = this.getMarkWithOtherShift('temp', 'temperatura');
+    const tempMark = tempFound ? tempFound.mark : null;
+    const tempNote = this.otherShiftNote(tempFound ? tempFound.otherShift : '');
     const tempEl = document.getElementById('status-temp');
     if (tempEl) {
       if (tempMark && tempMark.value) {
         const v = parseFloat(tempMark.value);
         if (!isNaN(v) && v >= 37) {
-          tempEl.innerHTML = '🔥 ' + tempMark.value + '°C' + lastByFor(tempMark);
+          tempEl.innerHTML = '🔥 ' + tempMark.value + '°C' + lastByFor(tempMark) + tempNote;
           tempEl.className = 'cat-status alert';
         } else {
-          tempEl.innerHTML = '✓ ' + tempMark.value + '°C' + lastByFor(tempMark);
+          tempEl.innerHTML = '✓ ' + tempMark.value + '°C' + lastByFor(tempMark) + tempNote;
           tempEl.className = 'cat-status completed';
         }
       } else {
@@ -911,8 +938,17 @@ class CareFormController {
       }
     }
 
+    const otherShift = shift === 'V' ? 'R' : 'V';
+    // Skaitītāji (higiēna, aktivitāte, ēdienreizes) ir maiņas līmeņa
+    // progreses rādītāji, tāpēc tos neaizstājam — bet ja pašreizējā maiņā
+    // nekas nav darīts, rādām, cik bija darīts OTRĀJĀ maiņā. Bez tās
+    // informācijas aprūpētājs atkārto darbu, kas jau izdarīts.
+    const countIn = (s, cat, fields) => fields.filter(f => this.getMark(s, cat, f.field)).length;
+
     const higienaFields = CONFIG.FIELD_DEFINITIONS.higiena.fields;
-    const higienaDone = higienaFields.filter(f => this.getMark(shift, 'higiena', f.field)).length;
+    const higienaDone = countIn(shift, 'higiena', higienaFields);
+    const higienaNote = higienaDone === 0 && countIn(otherShift, 'higiena', higienaFields) > 0
+      ? this.otherShiftNote(otherShift) : '';
     const higienaEl = document.getElementById('status-higiena');
     if (higienaEl) {
       if (higienaDone === higienaFields.length) {
@@ -922,13 +958,15 @@ class CareFormController {
         higienaEl.textContent = higienaDone + ' / ' + higienaFields.length;
         higienaEl.className = 'cat-status';
       } else {
-        higienaEl.textContent = t('hygieneNotStarted');
+        higienaEl.innerHTML = t('hygieneNotStarted') + higienaNote;
         higienaEl.className = 'cat-status';
       }
     }
 
     const aktFields = CONFIG.FIELD_DEFINITIONS.aktivitate.fields;
-    const aktDone = aktFields.filter(f => this.getMark(shift, 'aktivitate', f.field)).length;
+    const aktDone = countIn(shift, 'aktivitate', aktFields);
+    const aktNote = aktDone === 0 && countIn(otherShift, 'aktivitate', aktFields) > 0
+      ? this.otherShiftNote(otherShift) : '';
     const aktEl = document.getElementById('status-aktivitate');
     if (aktEl) {
       if (aktDone === aktFields.length) {
@@ -938,13 +976,15 @@ class CareFormController {
         aktEl.textContent = aktDone + ' / ' + aktFields.length;
         aktEl.className = 'cat-status';
       } else {
-        aktEl.textContent = t('activityNotStarted');
+        aktEl.innerHTML = t('activityNotStarted') + aktNote;
         aktEl.className = 'cat-status';
       }
     }
 
     const edinFields = CONFIG.FIELD_DEFINITIONS.edinasana.fields;
-    const edinDone = edinFields.filter(f => this.getMark(shift, 'edinasana', f.field)).length;
+    const edinDone = countIn(shift, 'edinasana', edinFields);
+    const edinNote = edinDone === 0 && countIn(otherShift, 'edinasana', edinFields) > 0
+      ? this.otherShiftNote(otherShift) : '';
     const edinEl = document.getElementById('status-edinasana');
     if (edinEl) {
       if (edinDone === edinFields.length) {
@@ -954,16 +994,18 @@ class CareFormController {
         edinEl.textContent = edinDone + ' / ' + edinFields.length;
         edinEl.className = 'cat-status';
       } else {
-        edinEl.textContent = t('mealsNotStarted');
+        edinEl.innerHTML = t('mealsNotStarted') + edinNote;
         edinEl.className = 'cat-status';
       }
     }
 
-    const uznemts = this.getMark(shift, 'sikdrumi', 'uznemts_ml');
+    const h2oFound = this.getMarkWithOtherShift('sikdrumi', 'uznemts_ml');
+    const uznemts = h2oFound ? h2oFound.mark : null;
+    const h2oNote = this.otherShiftNote(h2oFound ? h2oFound.otherShift : '');
     const h2oEl = document.getElementById('status-h2o');
     if (h2oEl) {
       if (uznemts && uznemts.value) {
-        h2oEl.innerHTML = '✓ ' + uznemts.value + ' ml' + lastByFor(uznemts);
+        h2oEl.innerHTML = '✓ ' + uznemts.value + ' ml' + lastByFor(uznemts) + h2oNote;
         h2oEl.className = 'cat-status completed';
       } else {
         h2oEl.textContent = t('fluidNoRecord');
@@ -971,11 +1013,13 @@ class CareFormController {
       }
     }
 
-    const urins = this.getMark(shift, 'sikdrumi', 'urina_daudzums');
+    const urinaFound = this.getMarkWithOtherShift('sikdrumi', 'urina_daudzums');
+    const urins = urinaFound ? urinaFound.mark : null;
+    const urinaNote = this.otherShiftNote(urinaFound ? urinaFound.otherShift : '');
     const urinaEl = document.getElementById('status-urina');
     if (urinaEl) {
       if (urins && urins.value) {
-        urinaEl.innerHTML = '✓ ' + urins.value + ' ml' + lastByFor(urins);
+        urinaEl.innerHTML = '✓ ' + urins.value + ' ml' + lastByFor(urins) + urinaNote;
         urinaEl.className = 'cat-status completed';
       } else {
         urinaEl.textContent = t('urineNoRecord');
@@ -983,11 +1027,13 @@ class CareFormController {
       }
     }
 
-    const fizMark = this.getMark(shift, 'fiziologija', 'vedera_izeja');
+    const fizFound = this.getMarkWithOtherShift('fiziologija', 'vedera_izeja');
+    const fizMark = fizFound ? fizFound.mark : null;
+    const fizNote = this.otherShiftNote(fizFound ? fizFound.otherShift : '');
     const fizEl = document.getElementById('status-fiziologija');
     if (fizEl) {
       if (fizMark && fizMark.value) {
-        fizEl.innerHTML = '✓ ' + fizMark.value + lastByFor(fizMark);
+        fizEl.innerHTML = '✓ ' + fizMark.value + lastByFor(fizMark) + fizNote;
         fizEl.className = 'cat-status completed';
       } else {
         fizEl.textContent = t('stoolNoRecord');
@@ -995,11 +1041,13 @@ class CareFormController {
       }
     }
 
-    const autins = this.getMark(shift, 'citsi_pasakomi', 'autins_biksitu_skaits');
+    const autinsFound = this.getMarkWithOtherShift('citsi_pasakomi', 'autins_biksitu_skaits');
+    const autins = autinsFound ? autinsFound.mark : null;
+    const autinsNote = this.otherShiftNote(autinsFound ? autinsFound.otherShift : '');
     const diapersEl = document.getElementById('status-diapers');
     if (diapersEl) {
       if (autins && autins.value) {
-        diapersEl.innerHTML = '✓ ' + autins.value + ' maiņas' + lastByFor(autins);
+        diapersEl.innerHTML = '✓ ' + autins.value + ' maiņas' + lastByFor(autins) + autinsNote;
         diapersEl.className = 'cat-status completed';
       } else {
         diapersEl.textContent = t('diaperNoChange');
@@ -1007,11 +1055,13 @@ class CareFormController {
       }
     }
 
-    const markAda = this.getMark(shift, 'citsi_pasakomi', 'adas_kopsana');
+    const adaFound = this.getMarkWithOtherShift('citsi_pasakomi', 'adas_kopsana');
+    const markAda = adaFound ? adaFound.mark : null;
+    const adaNote = this.otherShiftNote(adaFound ? adaFound.otherShift : '');
     const adaEl = document.getElementById('status-ada');
     if (adaEl) {
       if (markAda && markAda.value === 'X') {
-        adaEl.textContent = t('skinCareDone');
+        adaEl.innerHTML = t('skinCareDone') + adaNote;
         adaEl.className = 'cat-status completed';
       } else {
         adaEl.textContent = t('skinCareNotDone');
@@ -1019,11 +1069,13 @@ class CareFormController {
       }
     }
 
-    const markPastaiga = this.getMark(shift, 'citsi_pasakomi', 'pastaigas');
+    const pastaigaFound = this.getMarkWithOtherShift('citsi_pasakomi', 'pastaigas');
+    const markPastaiga = pastaigaFound ? pastaigaFound.mark : null;
+    const pastaigaNote = this.otherShiftNote(pastaigaFound ? pastaigaFound.otherShift : '');
     const pastaigaEl = document.getElementById('status-pastaiga');
     if (pastaigaEl) {
       if (markPastaiga && markPastaiga.value === 'X') {
-        pastaigaEl.textContent = t('walkDone');
+        pastaigaEl.innerHTML = t('walkDone') + pastaigaNote;
         pastaigaEl.className = 'cat-status completed';
       } else {
         pastaigaEl.textContent = t('walkNotDone');
@@ -1031,11 +1083,13 @@ class CareFormController {
       }
     }
 
-    const markCiemini = this.getMark(shift, 'citsi_pasakomi', 'ciemini');
+    const cieminiFound = this.getMarkWithOtherShift('citsi_pasakomi', 'ciemini');
+    const markCiemini = cieminiFound ? cieminiFound.mark : null;
+    const cieminiNote = this.otherShiftNote(cieminiFound ? cieminiFound.otherShift : '');
     const cieminiEl = document.getElementById('status-ciemini');
     if (cieminiEl) {
       if (markCiemini && markCiemini.value) {
-        cieminiEl.innerHTML = '✓ ' + markCiemini.value + lastByFor(markCiemini);
+        cieminiEl.innerHTML = '✓ ' + markCiemini.value + lastByFor(markCiemini) + cieminiNote;
         cieminiEl.className = 'cat-status completed';
       } else {
         cieminiEl.textContent = t('visitorsNoRecord');
