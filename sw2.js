@@ -4,7 +4,8 @@
 // 20260929-1559: klienta formas datu svaigums starp ierīcēm (fona atsvaidzināšana).
 // 20260929-1048: atzīmes skenēšanas labojums + mērījumi.
 // 20261002-2100: GAS_URL jaunā skripta adrese; forceUpdate pārlādē jaunu URL.
-const CACHE_NAME = 'aprupes-sistema-v60'; // SW never intercepts cross-origin JSONP
+// 20261004-1600: HTML zarojums bezsaimes režīmā atgriež īstu Response.
+const CACHE_NAME = 'aprupes-sistema-v61'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -48,7 +49,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20261002-2300';
+const BUILD_VERSION = '20261004-1600';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>
@@ -191,15 +192,47 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isHTML) {
-    // For HTML, always fetch fresh from network (bypass all caches)
+    // ⚠️ HTML vienmēr no tīkla (tāpēc jauns kods ir svaigs), bet KEŠA ir
+    // obligāta rezerve — lai darba vietā bez interneta lapa joprojām
+    // atveras.
+    //
+    // ⚠️ ⚠️ ŠEIT BIJA NEDARBOJAS KODA.
+    //
+    // Vecākais kods beidzās ar `.catch(() => caches.match(event.request))`.
+    // Ja bija BEZSAIME **un** HTML nebija kešotā, `caches.match()` atgriež
+    // `undefined`, nevis `Response`. `respondWith(undefined)` tad izmet
+    // `TypeError: Failed to convert value to 'Response'` — un pārlūks
+    // parāda savu paša kļūdu lapu, nevis mūsu.
+    //
+    // Bezsaime bez kešas ir iespējams: pirmā apmeklēšana notiek pirms
+    // `activate` pabeidzas, un keša tad vēl nav piepildīta.
+    //
+    // Tāpēc `catch` VIENMĒR atgriež īstu `Response` — vai nu no kešas,
+    // vai nu vienkāršu "Bezsaime" lapiņu ar 503.
     event.respondWith(
       fetch(event.request, { cache: 'no-store', credentials: 'same-origin' })
         .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          // ⚠️ Kešojām TIKAI veiksmīgas atbildes. Bez šī kontroles kešā
+          // palika 404/500, un tad bezsaime lietotājs redzēja servera
+          // kļūdas lapu, nevis pēdējo strādājošo versiju.
+          if (response && response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME)
+              .then((cache) => cache.put(event.request, clone))
+              .catch(() => {});
+          }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return new Response(
+            '<!doctype html><meta charset="utf-8">' +
+            '<title>Bezsaime</title>' +
+            '<p style="font:16px system-ui;padding:24px">Nav savienojuma ar internetu.</p>',
+            { status: 503, statusText: 'Offline', headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
+        })
     );
     return;
   }
