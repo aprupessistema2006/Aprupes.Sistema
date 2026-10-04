@@ -3,7 +3,8 @@
 // kešu — un vecās rindas (ar vecajiem `?v=`) paliktu tur.
 // 20260929-1559: klienta formas datu svaigums starp ierīcēm (fona atsvaidzināšana).
 // 20260929-1048: atzīmes skenēšanas labojums + mērījumi.
-const CACHE_NAME = 'aprupes-sistema-v59'; // SW never intercepts cross-origin JSONP
+// 20261002-2100: GAS_URL jaunā skripta adrese; forceUpdate pārlādē jaunu URL.
+const CACHE_NAME = 'aprupes-sistema-v60'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -47,7 +48,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20260929-1700';
+const BUILD_VERSION = '20261002-2200';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>

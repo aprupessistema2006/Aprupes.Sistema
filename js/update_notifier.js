@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20261002-2100';
+const BUILD_VERSION = '20261002-2200';
 
 class UpdateNotifier {
   constructor() {
@@ -50,11 +50,18 @@ class UpdateNotifier {
   // ── Pilnīga atjaunināšana no URL parametriem (diagnostika / avārijas atgriezšana)
   forceUpdate() {
     console.log('[UpdateNotifier] Force update requested via URL param');
-    // SW atsaukšana + kešu iztīrīšana + pārlādēšana. Bez kešu
-    // iztīrīšanas pārlūks var 10 minūtes atgriezt vecus JS failus
-    // (GitHub Pages sūta Cache-Control: max-age=600).
+    // ⚠️ Pārlādēšana ar TĀ PAŠU URL neko nelabāja. GitHub Pages sūta
+    // `Cache-Control: max-age=600`, tāpēc pārlūks 10 minūtes atgrieza
+    // to pašu HTML no HTTP kešas — un lietotājs redzēja vecāko versiju
+    // pat pēc "Atjaunot". Vienīgais veids, kā HTTP kešu izvairties, ir
+    // mainīt URL, pievienojot skaidru laika zīmi.
+    //
+    // ⚠️ `?force_update=1` NOSTĀMĀM? Tas novestu uz bezgalīgu
+    // pārlādēšanās ciklu, jo `new UpdateNotifier()` atkal izsauks
+    // `forceUpdate()`. Tāpēc to nometam un atstājam tikai laika zīmi.
     const hardReset = () => {
-      window.location.href = window.location.origin + window.location.pathname;
+      const base = window.location.href.split('?')[0];
+      window.location.replace(base + '?v=' + Date.now());
     };
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations()
