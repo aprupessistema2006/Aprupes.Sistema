@@ -49,7 +49,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20261008-1845';
+const BUILD_VERSION = '20261008-1910';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>
@@ -198,7 +198,9 @@ if (isHTML) {
     //
     // ⚠️ PROBLĒMA: `caches.match(event.request)` meklē ar query string,
     // bet precache satur tikai `aprupetajs.html` bez `?client=...`.
-    // Risinājums: HTML meklējam ignorējot query string (tikai origin + pathname).
+    // Risinājums: HTML saglabājam UN meklējam ignorējot query string
+    // (tikai origin + pathname). Tā `aprupetajs.html?client=...` atrod
+    // kešoto `aprupetajs.html`.
     //
     // ⚠️ ⚠️ ŠEIT BIJA NEDARBOJAS KODA.
     //
@@ -220,7 +222,11 @@ if (isHTML) {
           if (response && response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME)
-              .then((cache) => cache.put(event.request, clone))
+              .then((cache) => {
+                // Saglabājam AR query string (par precision) UN bez tā (par deep links)
+                cache.put(event.request, clone);
+                cache.put(htmlCacheKey, clone.clone());
+              })
               .catch(() => {});
           }
           return response;
