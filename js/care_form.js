@@ -137,16 +137,38 @@ class CareFormController {
     // un nevis iegūst jaunu mēģinājumu, bet zaudina darbu.
     //
     // TAGAD poga tikai MĒĒĢINA vēlreiz savienoties. Dati netiek dzēsti.
-    if (retryBtn) {
+if (retryBtn) {
       retryBtn.onclick = async () => {
         retryBtn.disabled = true;
         retryBtn.textContent = '⏳ Mēģinu vēlreiz...';
         try {
-          await this.sync.loadInitialData((msg) => {
-            if (loadingText) loadingText.textContent = msg;
-          }, { clientId: this.clientId });
+          await this.sync.bootstrapUI({
+            onProgress: (msg) => {
+              if (loadingText) loadingText.textContent = msg;
+            },
+            onLocalReady: async () => {
+              await this.renderFromLocalData();
+              this._scheduleClientRefresh();
+            },
+            onServerData: async () => {
+              await this.ensureClientDataLoaded();
+              await Promise.all([
+                this.loadClient(),
+                this.loadMarks(),
+                this.loadHistory(),
+                this.loadAllClientMarks()
+              ]);
+              this.renderForm();
+              this.renderHistory();
+              this.renderSignature();
+              this.updateHospitalStatusUI();
+              this.updateTeamSummary();
+              this.renderQuickTotals();
+              this.toast('✓ Dati atjaunoti no Google Sheets');
+            },
+            force: true
+          });
           if (overlay) overlay.style.display = 'none';
-          await this.renderFromLocalData();
         } catch (e) {
           this.toast('Kļūda: ' + e.message, 4000);
         } finally {
@@ -156,63 +178,54 @@ class CareFormController {
       };
     }
 
+    // ⚠️ OFFLINE-FIRST: bootstapUI ielādē vietējos datus PIRMS mēģina
+    // sasniegt serveri. Tas nozīmē, ka lietotājs redz formu momentāni,
+    // nevis gaida 35s timeoutu. Ja serveris neatsaka, darbs turpinās ar
+    // esošajiem datiem — ieraksti paliek rindā un tiks nosūtīti, kad
+    // savienojums atgriežas. Tas ir 24/7 režīms, ko prasa aprūpētāji.
     try {
-      const syncResult = await this.sync.loadInitialData((msg) => {
-        if (loadingText) loadingText.textContent = msg;
-      }, { clientId: this.clientId });
-      if (syncResult && syncResult.offline) {
-        // ⚠️ IEPRIEKŠĒJĀ KĻŪDA: šeit bija `return` bez zīmēšanas, ja
-        // Google neatbildēja. Rezultāts bija TUKŠA FORMA pat tad, ja
-        // ierīcē jau bija simti ierakstu — lietotājs redzēja nullēs un
-        // "Nav ierakstu" un domāja, ka dati ir zuduši.
-        //
-        // Tagad mēs pārbaudam, vai vietējie dati IR, un ja tā, tad
-        // zīmējam tos. Brīdinājums ir nebloķējošs — darbs turpinās.
-        const hasLocal = await this.hasAnyLocalData();
-        if (hasLocal) {
-          this.toast('⚠️ Nav savienojuma ar Google Sheets. Rādu ierīcē saglabāto. ' +
-            'Ieraksti netiks dzēsti.', 6000);
-          if (overlay) overlay.style.display = 'none';
-          if (retryBtn) retryBtn.style.display = 'block';
+      const syncResult = await this.sync.bootstrapUI({
+        onProgress: (msg) => {
+          if (loadingText) loadingText.textContent = msg;
+        },
+        onLocalReady: async () => {
+          // 1) Vietējie dati ir ielādēti — zīmējam formu TŪLĪT.
           await this.renderFromLocalData();
           this._scheduleClientRefresh();
-          return;
-        }
-        // Patiesībā nav ko rādīt — tad var bloķēt ekrānu.
-        this.toast('⛔ NEIZDEVĀS ielādēt datus no Google Sheets: ' + (syncResult.error || 'Nav savienojuma'), 10000);
-        if (retryBtn) {
-          retryBtn.style.display = 'block';
-        }
-        if (overlay) overlay.style.display = 'flex';
-        return; // Isti nav datu ne vietēji, ne serverī
+        },
+        onServerData: async () => {
+          // 2) Serveris atbildēja — atjaunojam ar jaunākajiem datiem.
+          await this.ensureClientDataLoaded();
+          await Promise.all([
+            this.loadClient(),
+            this.loadMarks(),
+            this.loadHistory(),
+            this.loadAllClientMarks()
+          ]);
+          this.renderForm();
+          this.renderHistory();
+          this.renderSignature();
+          this.updateHospitalStatusUI();
+          this.updateTeamSummary();
+          this.renderQuickTotals();
+          this.toast('✓ Dati atjaunoti no Google Sheets');
+        },
+        force: false
+      });
+
+      if (syncResult && syncResult.offline) {
+        // Serveris neatsakīja, bet vietējie dati jau ir rādīti (onLocalReady).
+        // Rādām tikai brīdinājumu, nevis bloķējošu ekrānu.
+        if (retryBtn) retryBtn.style.display = 'block';
+        this.toast('⚠️ Nav savienojuma ar Google Sheets. Darbojies ar ierīcē saglabāto.', 6000);
       }
-      // Klienta dati var nebūt vēl ielādēti (liels apjoms ielādējas fonā pa blokiem).
-      // Šeit ielādējam TIKAI šī klienta pēdējās 90 dienas — ātri, bez miljoniem ierakstu.
-      await this.ensureClientDataLoaded();
-      await Promise.all([
-        this.loadClient(),
-        this.loadMarks(),
-        this.loadHistory(),
-        this.loadAllClientMarks()
-      ]);
-      this._renderedForm = true;   // pārklājumu drīkst slēpt
-      this.renderForm();
-      this.renderHistory();
-      this.renderSignature();
-      // Statusa logi ielādēti: atjaunojam UI no Google Sheets avota.
-      // Izsaucam pēc renderSignature, lai tas nesprāgstu ziburi atpakaļ.
-      this.updateHospitalStatusUI();
-      this.updateTeamSummary();
-      this.renderQuickTotals();
-      this.toast('✓ Dati ielādēti no Google Sheets');
     } catch (e) {
       console.error(e);
-      this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'), 10000);
+this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'), 10000);
       if (retryBtn) {
         retryBtn.style.display = 'block';
       }
       if (overlay) overlay.style.display = 'flex';
-      return; // Don't render
     } finally {
       // ⚠️ Pārklājumu drīkst slēpt TIKAI tad, ja forma ir zīmēta.
       //
