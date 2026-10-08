@@ -49,7 +49,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20261008-1830';
+const BUILD_VERSION = '20261008-1845';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>
@@ -198,7 +198,7 @@ if (isHTML) {
     //
     // ⚠️ PROBLĒMA: `caches.match(event.request)` meklē ar query string,
     // bet precache satur tikai `aprupetajs.html` bez `?client=...`.
-    // Risinājums: HTML meklējam ignorējot query string (tikai pathname).
+    // Risinājums: HTML meklējam ignorējot query string (tikai origin + pathname).
     //
     // ⚠️ ⚠️ ŠEIT BIJA NEDARBOJAS KODA.
     //
@@ -206,14 +206,14 @@ if (isHTML) {
     // Ja bija BEZSAIME **un** HTML nebija kešotā, `caches.match()` atgriež
     // `undefined`, nevis `Response`. `respondWith(undefined)` tad izmet
     // `TypeError: Failed to convert value to 'Response'` — un pārlūks
-    // parāda savu paša kļūdu lapu, nevis mūsu.
+    // parāda savu pašu kļūdu lapu, nevis mūsu.
     //
     // Bezsaime bez kešas ir iespējams: pirmā apmeklēšana notiek pirms
     // `activate` pabeidzas, un keša tad vēl nav piepildīta.
     //
     // Tāpēc `catch` VIENMĒR atgriež īstu `Response` — vai nu no kešas
     // (meklējot bez query string), vai nu vienkāršu "Bezsaime" lapiņu ar 503.
-    const htmlCacheKey = url.pathname; // ignore query string for HTML
+    const htmlCacheKey = new Request(url.origin + url.pathname, { ignoreSearch: true });
     event.respondWith(
       fetch(event.request, { cache: 'no-store', credentials: 'same-origin' })
         .then((response) => {
