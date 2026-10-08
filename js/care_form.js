@@ -1672,7 +1672,10 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
   // nevis tukšu ekrānu. Lietotājs var turpināt darbu un ierakstus,
   // kas paliks rindā, lai tiktu nosūtīti, kad savienojums atgriežas.
   async renderFromLocalData() {
-    await this.ensureClientDataLoaded();
+    // ⚠️ OFFLINE-FIRST: zīmējam formu NEMODĀ, negaidot klienta vēsturi no servera.
+    // loadClient() ielādē klienta info no IndexedDB (kāds ir klients) — tas darbojas offline.
+    // loadMarks/loadHistory paņem visu, kas ir lokāli (var būt tukšs, ja klients jauns).
+    // Vēsturi mēs ielādējam FONĀ — nederētu bloķēt formu uz 20s timeoutu.
     await Promise.all([
       this.loadClient(),
       this.loadMarks(),
@@ -1686,6 +1689,12 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
     this.updateHospitalStatusUI();
     this.updateTeamSummary();
     this.renderQuickTotals();
+
+    // Tagad, kad forma jau ir redzama, mēģinām ielādēt klienta vēsturi.
+    // Ja offline — tas tiks izlaists, bet forma jau strādā.
+    this.ensureClientDataLoaded().catch(e => {
+      console.warn('[care_form] klienta vēstures ielāde (fona) neizdevās:', e.message);
+    });
   }
 
   // Pārliecina, ka šī klienta dati ir ielādēti pirms formas atvēršanas.

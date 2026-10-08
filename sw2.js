@@ -49,7 +49,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20261008-1600';
+const BUILD_VERSION = '20261008-1830';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>
@@ -191,10 +191,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (isHTML) {
+if (isHTML) {
     // ⚠️ HTML vienmēr no tīkla (tāpēc jauns kods ir svaigs), bet KEŠA ir
     // obligāta rezerve — lai darba vietā bez interneta lapa joprojām
     // atveras.
+    //
+    // ⚠️ PROBLĒMA: `caches.match(event.request)` meklē ar query string,
+    // bet precache satur tikai `aprupetajs.html` bez `?client=...`.
+    // Risinājums: HTML meklējam ignorējot query string (tikai pathname).
     //
     // ⚠️ ⚠️ ŠEIT BIJA NEDARBOJAS KODA.
     //
@@ -207,14 +211,12 @@ self.addEventListener('fetch', (event) => {
     // Bezsaime bez kešas ir iespējams: pirmā apmeklēšana notiek pirms
     // `activate` pabeidzas, un keša tad vēl nav piepildīta.
     //
-    // Tāpēc `catch` VIENMĒR atgriež īstu `Response` — vai nu no kešas,
-    // vai nu vienkāršu "Bezsaime" lapiņu ar 503.
+    // Tāpēc `catch` VIENMĒR atgriež īstu `Response` — vai nu no kešas
+    // (meklējot bez query string), vai nu vienkāršu "Bezsaime" lapiņu ar 503.
+    const htmlCacheKey = url.pathname; // ignore query string for HTML
     event.respondWith(
       fetch(event.request, { cache: 'no-store', credentials: 'same-origin' })
         .then((response) => {
-          // ⚠️ Kešojām TIKAI veiksmīgas atbildes. Bez šī kontroles kešā
-          // palika 404/500, un tad bezsaime lietotājs redzēja servera
-          // kļūdas lapu, nevis pēdējo strādājošo versiju.
           if (response && response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME)
@@ -224,7 +226,7 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(async () => {
-          const cached = await caches.match(event.request);
+          const cached = await caches.match(htmlCacheKey);
           if (cached) return cached;
           return new Response(
             '<!doctype html><meta charset="utf-8">' +
