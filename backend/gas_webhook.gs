@@ -612,12 +612,113 @@ function handleRepairDates(data) {
   return report;
 }
 
+function handleRepairTimes(data) {
+  const params = (data && data.data) || data || {};
+  const apply = params.apply === true || params.apply === 'true' || params.apply === 1 || params.apply === '1';
+  const report = { success: true, applied: apply, sheets: {}, totalFixed: 0 };
+
+  // Fix 'laiks' column in both sheets: rewrite as Date object (epoch 1899-12-30)
+  // so Sheets treats it as time-only without timezone conversion.
+  const sheetsToFix = ['atzimes', 'atzimes_log'];
+  
+  for (const sheetName of sheetsToFix) {
+    const sheet = getSheet(sheetName);
+    const out = { scanned: 0, fixed: 0, changes: [] };
+    
+    if (sheet && sheet.getLastRow() > 1) {
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
+      const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => normalizeKey(h));
+      const iTime = headers.indexOf('laiks');
+      const iId = headers.indexOf('id');
+      
+      if (iTime < 0) {
+        out.error = 'kolonna laiks nav atrasta';
+      } else {
+        const n = lastRow - 1;
+        const vals = sheet.getRange(2, 1, n, lastCol).getValues();
+        _diag.getRangeCalls++;
+        _diag.cellsRead += n * lastCol;
+        
+        const writes = [];
+        for (let i = 0; i < n; i++) {
+          const row = vals[i];
+          out.scanned++;
+          const rawTime = row[iTime];
+          
+          // Parse time from various formats
+          const timeStr = String(rawTime || '').trim();
+          if (!timeStr) continue;
+          
+          // Match HH:mm:ss or HH:mm
+          const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+          if (!timeMatch) continue;
+          
+          const h = parseInt(timeMatch[1], 10);
+          const m = parseInt(timeMatch[2], 10);
+          const s = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+          
+          if (h < 0 || h > 23 || m < 0 || m > 59 || s < 0 || s > 59) continue;
+          
+          // Create Date object with epoch date (1899-12-30) in script timezone
+          const epochDate = new Date(1899, 11, 30, h, m, s);
+          
+          // Check if already a proper time-only Date
+          const existing = rawTime instanceof Date ? rawTime : null;
+          if (existing && 
+              existing.getFullYear() === 1899 && 
+              existing.getMonth() === 11 && 
+              existing.getDate() === 30 &&
+              existing.getHours() === h && 
+              existing.getMinutes() === m && 
+              existing.getSeconds() === s) {
+            continue; // Already correct
+          }
+          
+          out.fixed++;
+          const rowNum = i + 2;
+          const id = iId >= 0 ? String(row[iId]) : ('rindas ' + rowNum);
+          out.changes.push({ row: rowNum, id: id, was: timeStr, now: h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') });
+          
+          writes.push({ row: rowNum, col: iTime + 1, value: epochDate });
+        }
+        
+        if (apply && writes.length) {
+          writes.sort((a, b) => a.row - b.row);
+          const runs = [];
+          for (const w of writes) {
+            const last = runs[runs.length - 1];
+            if (last && w.row === last.endRow + 1 && w.col === last.col) { 
+              last.endRow = w.row; 
+              last.values.push(w.value); 
+            } else { 
+              runs.push({ startRow: w.row, endRow: w.row, col: w.col, values: [w.value] }); 
+            }
+          }
+          for (const r of runs) {
+            sheet.getRange(r.startRow, r.col, r.endRow - r.startRow + 1, 1).setValues(r.values.map(v => [v]));
+            _diag.getRangeCalls++;
+          }
+        }
+      }
+    }
+    report.totalFixed += out.fixed;
+    report.sheets[sheetName] = out;
+  }
+
+  report.message = apply
+    ? ('Laboti laiki: ' + report.totalFixed + ' rindas')
+    : ('Nepielādēts režīms — ' + report.totalFixed + ' rindas tiktu labotas. Sūtiet ar apply=1.');
+  return report;
+}
+
 function routeActionData(data) {
   const action = data.action;
   try {
     if (action === 'ping') return { success: true, pong: true, version: '20260927-1730' };
     if (action === 'dump_raw') return handleDumpRaw(data);
     if (action === 'repair_dates') return handleRepairDates(data);
+    if (action === 'repair_times') return handleRepairTimes(data);
     if (action === 'check_retry_not_allowed') return handleCheckRetryNotAllowed(data);
     if (action === 'createClient') return handleCreateClient(data);
     if (action === 'createEmployee') return handleCreateEmployee(data);
