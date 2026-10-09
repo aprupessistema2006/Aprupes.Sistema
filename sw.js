@@ -1,16 +1,18 @@
-const CACHE_NAME = 'aprupes-sistema-v8';
+const CACHE_NAME = 'aprupes-sistema-v9';
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
   'admin.html',
   'aprupe.html',
-  'control.html',
   'aprupetajs.html',
+  'control.html',
+  'medicine.html',
   'css/index.css',
   'css/admin.css',
   'css/aprupe.css',
   'css/aprupetajs.css',
   'css/login.css',
+  'css/medicine.css',
   'js/config.js',
   'js/update_notifier.js',
   'js/i18n.js',
@@ -30,7 +32,8 @@ const STATIC_ASSETS = [
   'js/excel_export.js',
   'js/xlsx.full.min.js',
   'js/exceljs.bare.min.js',
-  'css/medicine.css',
+  'js/syncGuard.js',
+  'js/dataManager.js',
   'logo/logoDS.png',
   'logo/logo_admin.png'
 ];
@@ -39,7 +42,12 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Precaching static assets');
-      return cache.addAll(STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' })));
+      // Use individual add() calls so one failure doesn't fail the entire precache
+      const requests = STATIC_ASSETS.map(url => 
+        cache.add(new Request(url, { cache: 'reload' }))
+          .catch(err => console.warn('[SW] Failed to precache:', url, err))
+      );
+      return Promise.all(requests);
     }).then(() => self.skipWaiting())
   );
 });
@@ -146,9 +154,10 @@ self.addEventListener('fetch', (event) => {
   }
 
   const isHTML = event.request.headers.get('accept')?.includes('text/html');
+  const isNavigation = event.request.mode === 'navigate';
 
-  if (isHTML) {
-    // For HTML, always fetch fresh but cache it
+  if (isHTML || isNavigation) {
+    // For HTML/navigation, try network first, then cache, then offline fallback
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -157,6 +166,13 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match(event.request))
+        .catch(() => {
+          // Offline fallback for navigation requests
+          if (isNavigation) {
+            return caches.match('index.html');
+          }
+          return new Response('Offline', { status: 508, statusText: 'Offline' });
+        })
     );
     return;
   }
