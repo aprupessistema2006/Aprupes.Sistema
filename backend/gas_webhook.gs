@@ -1374,6 +1374,16 @@ function _dateCellValue(v) {
   return new Date(Date.UTC(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)));
 }
 
+// Laika vērtība kā Date objekts ar epohas datumu (1899-12-30), lai Sheets
+// to atpazītu kā "time-only" un nekonvertētu pa laika joslām.
+// TZ = 'Europe/Riga' skripta iestatījumos.
+function _timeCellValue(hms) {
+  const parts = String(hms || '').split(':').map(Number);
+  if (parts.length < 2 || parts.some(isNaN)) return '';
+  const h = parts[0], m = parts[1], s = parts[2] || 0;
+  return new Date(1899, 11, 30, h, m, s);
+}
+
 function normalizeDateCell(v) {
   if (v === null || v === undefined || v === '') return '';
 
@@ -2450,7 +2460,7 @@ function handleMark(data) {
         klients_id: m.clientId,
         darbinieks_id: m.employeeId,
 datums: _dateCellValue(eventDateRiga),
-        laiks: eventTimeRiga,
+laiks: _timeCellValue(eventTimeRiga),
         periods: m.shift || 'R',
         kategorija: m.category,
         lauka_nosaukums: m.field,
@@ -2512,7 +2522,7 @@ datums: _dateCellValue(eventDateRiga),
       else if (nk === 'klients_id') markRow[i] = m.clientId;
       else if (nk === 'darbinieks_id') markRow[i] = m.employeeId;
       else if (nk === 'datums') markRow[i] = _dateCellValue(m.date || formatDate(new Date()));
-      else if (nk === 'laiks') markRow[i] = eventTimeRiga;
+      else if (nk === 'laiks') markRow[i] = _timeCellValue(eventTimeRiga);
       else if (nk === 'periods') markRow[i] = m.shift || 'R';
       else if (nk === 'kategorija') markRow[i] = m.category;
       else if (nk === 'lauka_nosaukums') markRow[i] = m.field;
@@ -2534,8 +2544,8 @@ datums: _dateCellValue(eventDateRiga),
       atzimes_id: id,
       klients_id: m.clientId,
       darbinieks_id: m.employeeId,
-      datums: eventDateRiga,
-      laiks: eventTimeRiga,
+      datums: _dateCellValue(eventDateRiga),
+      laiks: _timeCellValue(eventTimeRiga),
       periods: m.shift || 'R',
       kategorija: m.category,
       lauka_nosaukums: m.field,
