@@ -611,14 +611,54 @@ function handleRepairDates(data) {
     : ('Nepielādēts režīms — ' + report.totalFixed + ' rindas tiktu labotas. Sūtiet atkārtoji ar apply=1, lai piemērotu.');
   return report;
 }
-
 function handleRepairTimes(data) {
   const params = (data && data.data) || data || {};
   const apply = params.apply === true || params.apply === 'true' || params.apply === 1 || params.apply === '1';
   const report = { success: true, applied: apply, sheets: {}, totalFixed: 0 };
 
-  // Fix 'laiks' column in both sheets: rewrite as Date object (epoch 1899-12-30)
-  // so Sheets treats it as time-only without timezone conversion.
+  // Fix 'laiks' column in both sheets using correct source times:
+  // - atzimes_log: extract time from notikuma_laiks / skaits (correct times)
+  // - atzimes: use latest log entry's notikuma_laiks for each mark
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Build map from mark ID -> correct time (from atzimes_log)
+  const logSheet = getSheet('atzimes_log');
+  const markTimeMap = new Map();
+  
+  if (logSheet && logSheet.getLastRow() > 1) {
+    const lastRow = logSheet.getLastRow();
+    const lastCol = logSheet.getLastColumn();
+    const headers = logSheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => normalizeKey(h));
+    const iId = headers.indexOf('atslēga') >= 0 ? headers.indexOf('atslēga') : headers.indexOf('id');
+    const iNotikumaLaiks = headers.indexOf('notikuma_laiks');
+    const iSkaits = headers.indexOf('skaits');
+    const iLaiks = headers.indexOf('laiks');
+    
+    if (iId >= 0 && (iNotikumaLaiks >= 0 || iSkaits >= 0) && iLaiks >= 0) {
+      const n = lastRow - 1;
+      const vals = logSheet.getRange(2, 1, n, lastCol).getValues();
+      _diag.getRangeCalls++;
+      _diag.cellsRead += n * lastCol;
+      
+      for (let i = 0; i < n; i++) {
+        const row = vals[i];
+        const markId = String(row[iId] || '').trim();
+        if (!markId) continue;
+        
+        // Get correct time from notikuma_laiks or skaits
+        const correctTime = row[iNotikumaLaiks] !== undefined ? row[iNotikumaLaiks] : row[iSkaits];
+        const parsed = parseTimestamp(correctTime);
+        if (parsed) {
+          // Keep only the latest time for each mark
+          if (!markTimeMap.has(markId) || parsed.getTime() > markTimeMap.get(markId).getTime()) {
+            markTimeMap.set(markId, parsed);
+          }
+        }
+      }
+    }
+  }
+  
+  // Now fix both sheets
   const sheetsToFix = ['atzimes', 'atzimes_log'];
   
   for (const sheetName of sheetsToFix) {
@@ -631,6 +671,7 @@ function handleRepairTimes(data) {
       const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => normalizeKey(h));
       const iTime = headers.indexOf('laiks');
       const iId = headers.indexOf('id');
+      const iAtslega = headers.indexOf('atslēga');
       
       if (iTime < 0) {
         out.error = 'kolonna laiks nav atrasta';
@@ -644,31 +685,36 @@ function handleRepairTimes(data) {
         for (let i = 0; i < n; i++) {
           const row = vals[i];
           out.scanned++;
-          const rawTime = row[iTime];
           
-          // Parse time from various formats
-          const timeStr = String(rawTime || '').trim();
-          if (!timeStr) continue;
+          // Determine correct time for this row
+          let correctDate = null;
+          const rowId = (iAtslega >= 0 ? String(row[iAtslega]) : '') || (iId >= 0 ? String(row[iId]) : '');
           
-          // Match HH:mm:ss or HH:mm
-          const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-          if (!timeMatch) continue;
+          if (sheetName === 'atzimes_log') {
+            // For log: use notikuma_laiks / skaits from this row
+            const iNotikumaLaiks = headers.indexOf('notikuma_laiks');
+            const iSkaits = headers.indexOf('skaits');
+            const sourceTime = (iNotikumaLaiks >= 0 ? row[iNotikumaLaiks] : undefined) ?? (iSkaits >= 0 ? row[iSkaits] : undefined);
+            correctDate = parseTimestamp(sourceTime);
+          } else if (sheetName === 'atzimes' && rowId) {
+            // For marks: use latest log time for this mark
+            correctDate = markTimeMap.get(rowId) || null;
+          }
           
-          const h = parseInt(timeMatch[1], 10);
-          const m = parseInt(timeMatch[2], 10);
-          const s = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+          if (!correctDate) continue;
           
-          if (h < 0 || h > 23 || m < 0 || m > 59 || s < 0 || s > 59) continue;
+          const h = correctDate.getHours();
+          const m = correctDate.getMinutes();
+          const s = correctDate.getSeconds();
           
           // Create Date object with epoch date (1899-12-30) in script timezone
           const epochDate = new Date(1899, 11, 30, h, m, s);
           
-          // ALWAYS rewrite — even if already epoch Date, hours may be wrong
-          // due to spreadsheet timezone vs script timezone mismatch.
           out.fixed++;
           const rowNum = i + 2;
           const id = iId >= 0 ? String(row[iId]) : ('rindas ' + rowNum);
-          out.changes.push({ row: rowNum, id: id, was: timeStr, now: h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') });
+          const wasStr = String(row[iTime] || '').trim();
+          out.changes.push({ row: rowNum, id: id, was: wasStr, now: h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') });
           
           writes.push({ row: rowNum, col: iTime + 1, value: epochDate });
         }
@@ -692,6 +738,7 @@ function handleRepairTimes(data) {
         }
       }
     }
+
     report.totalFixed += out.fixed;
     report.sheets[sheetName] = out;
   }
@@ -3110,9 +3157,11 @@ function getEventDateFromPayload(payload, fallbackDate) {
 }
 
 function getEventTimeFromPayload(payload, fallbackEventTime, fallbackDate) {
+  // Priority 1: explicit eventTime / notikuma_laiks / skaits from client
   const eventTime = parseTimestamp(payload.eventTime || payload.notikuma_laiks || payload.skaits);
   if (eventTime) return eventTime;
-  if (fallbackEventTime) return fallbackEventTime;
+
+  // Priority 2: client's explicit time/laiks field combined with date
   const timeOnly = parseTimeOnly(payload.time || payload.laiks);
   const eventDate = getEventDateFromPayload(payload, fallbackDate);
   if (timeOnly) {
@@ -3125,6 +3174,11 @@ function getEventTimeFromPayload(payload, fallbackEventTime, fallbackDate) {
       timeOnly.second
     );
   }
+
+  // Priority 3: fallbackEventTime (existingEventTime for updates, NOT modificationTime for new marks)
+  if (fallbackEventTime) return fallbackEventTime;
+
+  // Last resort: current time
   return new Date();
 }
 
