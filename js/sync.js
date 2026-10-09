@@ -1241,7 +1241,7 @@ class CareSync {
       // bootstrapam 35s — tā aptver visu novēroto diapazonu VIENĀ mēģinājumā.
       // Fona atzīmju ielāde paliek 25s: tas notiek PĒC bootstrapa, kad
       // serveris jau silts.
-      timeout: 35000,
+      timeout: 60000,
       onProgress
     });
     console.log('[sync] bootstrap RECEIVED:',
