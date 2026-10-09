@@ -5,7 +5,7 @@ const CONFIG = {
   // saskaņots, lai neviens uz to nepaliekoties nepareizas versijas.
   VERSION: '20261009-1300',
 
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbyF1Fk1DUDXFYAF9nhgx9csGkpfFHb9dgJctnnxXO311dpO44sL0tiMle6kGu1QGSix/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbxGGqhmJQVVsVQkIYx3nkx_jMGuwb5UPFAP5k9n_2FeFFLoN7LRUN_SOY3bMgp6C5oBzQ/exec',
 
   // ⚠️ Šis lauks klientā netiek lasīts — patieso nolasījumu dara
   // backend/gas_webhook.gs (SHEET_ID, 1. rinda). Šeit tas ir tikai
