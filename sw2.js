@@ -5,7 +5,7 @@
 // 20260929-1048: atzīmes skenēšanas labojums + mērījumi.
 // 20261002-2100: GAS_URL jaunā skripta adrese; forceUpdate pārlādē jaunu URL.
 // 20261004-1600: HTML zarojums bezsaimes režīmā atgriež īstu Response.
-const CACHE_NAME = 'aprupes-sistema-v62'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v63'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
