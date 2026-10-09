@@ -663,18 +663,8 @@ function handleRepairTimes(data) {
           // Create Date object with epoch date (1899-12-30) in script timezone
           const epochDate = new Date(1899, 11, 30, h, m, s);
           
-          // Check if already a proper time-only Date
-          const existing = rawTime instanceof Date ? rawTime : null;
-          if (existing && 
-              existing.getFullYear() === 1899 && 
-              existing.getMonth() === 11 && 
-              existing.getDate() === 30 &&
-              existing.getHours() === h && 
-              existing.getMinutes() === m && 
-              existing.getSeconds() === s) {
-            continue; // Already correct
-          }
-          
+          // ALWAYS rewrite — even if already epoch Date, hours may be wrong
+          // due to spreadsheet timezone vs script timezone mismatch.
           out.fixed++;
           const rowNum = i + 2;
           const id = iId >= 0 ? String(row[iId]) : ('rindas ' + rowNum);
