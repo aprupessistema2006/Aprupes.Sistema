@@ -49,11 +49,10 @@ class LoginController {
     try {
       await this.sync.bootstrapUI({
         onLocalReady: async () => {
+          // Tikai ielādē darbiniekus no IndexedDB — NEPARBAUDĪT Setup šeit!
+          // Servera dati vēl nav ierakstīti DB. Setup pārbaudi dara onServerData.
           await this.loadEmployees();
           this._serverReachable = true;
-          if (this.employees.length === 0) {
-            this.enterSetupMode();
-          }
         },
         onServerData: async () => {
           await this.loadEmployees();
@@ -62,6 +61,12 @@ class LoginController {
             statusMsg.style.color = '#27ae60';
           }
           document.body.classList.add('online');
+
+          // Tagad, kad servera dati ir DB — pārbaudīt, vai ir darbinieki
+          if (this.employees.length === 0) {
+            this.enterSetupMode();
+            return;
+          }
         },
         onProgress: (msg) => { showLoading(msg); }
       });
