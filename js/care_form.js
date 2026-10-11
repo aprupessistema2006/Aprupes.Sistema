@@ -399,35 +399,6 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
       }, true); // Use capture to intercept before main handler
     }
 
-    // Update manual sync button badge with unsynced count
-    updateManualSyncBadge() {
-      const manualSyncBtn = document.getElementById('manualSyncBtn');
-      if (!manualSyncBtn || !window.careSync) return;
-      window.careSync.getUnsyncedCount().then(count => {
-        if (count > 0) {
-          // Add badge if not exists
-          let badge = manualSyncBtn.querySelector('.sync-count-badge');
-          if (!badge) {
-            badge = document.createElement('span');
-            badge.className = 'sync-count-badge';
-            badge.style.cssText = `
-              position: absolute; top: -6px; right: -6px;
-              min-width: 18px; height: 18px; padding: 0 4px;
-              background: #e74c3c; color: white; border-radius: 9px;
-              font-size: 11px; font-weight: 700; line-height: 18px;
-              text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            `;
-            manualSyncBtn.style.position = 'relative';
-            manualSyncBtn.appendChild(badge);
-          }
-          badge.textContent = count > 9 ? '9+' : count;
-        } else {
-          const badge = manualSyncBtn.querySelector('.sync-count-badge');
-          if (badge) badge.remove();
-        }
-      }).catch(() => {});
-    }
-
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async (e) => {
@@ -531,6 +502,35 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
     document.getElementById('categoryModal').addEventListener('click', (e) => {
       if (e.target.id === 'categoryModal') this.closeCategoryModal();
     });
+  }
+
+  // Update manual sync button badge with unsynced count
+  updateManualSyncBadge() {
+    const manualSyncBtn = document.getElementById('manualSyncBtn');
+    if (!manualSyncBtn || !window.careSync) return;
+    window.careSync.getUnsyncedCount().then(count => {
+      if (count > 0) {
+        // Add badge if not exists
+        let badge = manualSyncBtn.querySelector('.sync-count-badge');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'sync-count-badge';
+          badge.style.cssText = `
+            position: absolute; top: -6px; right: -6px;
+            min-width: 18px; height: 18px; padding: 0 4px;
+            background: #e74c3c; color: white; border-radius: 9px;
+            font-size: 11px; font-weight: 700; line-height: 18px;
+            text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          `;
+          manualSyncBtn.style.position = 'relative';
+          manualSyncBtn.appendChild(badge);
+        }
+        badge.textContent = count > 9 ? '9+' : count;
+      } else {
+        const badge = manualSyncBtn.querySelector('.sync-count-badge');
+        if (badge) badge.remove();
+      }
+    }).catch(() => {});
   }
 
   async loadClient() {
