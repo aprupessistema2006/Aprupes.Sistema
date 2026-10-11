@@ -864,11 +864,73 @@ body.online {
   box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
 }
 
-/* Desktop-only: enhanced card on wider screens */
+/* Desktop-only: app-like layout — card fills the screen height, employee list
+   scrolls INSIDE the card, header/search/filters stay sticky, login form
+   always visible at the bottom (same UX as phone, but wider card) */
 @media (min-width: 1025px) {
+  html {
+    height: 100%;
+  }
+  body {
+    height: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+  }
+  .login-container {
+    padding: 0;
+    max-width: 100%;
+    height: 100%;
+    min-height: 100vh;
+  }
   .login-card {
-    max-width: 480px;
+    max-width: 640px;
+    height: 100dvh;
+    height: calc(var(--vh, 1vh) * 100);
+    height: -webkit-fill-available;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px;
+  }
+  .login-card .login-header {
+    flex-shrink: 0;
+  }
+  .login-card .login-title {
+    flex-shrink: 0;
+  }
+  .login-card .login-subtitle {
+    flex-shrink: 0;
+  }
+  .login-card .employee-search-row {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 0;
+  }
+  .login-card .role-filter {
+    flex-shrink: 0;
+    position: sticky;
+    top: 60px;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 0;
+  }
+  .login-card .employee-card-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px;
+  }
+  .login-card #loginSection form {
+    flex-shrink: 0;
   }
 }
 
