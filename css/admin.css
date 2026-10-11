@@ -1458,6 +1458,242 @@ body {
   }
 }
 
+/* ── Desktop / Large Tablet (≥1025px) — responsīvs pielāgojums ── */
+@media (min-width: 1025px) {
+  .main {
+    max-width: 1400px;
+    padding: 24px 32px;
+  }
+
+  /* Stats grid: 4-6 kolonnas atkarībā no platuma */
+  .stats-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .stat-card {
+    padding: 20px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+  }
+
+  .stat-label {
+    font-size: 14px;
+  }
+
+  /* Header: vairāk vietas, lielāki pogas */
+  .header {
+    padding: 14px 24px;
+    height: 68px;
+    gap: 16px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .btn-text-icon {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 15px;
+  }
+
+  /* Filter bar: horizontālā izkārtojuma, lai neiziet ārpus ekrāna */
+  .filter-bar {
+    padding: 20px;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    box-sizing: border-box;
+  }
+
+  .filter-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-end;
+  }
+
+  .filter-row label {
+    flex: 1 1 200px;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .filter-row input,
+  .filter-row select {
+    padding: 10px 14px;
+    font-size: 15px;
+    min-height: 44px;
+  }
+
+  /* Role filter bar: fiksēta platuma, nevis procentuālā */
+  .role-filter-bar {
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+  }
+
+  .role-filter-btn {
+    flex: 0 0 auto;
+    min-width: 110px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  /* Data section un tabulas */
+  .data-section {
+    padding: 24px;
+  }
+
+  .data-section h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .table-wrapper {
+    max-height: 700px;
+  }
+
+  .data-table {
+    font-size: 14px;
+    min-width: 800px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 12px 16px;
+  }
+
+  /* Task cards: vairāk vietas tekstam */
+  .task-row {
+    padding: 16px 20px;
+    gap: 16px;
+  }
+
+  .task-row-text {
+    font-size: 15px;
+  }
+
+  .task-row-meta {
+    font-size: 13px;
+    gap: 16px;
+  }
+
+  .task-form-row {
+    gap: 16px;
+  }
+
+  .task-form-row label {
+    min-width: 200px;
+    flex: 1 1 200px;
+  }
+
+  .task-form-row input,
+  .task-form-row select {
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+
+  .export-row {
+    gap: 20px;
+  }
+
+  .export-row label {
+    flex: 1 1 200px;
+    min-width: 180px;
+  }
+
+  .export-row input,
+  .export-row select {
+    min-width: 200px;
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  .month-view-container {
+    padding: 16px;
+  }
+
+  .month-table {
+    font-size: 13px;
+  }
+
+  .month-table th,
+  .month-table td {
+    padding: 8px 12px;
+  }
+
+  .modal-content {
+    max-width: 600px;
+    padding: 28px;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    padding: 12px 24px;
+    font-size: 15px;
+  }
+
+  .section-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .action-section,
+  .settings-group {
+    padding: 24px;
+  }
+
+  .item-list {
+    max-height: calc(100vh - 280px);
+  }
+}
+
+/* ── Lielāki ekrāni (≥1400px) — vēl vairāk kolonnu ── */
+@media (min-width: 1400px) {
+  .main {
+    max-width: 1600px;
+    padding: 28px 40px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+  }
+
+  .filter-row label {
+    flex: 1 1 220px;
+    min-width: 200px;
+  }
+}
+
+/* ── Vēl lielāki (≥1600px) ── */
+@media (min-width: 1600px) {
+  .main {
+    max-width: 1800px;
+    padding: 32px 48px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
 /* ── Client autocomplete dropdown ─────────────────────────────────────────── */
 .client-autocomplete {
   position: relative;
