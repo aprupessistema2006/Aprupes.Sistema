@@ -5,7 +5,7 @@
 // 20260929-1048: atzīmes skenēšanas labojums + mērījumi.
 // 20261002-2100: GAS_URL jaunā skripta adrese; forceUpdate pārlādē jaunu URL.
 // 20261004-1600: HTML zarojums bezsaimes režīmā atgriež īstu Response.
-const CACHE_NAME = 'aprupes-sistema-v63'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v64'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -50,7 +50,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20261008-1910';
+const BUILD_VERSION = '20261009-1300';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>
