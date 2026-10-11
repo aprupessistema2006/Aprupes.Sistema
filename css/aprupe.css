@@ -684,7 +684,7 @@ body {
     grid-template-rows: minmax(var(--card-height), auto);
   }
   .client-container {
-    max-height: calc(var(--card-height) + 28px);
+    max-height: calc(var(--card-height) * 3 + 24px);
   }
 }
 
