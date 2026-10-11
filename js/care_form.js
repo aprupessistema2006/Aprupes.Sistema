@@ -326,34 +326,75 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
     // Manual sync button handler
     const manualSyncBtn = document.getElementById('manualSyncBtn');
     if (manualSyncBtn) {
+      let syncAbortController = null;
       manualSyncBtn.addEventListener('click', async () => {
         if (!navigator.onLine) {
           this.toast(t('offline'));
           return;
         }
         manualSyncBtn.disabled = true;
+        const originalHtml = manualSyncBtn.innerHTML;
         manualSyncBtn.innerHTML = '<span>⏳</span> <span data-i18n="syncing">Sinhronizē...</span>';
+        if (typeof applyLanguage === 'function') applyLanguage();
+
+        // Create abort controller for potential cancellation
+        syncAbortController = new AbortController();
+        
+        // Show cancel option after 3 seconds if still syncing
+        const cancelTimeout = setTimeout(() => {
+          if (!manualSyncBtn.disabled) return;
+          manualSyncBtn.innerHTML = '<span>⏳</span> <span>Atgriezties?</span>';
+          manualSyncBtn.title = 'Nospiediet, lai atgrieztos darbam';
+          manualSyncBtn.dataset.cancelling = 'true';
+        }, 3000);
+
         try {
           const result = await this.sync.forceFullSync((msg) => {
             if (typeof this.toast === 'function') this.toast(msg, 3000);
           }, { clientId: this.clientId });
+          
+          clearTimeout(cancelTimeout);
+          
           if (result.offline) {
             this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
           } else {
-            // Rendering is handled by syncComplete event listener
             await Promise.all([this.loadAllClientMarks(), this.loadMarks()]);
             this.renderHistory();
             this.updateHospitalStatusUI();
             this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
-          this.toast('⚠️ Kļūda: ' + err.message, 4000);
+          clearTimeout(cancelTimeout);
+          if (err.name === 'AbortError' || manualSyncBtn.dataset.cancelling) {
+            this.toast('ℹ️ Atgriezās darbam — sinhronizācija turpinās fonā');
+          } else {
+            this.toast('⚠️ Kļūda: ' + err.message, 4000);
+          }
         } finally {
+          clearTimeout(cancelTimeout);
           manualSyncBtn.disabled = false;
-          manualSyncBtn.innerHTML = '<span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span>';
+          manualSyncBtn.innerHTML = originalHtml;
+          manualSyncBtn.dataset.cancelling = 'false';
           if (typeof applyLanguage === 'function') applyLanguage();
         }
       });
+      
+      // Handle click during "Atgriezties?" state - allow user to return to work
+      manualSyncBtn.addEventListener('click', (e) => {
+        if (manualSyncBtn.dataset.cancelling === 'true') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (syncAbortController) {
+            syncAbortController.abort();
+          }
+          manualSyncBtn.disabled = false;
+          const originalHtml = '<span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span>';
+          manualSyncBtn.innerHTML = originalHtml;
+          manualSyncBtn.dataset.cancelling = 'false';
+          if (typeof applyLanguage === 'function') applyLanguage();
+          this.toast('ℹ️ Atgriezās darbam — sinhronizācija turpinās fonā');
+        }
+      }, true); // Use capture to intercept before main handler
     }
 
     const logoutBtn = document.getElementById('logoutBtn');
