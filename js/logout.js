@@ -13,32 +13,41 @@ const Logout = {
     return this.pendingChanges || 0;
   },
 
-  confirm: function(opts) {
+confirm: function(opts) {
     opts = opts || {};
     const pending = opts.pending !== undefined ? opts.pending : this.getPending();
     const backgroundSync = opts.backgroundSync === true;
+    const t = (key, vars) => {
+      let text = window.t ? window.t(key) : key;
+      if (vars) {
+        Object.entries(vars).forEach(([k, v]) => {
+          text = text.replace('{' + k + '}', v);
+        });
+      }
+      return text;
+    };
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'logout-confirm-overlay';
       const hasPending = pending > 0;
       const icon = hasPending ? (backgroundSync ? '🔄' : '⚠️') : '👋';
-      const title = hasPending 
-        ? (backgroundSync ? 'Dati sinhronizējas...' : 'Ir nesaglabāti dati!') 
-        : 'Vai tiešām vēlies iziet?';
+      const title = hasPending
+        ? (backgroundSync ? t('logoutSyncingTitle') : t('logoutConfirmUnsaved'))
+        : t('logoutConfirmTitle');
       const msg = hasPending
         ? (backgroundSync
-            ? 'Dati tiks nosūtīti uz Google Sheets fonā (ja programma atvērta un ir internets). Varat droši iziet — sinhronizācija turpināsies, kad atvērsiet atkārtoti.'
-            : 'Tev pašlaik ir <strong>' + pending + ' nesaglabāts(-i) ieraksts(-i)</strong>. Tie tiks nosūtīti automātiski, kad atvērsiet programmu ar interneta. Ja iziesi tagad bez interneta, dati paliks tikai uz ierīces.<br><br>Vai tiešām vēlies iziet?')
-        : 'Visi dati ir saglabāti. Vai tiešām vēlies iziet no sistēmas?';
+            ? t('logoutSyncingMsg')
+            : t('logoutConfirmUnsavedMsg', { count: pending }))
+        : t('logoutConfirmAllSaved');
       overlay.innerHTML = `
         <div class="logout-confirm-card">
           <div class="logout-confirm-icon">${icon}</div>
           <div class="logout-confirm-title">${title}</div>
           <div class="logout-confirm-msg ${hasPending ? (backgroundSync ? 'syncing' : 'unsaved') : ''}">${msg}</div>
           <div class="logout-buttons">
-            <button class="logout-btn-cancel" data-act="cancel">Palikt</button>
-            ${hasPending && !backgroundSync ? '<button class="logout-btn-sync" data-act="sync">🔄 Sinhronizēt tagad</button>' : ''}
-            <button class="logout-btn-confirm" data-act="ok">${backgroundSync ? 'Iziet' : 'Jā, iziet'}</button>
+            <button class="logout-btn-cancel" data-act="cancel">${t('logoutCancelBtn')}</button>
+            ${hasPending && !backgroundSync ? '<button class="logout-btn-sync" data-act="sync">' + t('logoutSyncNowBtn') + '</button>' : ''}
+            <button class="logout-btn-confirm" data-act="ok">${backgroundSync ? t('logoutExitBtn') : t('logoutOkBtn')}</button>
           </div>
         </div>
       `;
@@ -55,7 +64,7 @@ const Logout = {
           const syncBtn = overlay.querySelector('[data-act="sync"]');
           if (syncBtn) {
             syncBtn.disabled = true;
-            syncBtn.textContent = '⏳ Sūtu datus uz Google Sheets…';
+            syncBtn.textContent = t('logoutSyncingBtnText');
           }
           try {
             // ⚠️ Izejam no lietojuma → jānosūta RINDA, nevis jāielādē no
@@ -83,36 +92,32 @@ const Logout = {
               overlay.remove();
               resolve(true); // Allow logout after successful sync
             } else {
-// ⚠️ RINDA NAV TUKŠA. nedrīkst apgalvot, ka dati saglabāti —
-            // tie joprojām ir tikai ierīcē. Piedāvājam mēģināt vēlreiz
-            // un brīdinām, ka iziešana var pazaudēt šos ierakstus.
+  // ⚠️ RINDA NAV TUKŠA. nedrīkst apgalvot, ka dati saglabāti —
+  // tie joprojām ir tikai ierīcē. Piedāvājam mēģināt vēlreiz
+  // un brīdinām, ka iziešana var pazaudēt šos ierakstus.
             const msgEl = overlay.querySelector('.logout-confirm-msg');
             if (msgEl) {
-              msgEl.innerHTML = '⚠️ <b>' + remaining + '</b> ierakstu vēl nav saglabāti Google Sheets.<br><br>' +
-                'Dati ir droši uz ierīces, bet tiks nosūtīti tikai nākamreiz, kad atvērsiet programmu AR INTERNETU.<br><br>' +
-                'Vai vēlies mēģināt vēlreiz tagad, vai tomēr iziet?';
+              msgEl.innerHTML = t('logoutSyncFailedMsg', { count: remaining });
               msgEl.classList.add('unsaved');
             }
               const titleEl = overlay.querySelector('.logout-confirm-title');
-              if (titleEl) titleEl.textContent = 'Ne visas izmaiņas saglabātas';
+              if (titleEl) titleEl.textContent = t('logoutSyncFailedTitle');
               const iconEl = overlay.querySelector('.logout-confirm-icon');
               if (iconEl) iconEl.textContent = '⚠️';
               if (syncBtn) {
                 syncBtn.disabled = false;
-                syncBtn.textContent = '🔄 Mēģināt sūtīt vēlreiz';
+                syncBtn.textContent = t('logoutRetryBtn');
               }
             }
           } catch (err) {
             const msgEl = overlay.querySelector('.logout-confirm-msg');
             if (msgEl) {
-              msgEl.innerHTML = '⚠️ Sinhronizācija neizdevās: ' + err.message + '<br><br>' +
-                'Dati paliek uz ierīces — tiks nosūtīti, kad atvērsiet programmu ar interneta.<br><br>' +
-                'Vai tiešām vēlies iziet?';
+              msgEl.innerHTML = t('logoutErrorMsg', { error: err.message });
               msgEl.classList.add('unsaved');
             }
             if (syncBtn) {
               syncBtn.disabled = false;
-              syncBtn.textContent = '🔄 Mēģināt sūtīt vēlreiz';
+              syncBtn.textContent = t('logoutRetryBtn');
             }
           } finally {
             syncInProgress = false;
@@ -130,17 +135,26 @@ const Logout = {
       try { return JSON.parse(sessionStorage.getItem('careUser') || 'null'); } catch (e) { return null; }
     })();
     const fname = (user && (user.vards || '')) || 'draugs';
+    const t = (key, vars) => {
+      let text = window.t ? window.t(key) : key;
+      if (vars) {
+        Object.entries(vars).forEach(([k, v]) => {
+          text = text.replace('{' + k + '}', v);
+        });
+      }
+      return text;
+    };
     const compliments = [
-      'Paldies par darbu, ' + fname + '! 🌟',
-      'Tu esi fantastisks, ' + fname + '! 💪',
-      'Labi, ka rūpējies par klientiem! 🤝',
-      'Veiksmīgu dienas turpinājumu, ' + fname + '! ☀️',
-      'Tu esi super, ' + fname + '! ✨',
-      'Paldies, ka esi lielisks komandas loceklis! 💙',
-      'Cieņā un pateicībā par Tavu darbu! 🙏',
-      'Atpūties un uz tikšanos! 🌻',
-      'Tava darba devums ir nenovērtējams! 🙌',
-      'Lai jauka diena, ' + fname + '! 🌈'
+      t('goodbyeCompliment1', { name: fname }),
+      t('goodbyeCompliment2', { name: fname }),
+      t('goodbyeCompliment3', { name: fname }),
+      t('goodbyeCompliment4', { name: fname }),
+      t('goodbyeCompliment5', { name: fname }),
+      t('goodbyeCompliment6', { name: fname }),
+      t('goodbyeCompliment7', { name: fname }),
+      t('goodbyeCompliment8', { name: fname }),
+      t('goodbyeCompliment9', { name: fname }),
+      t('goodbyeCompliment10', { name: fname }),
     ];
     const msg = compliments[Math.floor(Math.random() * compliments.length)];
 
@@ -149,7 +163,7 @@ const Logout = {
     goodbye.innerHTML = `
       <div class="logout-goodbye-emoji">🌻</div>
       <div class="logout-goodbye-msg">${msg}</div>
-      <div class="logout-goodbye-sub">Uz drīzu tikšanos!</div>
+      <div class="logout-goodbye-sub">${t('goodbyeSubtitle')}</div>
     `;
     document.body.appendChild(goodbye);
 

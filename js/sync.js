@@ -923,14 +923,15 @@ class CareSync {
 
   // Human-readable status mapping for UI
   _humanStatus(status) {
+    const t = (key) => (window.t ? window.t(key) : key);
     const map = {
-      'Nav savienojuma': '🔴 Bezsaime',
-      'Saglabāts': '🟢 Saglabāts',
-      'Sinhronizē...': '🔄 Sūtu datus uz Google Sheets…',
-      'Lasu datus no Google Sheets...': '📥 Lasu datus no Google Sheets…',
-      'Sinhronizācijas kļūda': '⚠️ Sinhronizācijas kļūda',
-      'Gaida nosūtīšanu': '⏳ Gaida nosūtīšanu',
-      'Gaida nosūtīšanu (✓': '⏳ Gaida nosūtīšanu',
+      'Nav savienojuma': t('syncStatusOffline'),
+      'Saglabāts': t('syncStatusSaved'),
+      'Sinhronizē...': t('syncStatusSyncing'),
+      'Lasu datus no Google Sheets...': t('syncStatusReading'),
+      'Sinhronizācijas kļūda': t('syncStatusError'),
+      'Gaida nosūtīšanu': t('syncStatusPending'),
+      'Gaida nosūtīšanu (✓': t('syncStatusPendingShort'),
     };
     for (const [key, val] of Object.entries(map)) {
       if (status.startsWith(key)) return val;
@@ -956,6 +957,15 @@ class CareSync {
     if (typeof document === 'undefined' || !document.body) return;
     const ID = 'unsyncedBadge';
     let el = document.getElementById(ID);
+    const t = (key, vars) => {
+      let text = window.t ? window.t(key) : key;
+      if (vars) {
+        Object.entries(vars).forEach(([k, v]) => {
+          text = text.replace('{' + k + '}', v);
+        });
+      }
+      return text;
+    };
 
     if (!count || count <= 0) {
       if (el) el.parentNode.removeChild(el);
@@ -983,7 +993,7 @@ class CareSync {
 
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = 'Mēģināt tagad';
+      btn.textContent = t('unsyncedRetryBtn');
       btn.style.cssText = [
         'background: #fff', 'color: #B26A00', 'border: none',
         'padding: 9px 16px', 'border-radius: 8px',
@@ -991,10 +1001,10 @@ class CareSync {
       ].join(';');
       btn.addEventListener('click', () => {
         btn.disabled = true;
-        btn.textContent = 'Sūtu…';
+        btn.textContent = t('syncStatusSyncing');
         this.processQueue()
           .catch(() => {})
-          .finally(() => { btn.disabled = false; btn.textContent = 'Mēģināt tagad'; });
+          .finally(() => { btn.disabled = false; btn.textContent = t('unsyncedRetryBtn'); });
       });
 
       el.appendChild(label);
@@ -1005,8 +1015,8 @@ class CareSync {
     const label = el.firstChild;
     if (label) {
       label.textContent = count === 1
-        ? '⏳ 1 ieraksts vēl nav Google Sheetā'
-        : '⏳ ' + count + ' ieraksti vēl nav Google Sheetā';
+        ? t('unsyncedOne')
+        : t('unsyncedMany', { count });
     }
   }
 
@@ -1023,30 +1033,31 @@ class CareSync {
   }
 
   async checkConnection() {
+    const t = (key) => (window.t ? window.t(key) : key);
     if (!navigator.onLine) {
       this._connectionStatus = 'offline';
-      this._updateSyncStatus('🔴 Bezsaime');
-      return { connected: false, status: 'offline', message: '🔴 Nav interneta savienojuma.' };
+      this._updateSyncStatus(t('syncStatusOffline'));
+      return { connected: false, status: 'offline', message: t('syncStatusOffline') };
     }
     if (!SYNC_URL) {
       this._connectionStatus = 'offline';
-      this._updateSyncStatus('🔴 Bezsaime');
-      return { connected: false, status: 'offline', message: '🔴 Nav interneta savienojuma.' };
+      this._updateSyncStatus(t('syncStatusOffline'));
+      return { connected: false, status: 'offline', message: t('syncStatusOffline') };
     }
     try {
       const url = SYNC_URL + '?action=ping&t=' + Date.now();
       const data = await requestData(url, 15000);
       if (data && (data.success === true || data.pong === true)) {
         this._connectionStatus = 'connected';
-        this._updateSyncStatus('🟢 Saglabāts');
+        this._updateSyncStatus(t('syncStatusSaved'));
         return { connected: true, status: 'connected', message: '✅ Google Sheets savienojums aktīvs' };
       }
       this._connectionStatus = 'error';
-      this._updateSyncStatus('⚠️ Sinhronizācijas kļūda');
-      return { connected: false, status: 'error', message: '⚠️ Neizdevās sazināties ar serveri.' };
+      this._updateSyncStatus(t('syncStatusError'));
+      return { connected: false, status: 'error', message: t('syncStatusNoConnection') };
     } catch (err) {
       this._connectionStatus = 'error';
-      this._updateSyncStatus('⚠️ Sinhronizācijas kļūda');
+      this._updateSyncStatus(t('syncStatusError'));
       return { connected: false, status: 'error', message: '⚠️ Neizdevās sazināties ar serveri.' };
     }
   }
@@ -1449,21 +1460,21 @@ class CareSync {
    // FONĀ ielādē jaunākos ierakstus. Tas ir VIENS datu ielādes ceļš pēc
    // bootstrap — nevis divi paralēli (_loadMarksPaged + _loadRecentMarks),
    // kas dublēja katru ierakstu un kāpināja slodzi GAS serverim.
-   _loadRecentMarksBackground(onProgress) {
-     const { started, promise } = this._runOnce('load:recent', () => this._loadRecentMarks(null, this.RECENT_DAYS));
-     if (!started) return this._recentLoadingPromise || promise;
-     this._recentLoadingPromise = promise
-       .then(r => {
-         this.revision = (this.revision || 0) + 1;
-         this._updateSyncStatus('🟢 Saglabāts');
-         return r;
-       })
-       .catch(e => {
-         console.warn('[sync] aktuālo ierakstu fona ielāde neizdevās:', e.message);
-         return null;
-       });
-     return this._recentLoadingPromise;
-   }
+_loadRecentMarksBackground(onProgress) {
+      const { started, promise } = this._runOnce('load:recent', () => this._loadRecentMarks(null, this.RECENT_DAYS));
+      if (!started) return this._recentLoadingPromise || promise;
+      this._recentLoadingPromise = promise
+        .then(r => {
+          this.revision = (this.revision || 0) + 1;
+          this._updateSyncStatus(window.t ? window.t('syncStatusSaved') : '🟢 Saglabāts');
+          return r;
+        })
+        .catch(e => {
+          console.warn('[sync] aktuālo ierakstu fona ielāde neizdevās:', e.message);
+          return null;
+        });
+      return this._recentLoadingPromise;
+    }
 
    // Pilnā vēsture — TIKAI pēc pieprasījuma (klienta atvēršana vai
    // manuāla darbība). Sākuma ekrānam tas nav vajadzīgs.
@@ -1591,7 +1602,7 @@ class CareSync {
 
   async _loadInitialDataUnlocked(onProgress, processQueueFirst, filters = {}) {
     this._loading = true;
-    this._updateSyncStatus('🔄 Sūtu datus uz Google Sheets…');
+    this._updateSyncStatus(window.t ? window.t('syncStatusSyncing') : '🔄 Sūtu datus uz Google Sheets…');
     onProgress = onProgress || function() {};
 
     // Tikai viens mēģinājums — ātri, bez murgiem
@@ -1687,8 +1698,8 @@ class CareSync {
     } catch (err) {
       // JA NEIZDODAS — NEDZĒSIM DATUS!
       console.warn('[sync] loadInitialData kļūda, saglabājam esošos datus:', err.message);
-      this._updateSyncStatus('⚠️ Nav savienojuma ar Google Sheets');
-      onProgress('⚠️ Neizdevās sazināties ar Google Sheets. Darbojies ar lokālajiem datiem.');
+      this._updateSyncStatus(window.t ? window.t('syncStatusNoConnection') : '⚠️ Nav savienojuma ar Google Sheets');
+      onProgress(window.t ? window.t('toastOffline') : '⚠️ Neizdevās sazināties ar Google Sheets. Darbojies ar lokālajiem datiem.');
       return { offline: true, error: err.message, count: {}, pending: 0 };
     } finally {
       this._loading = false;
@@ -1852,12 +1863,13 @@ class CareSync {
 
   async _processQueueUnlocked(maxMs) {
     const summary = { synced: 0, failed: 0, remaining: 0, permanentlyFailed: 0, superseded: 0 };
+    const t = (key) => (window.t ? window.t(key) : key);
     if (!SYNC_URL) {
-      this._updateSyncStatus('🔴 Bezsaime');
+      this._updateSyncStatus(t('syncStatusOffline'));
       return summary;
     }
     this._queueProcessing = true;
-    this._updateSyncStatus('🔄 Sūtu datus uz Google Sheets…');
+    this._updateSyncStatus(t('syncStatusSyncing'));
     // Grafiks: uz telefona bez savienojuma katrs rakstīšanas pieprasījums
     // var kavēties līdz timeoutam. Bez šī ierobežojuma rinda varētu aizturēt
     // lāpu ielādi desmitiem minūšu pirms datu ielādes sākas.
@@ -2005,8 +2017,9 @@ class CareSync {
       // Indikators parādās uzreiz, nevis tikai dialoga iziešanas brīdī —
       // aprūpētājs bieži neizmanto iziešanas dialogu vispār.
       this._renderUnsyncedBadge(summary.remaining);
-      const humanPending = '⏳ Gaida nosūtīšanu';
-      const humanSaved = navigator.onLine ? '🟢 Saglabāts' : '🔴 Bezsaime';
+      const t = (key) => (window.t ? window.t(key) : key);
+      const humanPending = t('syncStatusPending');
+      const humanSaved = navigator.onLine ? t('syncStatusSaved') : t('syncStatusOffline');
       const status = summary.remaining > 0 ? humanPending : humanSaved;
       this._updateSyncStatus(summary.synced || summary.failed
         ? status + ' (✓' + summary.synced + ' ✗' + summary.failed + ')'

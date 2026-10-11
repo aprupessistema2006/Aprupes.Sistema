@@ -158,13 +158,13 @@ if (retryBtn) {
                 this.loadHistory(),
                 this.loadAllClientMarks()
               ]);
-              this.renderForm();
+this.renderForm();
               this.renderHistory();
               this.renderSignature();
               this.updateHospitalStatusUI();
               this.updateTeamSummary();
               this.renderQuickTotals();
-              this.toast('✓ Dati atjaunoti no Google Sheets');
+              this.toast(window.t ? window.t('toastDataUpdated') : '✓ Dati atjaunoti no Google Sheets');
             },
             force: true
           });
@@ -202,13 +202,13 @@ if (retryBtn) {
             this.loadHistory(),
             this.loadAllClientMarks()
           ]);
-          this.renderForm();
+this.renderForm();
           this.renderHistory();
           this.renderSignature();
           this.updateHospitalStatusUI();
           this.updateTeamSummary();
           this.renderQuickTotals();
-          this.toast('✓ Dati atjaunoti no Google Sheets');
+          this.toast(window.t ? window.t('toastDataUpdated') : '✓ Dati atjaunoti no Google Sheets');
         },
         force: false
       });
@@ -217,11 +217,11 @@ if (retryBtn) {
         // Serveris neatsakīja, bet vietējie dati jau ir rādīti (onLocalReady).
         // Rādām tikai brīdinājumu, nevis bloķējošu ekrānu.
         if (retryBtn) retryBtn.style.display = 'block';
-        this.toast('⚠️ Nav savienojuma ar Google Sheets. Darbojies ar ierīcē saglabāto.', 6000);
+        this.toast(window.t ? window.t('toastOffline') : '⚠️ Nav savienojuma ar Google Sheets. Darbojies ar ierīcē saglabāto.', 6000);
       }
     } catch (e) {
       console.error(e);
-this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'), 10000);
+      this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'), 10000);
       if (retryBtn) {
         retryBtn.style.display = 'block';
       }
@@ -358,17 +358,17 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
           clearTimeout(cancelTimeout);
           
           if (result.offline) {
-            this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
+            this.toast(window.t ? window.t('toastSyncFailed') : '⚠️ Sinhronizācija neizdevās', 4000);
           } else {
             await Promise.all([this.loadAllClientMarks(), this.loadMarks()]);
             this.renderHistory();
             this.updateHospitalStatusUI();
-            this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
+            this.toast(window.t ? window.t('toastSyncCompleted') : '✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
           clearTimeout(cancelTimeout);
           if (err.name === 'AbortError' || manualSyncBtn.dataset.cancelling) {
-            this.toast('ℹ️ Atgriezās darbam — nesaglabātie dati tiks nosūtīti fonā, kad būs internets');
+            this.toast(window.t ? window.t('toastContinueWork') : 'ℹ️ Atgriezās darbam — nesaglabātie dati tiks nosūtīti fonā, kad būs internets');
           } else {
             this.toast('⚠️ Kļūda: ' + err.message, 4000);
           }
@@ -394,7 +394,7 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
           manualSyncBtn.innerHTML = originalHtml;
           manualSyncBtn.dataset.cancelling = 'false';
           if (typeof applyLanguage === 'function') applyLanguage();
-          this.toast('ℹ️ Atgriezās darbam — nesaglabātie dati tiks nosūtīti fonā, kad būs internets');
+          this.toast(window.t ? window.t('toastContinueWork') : 'ℹ️ Atgriezās darbam — nesaglabātie dati tiks nosūtīti fonā, kad būs internets');
         }
       }, true); // Use capture to intercept before main handler
     }
@@ -464,7 +464,7 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
       attentionModalSave.addEventListener('click', async () => {
         const comment = attentionComment ? attentionComment.value.trim() : '';
         if (!comment) {
-          this.toast('Lūdzu, ievadiet komentāru');
+          this.toast(window.t ? window.t('toastEnterComment') : 'Lūdzu, ievadiet komentāru');
           return;
         }
         await this.flagForMedicalAttention(comment);
@@ -739,7 +739,7 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
     
     this.updateHospitalStatusUI();
     this.updateHospitalToggleButton(newStatus);
-    this.toast(newStatus ? 'Klients hospitalizēts slimnīcā' : 'Klients atgriezies SAC');
+    this.toast(newStatus ? (window.t ? window.t('toastHospitalIn') : 'Klients hospitalizēts slimnīcā') : (window.t ? window.t('toastHospitalOut') : 'Klients atgriezies SAC'));
   }
 
   // Determine hospital status from the latest status event across ALL dates
@@ -1672,7 +1672,7 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
       this.toast(t('fluidSaved'));
     } catch (err) {
       console.error('[handleSikdrumiSubmit] Error:', err);
-      this.toast('Kļūda saglabājot: ' + err.message);
+      this.toast(window.t ? window.t('toastSaveError', { error: err.message }) : 'Kļūda saglabājot: ' + err.message);
     } finally {
       this._processing.delete('sikdrumi_submit');
     }
@@ -2058,7 +2058,7 @@ async handleOptionSelect(shift, category, field, value, btn) {
 
     if (existing && existing.lastBy && existing.lastBy !== this.currentUser.id) {
       const otherName = this.empMap && this.empMap[existing.lastBy] ? this.empMap[existing.lastBy] : 'cits darbinieks';
-      this.toast('⚠️ Šis ieraksts ir modificēts no ' + otherName);
+      this.toast(window.t ? window.t('toastRecordModifiedBy') + otherName : '⚠️ Šis ieraksts ir modificēts no ' + otherName);
     }
 
     let result = null;
@@ -2243,7 +2243,7 @@ async handleOptionSelect(shift, category, field, value, btn) {
       this.history.unshift(logEntry);
 
       this.updateCategoryStatuses();
-      this.toast('Saglabāts');
+      this.toast(window.t ? window.t('toastSaved') : 'Saglabāts');
       return { mark, logEntry };
     } finally {
       this._processing.delete(actionKey);
@@ -2401,7 +2401,7 @@ async handleSign() {
       }
       // Tikai diennakts (24h) aprūpētāji var parakstīt
       if (!isDiennakts && !isAdmin) {
-        this.toast('Jūs esat dienas maiņas darbinieks. Jums nav jāparakstās — to darīs diennakts darbinieks!');
+        this.toast(window.t ? window.t('toastDayShiftNoSign') : 'Jūs esat dienas maiņas darbinieks. Jums nav jāparakstās — to darīs diennakts darbinieks!');
         return;
       }
 
@@ -2425,7 +2425,7 @@ async handleSign() {
         const signerId = existingForShift.employeeId || existingForShift.darbinieks_id;
         if (signerId && String(signerId) !== String(this.currentUser.id || '')) {
           const signerName = this.empMap[signerId] || this.empMap[String(signerId)] || 'cits darbinieks';
-          this.toast(shiftLabel + ' sadaļu šodien jau parakstījis ' + signerName);
+          this.toast(window.t ? window.t('toastShiftSignedBy', { shift: shiftLabel, name: signerName }) : shiftLabel + ' sadaļu šodien jau parakstījis ' + signerName);
           return;
         }
       }
@@ -2567,7 +2567,7 @@ async handleSign() {
       this.allClientLog.unshift(mark);
     }
     this.history.unshift(mark);
-    this.toast('✅ Medicīniskā atzīme pievienota');
+    this.toast(window.t ? window.t('toastMedNoteAdded') : '✅ Medicīniskā atzīme pievienota');
   }
 
   toast(message) {
