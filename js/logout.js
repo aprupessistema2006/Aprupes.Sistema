@@ -27,8 +27,8 @@ const Logout = {
         : 'Vai tiešām vēlies iziet?';
       const msg = hasPending
         ? (backgroundSync
-            ? 'Dati tiks nosūtīti uz Google Sheets fonā. Varat droši iziet — sinhronizācija turpināsies automātiski.'
-            : 'Tev pašlaik ir <strong>' + pending + ' nesaglabāts(-i) ieraksts(-i)</strong>. Tie tiks nosūtīti automātiski, bet, ja nav interneta, tie var pazust.<br><br>Vai tiešām vēlies iziet?')
+            ? 'Dati tiks nosūtīti uz Google Sheets fonā (ja programma atvērta un ir internets). Varat droši iziet — sinhronizācija turpināsies, kad atvērsiet atkārtoti.'
+            : 'Tev pašlaik ir <strong>' + pending + ' nesaglabāts(-i) ieraksts(-i)</strong>. Tie tiks nosūtīti automātiski, kad atvērsiet programmu ar interneta. Ja iziesi tagad bez interneta, dati paliks tikai uz ierīces.<br><br>Vai tiešām vēlies iziet?')
         : 'Visi dati ir saglabāti. Vai tiešām vēlies iziet no sistēmas?';
       overlay.innerHTML = `
         <div class="logout-confirm-card">
@@ -83,16 +83,16 @@ const Logout = {
               overlay.remove();
               resolve(true); // Allow logout after successful sync
             } else {
-              // ⚠️ RINDA NAV TUKŠA. nedrīkst apgalvot, ka dati saglabāti —
-              // tie joprojām ir tikai ierīcē. Piedāvājam mēģināt vēlreiz
-              // un brīdinām, ka iziešana var pazaudēt šos ierakstus.
-              const msgEl = overlay.querySelector('.logout-confirm-msg');
-              if (msgEl) {
-                msgEl.innerHTML = '⚠️ <b>' + remaining + '</b> ierakstu vēl nav saglabāti Google Sheets.<br><br>' +
-                  'Dati ir tikai šajā ierīcē — ja iziesi tagad, tie var pazust.<br><br>' +
-                  'Vai vēlies mēģināt vēlreiz, vai tomēr iziet?';
-                msgEl.classList.add('unsaved');
-              }
+// ⚠️ RINDA NAV TUKŠA. nedrīkst apgalvot, ka dati saglabāti —
+            // tie joprojām ir tikai ierīcē. Piedāvājam mēģināt vēlreiz
+            // un brīdinām, ka iziešana var pazaudēt šos ierakstus.
+            const msgEl = overlay.querySelector('.logout-confirm-msg');
+            if (msgEl) {
+              msgEl.innerHTML = '⚠️ <b>' + remaining + '</b> ierakstu vēl nav saglabāti Google Sheets.<br><br>' +
+                'Dati ir droši uz ierīces, bet tiks nosūtīti tikai nākamreiz, kad atvērsiet programmu AR INTERNETU.<br><br>' +
+                'Vai vēlies mēģināt vēlreiz tagad, vai tomēr iziet?';
+              msgEl.classList.add('unsaved');
+            }
               const titleEl = overlay.querySelector('.logout-confirm-title');
               if (titleEl) titleEl.textContent = 'Ne visas izmaiņas saglabātas';
               const iconEl = overlay.querySelector('.logout-confirm-icon');
@@ -105,7 +105,9 @@ const Logout = {
           } catch (err) {
             const msgEl = overlay.querySelector('.logout-confirm-msg');
             if (msgEl) {
-              msgEl.innerHTML = '⚠️ Sinhronizācija neizdevās: ' + err.message + '<br><br>Vai tiešām vēlies iziet?';
+              msgEl.innerHTML = '⚠️ Sinhronizācija neizdevās: ' + err.message + '<br><br>' +
+                'Dati paliek uz ierīces — tiks nosūtīti, kad atvērsiet programmu ar interneta.<br><br>' +
+                'Vai tiešām vēlies iziet?';
               msgEl.classList.add('unsaved');
             }
             if (syncBtn) {
