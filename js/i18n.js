@@ -572,6 +572,14 @@ walkNotDone: 'Nav bijis',
     partialData: '⚠️ Nepilnīgi dati: ',
     taskMarkedDone: '✓ Uzdevums atzīmēts kā izdarīts',
     currentClient: '👁️ Patrādāmais klients',
+
+    // Control panel (control.html)
+    teamStats: 'Darbinieku statistika',
+    statRange: 'Statistikas periods',
+    dbStats: 'Datubāzes statistika',
+    tasks: 'Uzdevumi',
+    addTask: 'Pievienot uzdevumu',
+
     clientNotFound: 'Klients nav atrasts',
     enterTemperature: 'Ievadiet temperatūras vērtību',
     enterUrineAmount: 'Ievadiet urīna daudzumu',
@@ -1241,6 +1249,14 @@ walkNotDone: 'Nav bijis',
     partialData: '⚠️ Неполные данные: ',
     taskMarkedDone: '✓ Задача отмечена как выполненная',
     currentClient: '👁️ Текущий клиент',
+
+    // Control panel (control.html)
+    teamStats: 'Статистика сотрудников',
+    statRange: 'Период статистики',
+    dbStats: 'Статистика базы данных',
+    tasks: 'Задачи',
+    addTask: 'Добавить задачу',
+
     clientNotFound: 'Клиент не найден',
     enterTemperature: 'Введите значение температуры',
     enterUrineAmount: 'Введите количество мочи',
@@ -1832,6 +1848,14 @@ walkNotDone: 'Nav bijis',
     partialData: '⚠️ Incomplete data: ',
     taskMarkedDone: '✓ Task marked as done',
     currentClient: '👁️ Current client',
+
+    // Control panel (control.html)
+    teamStats: 'Staff statistics',
+    statRange: 'Statistics period',
+    dbStats: 'Database statistics',
+    tasks: 'Tasks',
+    addTask: 'Add task',
+
     clientNotFound: 'Client not found',
     enterTemperature: 'Enter temperature value',
     enterUrineAmount: 'Enter urine amount',
