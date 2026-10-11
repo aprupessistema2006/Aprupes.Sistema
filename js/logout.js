@@ -55,7 +55,7 @@ const Logout = {
           const syncBtn = overlay.querySelector('[data-act="sync"]');
           if (syncBtn) {
             syncBtn.disabled = true;
-            syncBtn.textContent = '⏳ Sinhronizē...';
+            syncBtn.textContent = '⏳ Sūtu datus uz Google Sheets…';
           }
           try {
             // ⚠️ Izejam no lietojuma → jānosūta RINDA, nevis jāielādē no
@@ -99,7 +99,7 @@ const Logout = {
               if (iconEl) iconEl.textContent = '⚠️';
               if (syncBtn) {
                 syncBtn.disabled = false;
-                syncBtn.textContent = '🔄 Mēģināt vēlreiz';
+                syncBtn.textContent = '🔄 Mēģināt sūtīt vēlreiz';
               }
             }
           } catch (err) {
@@ -112,7 +112,7 @@ const Logout = {
             }
             if (syncBtn) {
               syncBtn.disabled = false;
-              syncBtn.textContent = '🔄 Mēģināt vēlreiz';
+              syncBtn.textContent = '🔄 Mēģināt sūtīt vēlreiz';
             }
           } finally {
             syncInProgress = false;

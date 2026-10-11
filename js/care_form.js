@@ -321,6 +321,8 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
       if (manualSyncBtn) {
         manualSyncBtn.style.display = navigator.onLine ? 'inline-flex' : 'none';
       }
+      // Update unsynced badge on manual sync button
+      this.updateManualSyncBadge();
     });
 
     // Manual sync button handler
@@ -334,7 +336,7 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
         }
         manualSyncBtn.disabled = true;
         const originalHtml = manualSyncBtn.innerHTML;
-        manualSyncBtn.innerHTML = '<span>⏳</span> <span data-i18n="syncing">Sinhronizē...</span>';
+        manualSyncBtn.innerHTML = '<span>⏳</span> <span data-i18n="syncing">Sūtu datus uz Google Sheets…</span>';
         if (typeof applyLanguage === 'function') applyLanguage();
 
         // Create abort controller for potential cancellation
@@ -343,8 +345,8 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
         // Show cancel option after 3 seconds if still syncing
         const cancelTimeout = setTimeout(() => {
           if (!manualSyncBtn.disabled) return;
-          manualSyncBtn.innerHTML = '<span>⏳</span> <span>Atgriezties?</span>';
-          manualSyncBtn.title = 'Nospiediet, lai atgrieztos darbam';
+          manualSyncBtn.innerHTML = '<span>⏳</span> <span>Atgriezties darbam?</span>';
+          manualSyncBtn.title = 'Nospiediet, lai atgrieztos darbam (sinhronizācija turpinās fonā)';
           manualSyncBtn.dataset.cancelling = 'true';
         }, 3000);
 
@@ -366,7 +368,7 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
         } catch (err) {
           clearTimeout(cancelTimeout);
           if (err.name === 'AbortError' || manualSyncBtn.dataset.cancelling) {
-            this.toast('ℹ️ Atgriezās darbam — sinhronizācija turpinās fonā');
+            this.toast('ℹ️ Atgriezās darbam — nesaglabātie dati tiks nosūtīti fonā, kad būs internets');
           } else {
             this.toast('⚠️ Kļūda: ' + err.message, 4000);
           }
@@ -392,9 +394,38 @@ this.toast('⛔ Kļūda ielādējot datus: ' + (e.message || 'Nezināma kļūda'
           manualSyncBtn.innerHTML = originalHtml;
           manualSyncBtn.dataset.cancelling = 'false';
           if (typeof applyLanguage === 'function') applyLanguage();
-          this.toast('ℹ️ Atgriezās darbam — sinhronizācija turpinās fonā');
+          this.toast('ℹ️ Atgriezās darbam — nesaglabātie dati tiks nosūtīti fonā, kad būs internets');
         }
       }, true); // Use capture to intercept before main handler
+    }
+
+    // Update manual sync button badge with unsynced count
+    updateManualSyncBadge() {
+      const manualSyncBtn = document.getElementById('manualSyncBtn');
+      if (!manualSyncBtn || !window.careSync) return;
+      window.careSync.getUnsyncedCount().then(count => {
+        if (count > 0) {
+          // Add badge if not exists
+          let badge = manualSyncBtn.querySelector('.sync-count-badge');
+          if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'sync-count-badge';
+            badge.style.cssText = `
+              position: absolute; top: -6px; right: -6px;
+              min-width: 18px; height: 18px; padding: 0 4px;
+              background: #e74c3c; color: white; border-radius: 9px;
+              font-size: 11px; font-weight: 700; line-height: 18px;
+              text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            `;
+            manualSyncBtn.style.position = 'relative';
+            manualSyncBtn.appendChild(badge);
+          }
+          badge.textContent = count > 9 ? '9+' : count;
+        } else {
+          const badge = manualSyncBtn.querySelector('.sync-count-badge');
+          if (badge) badge.remove();
+        }
+      }).catch(() => {});
     }
 
     const logoutBtn = document.getElementById('logoutBtn');

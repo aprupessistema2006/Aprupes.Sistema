@@ -921,6 +921,23 @@ class CareSync {
     } catch (e) {}
   }
 
+  // Human-readable status mapping for UI
+  _humanStatus(status) {
+    const map = {
+      'Nav savienojuma': '🔴 Bezsaime',
+      'Saglabāts': '🟢 Saglabāts',
+      'Sinhronizē...': '🔄 Sūtu datus uz Google Sheets…',
+      'Lasu datus no Google Sheets...': '📥 Lasu datus no Google Sheets…',
+      'Sinhronizācijas kļūda': '⚠️ Sinhronizācijas kļūda',
+      'Gaida nosūtīšanu': '⏳ Gaida nosūtīšanu',
+      'Gaida nosūtīšanu (✓': '⏳ Gaida nosūtīšanu',
+    };
+    for (const [key, val] of Object.entries(map)) {
+      if (status.startsWith(key)) return val;
+    }
+    return status;
+  }
+
   // ── Pastāvīgais "nav nosūtīts" indikators ────────────────────────────────
   //
   // ⚠️ KĀPĒC TAS NEVAR BŪT PAZIŅOJUMS
@@ -1008,12 +1025,12 @@ class CareSync {
   async checkConnection() {
     if (!navigator.onLine) {
       this._connectionStatus = 'offline';
-      this._updateSyncStatus('Nav savienojuma');
+      this._updateSyncStatus('🔴 Bezsaime');
       return { connected: false, status: 'offline', message: '🔴 Nav interneta savienojuma.' };
     }
     if (!SYNC_URL) {
       this._connectionStatus = 'offline';
-      this._updateSyncStatus('Nav savienojuma');
+      this._updateSyncStatus('🔴 Bezsaime');
       return { connected: false, status: 'offline', message: '🔴 Nav interneta savienojuma.' };
     }
     try {
@@ -1021,15 +1038,15 @@ class CareSync {
       const data = await requestData(url, 15000);
       if (data && (data.success === true || data.pong === true)) {
         this._connectionStatus = 'connected';
-        this._updateSyncStatus('Saglabāts');
+        this._updateSyncStatus('🟢 Saglabāts');
         return { connected: true, status: 'connected', message: '✅ Google Sheets savienojums aktīvs' };
       }
       this._connectionStatus = 'error';
-      this._updateSyncStatus('Sinhronizācijas kļūda');
+      this._updateSyncStatus('⚠️ Sinhronizācijas kļūda');
       return { connected: false, status: 'error', message: '⚠️ Neizdevās sazināties ar serveri.' };
     } catch (err) {
       this._connectionStatus = 'error';
-      this._updateSyncStatus('Sinhronizācijas kļūda');
+      this._updateSyncStatus('⚠️ Sinhronizācijas kļūda');
       return { connected: false, status: 'error', message: '⚠️ Neizdevās sazināties ar serveri.' };
     }
   }
@@ -1438,7 +1455,7 @@ class CareSync {
      this._recentLoadingPromise = promise
        .then(r => {
          this.revision = (this.revision || 0) + 1;
-         this._updateSyncStatus('Saglabāts');
+         this._updateSyncStatus('🟢 Saglabāts');
          return r;
        })
        .catch(e => {
@@ -1574,7 +1591,7 @@ class CareSync {
 
   async _loadInitialDataUnlocked(onProgress, processQueueFirst, filters = {}) {
     this._loading = true;
-    this._updateSyncStatus('Sinhronizē...');
+    this._updateSyncStatus('🔄 Sūtu datus uz Google Sheets…');
     onProgress = onProgress || function() {};
 
     // Tikai viens mēģinājums — ātri, bez murgiem
@@ -1670,7 +1687,7 @@ class CareSync {
     } catch (err) {
       // JA NEIZDODAS — NEDZĒSIM DATUS!
       console.warn('[sync] loadInitialData kļūda, saglabājam esošos datus:', err.message);
-      this._updateSyncStatus('Nav savienojuma ar Google Sheets');
+      this._updateSyncStatus('⚠️ Nav savienojuma ar Google Sheets');
       onProgress('⚠️ Neizdevās sazināties ar Google Sheets. Darbojies ar lokālajiem datiem.');
       return { offline: true, error: err.message, count: {}, pending: 0 };
     } finally {
@@ -1836,11 +1853,11 @@ class CareSync {
   async _processQueueUnlocked(maxMs) {
     const summary = { synced: 0, failed: 0, remaining: 0, permanentlyFailed: 0, superseded: 0 };
     if (!SYNC_URL) {
-      this._updateSyncStatus('Nav savienojuma');
+      this._updateSyncStatus('🔴 Bezsaime');
       return summary;
     }
     this._queueProcessing = true;
-    this._updateSyncStatus('Sinhronizē...');
+    this._updateSyncStatus('🔄 Sūtu datus uz Google Sheets…');
     // Grafiks: uz telefona bez savienojuma katrs rakstīšanas pieprasījums
     // var kavēties līdz timeoutam. Bez šī ierobežojuma rinda varētu aizturēt
     // lāpu ielādi desmitiem minūšu pirms datu ielādes sākas.
@@ -1854,7 +1871,7 @@ class CareSync {
       const items = (await this.db.getAll('sync_queue')).filter(i => this.isQueueItemPending(i));
       if (items.length === 0) {
         this._renderUnsyncedBadge(0);
-        this._updateSyncStatus(navigator.onLine ? 'Saglabāts' : 'Nav savienojuma');
+        this._updateSyncStatus(navigator.onLine ? '🟢 Saglabāts' : '🔴 Bezsaime');
         return summary;
       }
 
@@ -1988,7 +2005,9 @@ class CareSync {
       // Indikators parādās uzreiz, nevis tikai dialoga iziešanas brīdī —
       // aprūpētājs bieži neizmanto iziešanas dialogu vispār.
       this._renderUnsyncedBadge(summary.remaining);
-      const status = summary.remaining > 0 ? 'Gaida nosūtīšanu' : (navigator.onLine ? 'Saglabāts' : 'Nav savienojuma');
+      const humanPending = '⏳ Gaida nosūtīšanu';
+      const humanSaved = navigator.onLine ? '🟢 Saglabāts' : '🔴 Bezsaime';
+      const status = summary.remaining > 0 ? humanPending : humanSaved;
       this._updateSyncStatus(summary.synced || summary.failed
         ? status + ' (✓' + summary.synced + ' ✗' + summary.failed + ')'
         : status);
