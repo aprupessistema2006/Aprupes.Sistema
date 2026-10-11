@@ -2672,7 +2672,11 @@ laiks: _timeCellValue(eventTimeRiga),
       else if (nk === 'maina_tips') markRow[i] = m.mainaTips || m.maina_tips || 'diennakts';
       else if (nk === 'notikuma_laiks') markRow[i] = eventDateTimeRiga;
       else if (nk === 'version') markRow[i] = 1;
-      else if (nk === 'last_modified') markRow[i] = modificationTime;
+      // ⚠️ ISO 8601 VIRKNI, nevis Date objektu — tāpat kā atjaunošanas ceļā (zemāk).
+      // Date objektu Google Sheets attēlo lapas lokalizācijā, piem. kā
+      // "2026-11-10 05:22:35" (mēnesis/diena apmainīti + laika josla), un
+      // nākamā salīdzināšana/eksports redz nepareizo laiku.
+      else if (nk === 'last_modified') markRow[i] = Utilities.formatDate(modificationTime, TZ, "yyyy-MM-dd'T'HH:mm:ss");
       else if (nk === MARK_KEY_COL) markRow[i] = _markKeyOf(m);
     });
 
