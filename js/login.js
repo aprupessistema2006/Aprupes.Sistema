@@ -1,13 +1,25 @@
+// ───────────────────────────────────────────────────────────────────
+// PIETEIKŠANĀS — trīssoļu plūsma (drošība: "nulle uzticēšanās klientam")
+//
+//   1) Kopīgā parole      → atver ierīci (login.start)
+//   2) Darbinieka vārds   → saraksts nāk no SERVERA, bez PIN laukiem
+//   3) Individuālais PIN  → serveris salīdzina HMAC-SHA256 (login.pin)
+//
+// PIN un paroles NEKAD netiek saglabāti lokāli. Pēc veiksmīgas
+// pārbaudes serveris atgriež sesijas tokenu (der 8 stundas),
+// ko glabājam localStorage; identitāte un loma — TIKAI no sesijas.
+// ───────────────────────────────────────────────────────────────────
 class LoginController {
   constructor() {
     this.db = null;
     this.sync = null;
     this.user = null;
-    this.employees = [];
+    this.employees = [];        // no servera atdotā saraksta (bez PIN)
     this.filteredEmployees = [];
     this.selectedEmployee = null;
     this.pin = '';
     this.setupMode = false;
+    this.unlocked = false;      // kopīgā parole apstiprināta
     this.init();
   }
 
@@ -18,161 +30,60 @@ class LoginController {
     this.sync = new CareSync(this.db, CONFIG);
     window.careSync = this.sync;
 
-    const savedUser = sessionStorage.getItem('careUser');
-    if (savedUser) {
+    // Ja jau ir derīga sesija (tokens localStorage + lietotājs
+    // sessionStorage), pārbaudām to serverī un atgriežamies
+    // atbilstošajā sadaļā bez atkārtotas pieteikšanās.
+    const savedUserRaw = sessionStorage.getItem('careUser');
+    const token = getSessionToken();
+    if (savedUserRaw && token) {
       try {
-        const user = JSON.parse(savedUser);
-        if (user.pinVerified) {
+        const user = JSON.parse(savedUserRaw);
+        const check = await callBackend('session.check', {}, 15000);
+        if (check && check.valid === true) {
           this.redirectByRole(user.loma);
           return;
         }
-      } catch (e) {}
+      } catch (e) {
+        // Sesija beigusies vai servers nepieejams — rādām pieteikšanos.
+        console.warn('[login] sesijas pārbaude neizdevās:', e && e.message);
+      }
     }
 
     this.setupUI();
     this.setupLanguageSwitcher();
     this.hideSplash();
-
-    const statusMsg = document.getElementById('statusMessage');
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const loadingText = document.getElementById('loadingText');
-
-    const showLoading = (text) => {
-      if (loadingOverlay) loadingOverlay.style.display = 'flex';
-      if (loadingText) loadingText.textContent = text;
-    };
-    const hideLoading = () => {
-      if (loadingOverlay) loadingOverlay.style.display = 'none';
-    };
-
-    // Offline-first: 1) vietējie dati, 2) UI, 3) Google fonā
-    try {
-      await this.sync.bootstrapUI({
-        onLocalReady: async () => {
-          // Tikai ielādē darbiniekus no IndexedDB — NEPARBAUDĪT Setup šeit!
-          // Servera dati vēl nav ierakstīti DB. Setup pārbaudi dara onServerData.
-          await this.loadEmployees();
-          this._serverReachable = true;
-        },
-        onServerData: async () => {
-          await this.loadEmployees();
-          if (statusMsg) {
-            statusMsg.textContent = '✓ Savienojums ar Google aktīvs • ' + this.employees.length + ' darbinieki';
-            statusMsg.style.color = '#27ae60';
-          }
-          document.body.classList.add('online');
-
-          // Tagad, kad servera dati ir DB — pārbaudīt, vai ir darbinieki
-          if (this.employees.length === 0) {
-            this.enterSetupMode();
-            return;
-          }
-        },
-        onProgress: (msg) => { showLoading(msg); }
-      });
-      hideLoading();
-    } catch (e) {
-      hideLoading();
-      console.error('[login] bootstrap failed', e);
-      if (statusMsg) {
-        statusMsg.textContent = '⚠️ Neizdevās ielādēt datus: ' + e.message;
-        statusMsg.style.color = '#e74c3c';
-      }
-      document.body.classList.remove('online');
-      await this.loadEmployees();
-      if (this.employees.length === 0) {
-        // No connection AND no local data - show error with retry
-        document.body.classList.remove('online');
-        this.setupMode = false;
-        const loginSection = document.getElementById('loginSection');
-        const setupSection = document.getElementById('setupSection');
-        if (loginSection) loginSection.style.display = 'block';
-        if (setupSection) setupSection.style.display = 'none';
-        const list = document.getElementById('employeeList');
-        if (list) {
-          list.innerHTML = '<div class="no-results" style="color:#e74c3c;text-align:center;padding:20px;">' +
-            '🔴 Nevar ielādēt darbiniekus — Google Sheets nav sasniedzams un šai ierīcei vēl nav saglabātu datu.</div>';
-        }
-        ['pinInput', 'loginBtn', 'employeeSearch'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.disabled = true;
-        });
-        if (statusMsg) {
-          statusMsg.textContent = '⚠️ Neizdevās ielādēt datus no Google Sheets' +
-            (e ? ' (' + (e.message || e) + ')' : '') + '.';
-          statusMsg.style.color = '#e74c3c';
-        }
-        return;
-      }
-      // Offline mode: we have local data, continue with offline UI
-      document.body.classList.remove('online');
-      const total = this.employees.length;
-      const lastSync = await this.sync.getLastSyncTime();
-      let when = 'šai ierīcei';
-      if (lastSync) {
-        try {
-          const d = new Date(lastSync);
-          when = d.toLocaleDateString('lv-LV') + ' ' +
-                 String(d.getHours()).padStart(2, '0') + ':' +
-                 String(d.getMinutes()).padStart(2, '0');
-        } catch (err) {
-          when = new Date(lastSync).toISOString().slice(0, 16).replace('T', ' ');
-        }
-      }
-      if (statusMsg) {
-        statusMsg.textContent = total > 0
-          ? '⚠️ Bez savienojuma ar Google Sheets' + (e ? ' (' + (e.message || e) + ')' : '') + ' — darbi pēdējoreiz atjaunināti ' + when +
-            '. Darbi tiks saglabāti un nosūtīti, kad savienojums atgriezīsies.'
-          : '⚠️ Nav savienojuma ar Google Sheets' + (e ? ' (' + (e.message || e) + ')' : '') + '. Pārbaudi interneta savienojumu un mēģini vēlreiz.';
-        statusMsg.style.color = '#f39c12';
-      }
-    }
-
-    // Setup režīms tikai tad, kad esam tieši sazinājušies ar serveri un
-    // serveris patiešām neko neatgriež.
-    if (this.employees.length === 0) {
-      this.enterSetupMode();
-      return;
-    }
+    // Sākotnēji redzams TIKAI kopīgās paroles solis. Darbinieku
+    // saraksts nāk no servera pēc atbildes (login.start).
   }
 
-  // Nav savienojuma un nav ko rādīt. Rāda skaidru iemeslu un mēģinājuma
-  // pogu, nevis neuzskaitītu setup veidlapu.
   enterSetupMode() {
     this.setupMode = true;
     const loginSection = document.getElementById('loginSection');
     const setupSection = document.getElementById('setupSection');
+    const passwordSection = document.getElementById('passwordSection');
+    const employeeArea = document.getElementById('employeeArea');
     const statusMsg = document.getElementById('statusMessage');
+    if (passwordSection) passwordSection.style.display = 'none';
+    if (employeeArea) employeeArea.style.display = 'none';
     if (loginSection) loginSection.style.display = 'none';
     if (setupSection) setupSection.style.display = 'block';
-    if (statusMsg) statusMsg.textContent = 'Nav darbinieku. Izveido pirmo administratoru.';
+    if (statusMsg) statusMsg.textContent = 'Sistēma nav konfigurēta — izveido pirmo administratoru.';
   }
 
   async exitSetupMode() {
     this.setupMode = false;
     const loginSection = document.getElementById('loginSection');
     const setupSection = document.getElementById('setupSection');
-    if (loginSection) loginSection.style.display = 'block';
+    const passwordSection = document.getElementById('passwordSection');
     if (setupSection) setupSection.style.display = 'none';
-    await this.loadEmployees();
-  }
-
-  async createLocalEmployee(data) {
-    const id = this.db.generateId();
-    const employee = {
-      id,
-      vards: data.vards,
-      uzvards: data.uzvards,
-      loma: data.loma || 'administrators',
-      pin: data.pin,
-      aktivs: true
-    };
-    await this.db.add('darbinieki', employee);
-    return id;
+    if (passwordSection) passwordSection.style.display = 'block';
+    if (loginSection) loginSection.style.display = 'block';
   }
 
   setupUI() {
-    const form = document.getElementById('loginForm');
+    const passwordForm = document.getElementById('passwordForm');
+    const sharedPassword = document.getElementById('sharedPassword');
+    const unlockBtn = document.getElementById('unlockBtn');
     const pinInput = document.getElementById('pinInput');
     const loginBtn = document.getElementById('loginBtn');
     const errorMsg = document.getElementById('errorMessage');
@@ -182,6 +93,65 @@ class LoginController {
 
     const maxLength = 6;
 
+    // ── SOLIS 1: kopīgā parole ──────────────────────────────────
+    if (passwordForm) {
+      passwordForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const password = sharedPassword ? sharedPassword.value : '';
+        if (!password) {
+          if (errorMsg) {
+            errorMsg.textContent = 'Ievadi kopīgo paroli';
+            errorMsg.style.display = 'block';
+          }
+          return;
+        }
+        if (unlockBtn) unlockBtn.disabled = true;
+        if (statusMsg) statusMsg.textContent = 'Pārbaudēju paroli...';
+        try {
+          const res = await callBackend('login.start', { password: password }, 30000);
+          if (res && res.setup_required) {
+            this.enterSetupMode();
+            return;
+          }
+          if (res && res.success === true && Array.isArray(res.employees)) {
+            this.employees = this.groupEmployees(res.employees);
+            this.filteredEmployees = [...this.employees];
+            this.unlocked = true;
+            const passwordSection = document.getElementById('passwordSection');
+            const employeeArea = document.getElementById('employeeArea');
+            if (passwordSection) passwordSection.style.display = 'none';
+            if (employeeArea) employeeArea.style.display = 'block';
+            this.renderEmployeeList();
+            if (statusMsg) {
+              statusMsg.textContent = '✓ Ierīce atvērta • ' + this.employees.length + ' darbinieki';
+              statusMsg.style.color = '#27ae60';
+            }
+            document.body.classList.add('online');
+          } else {
+            if (errorMsg) {
+              errorMsg.textContent = (res && res.error) ? res.error : 'Nepareiza kopīgā parole';
+              errorMsg.style.display = 'block';
+            }
+            if (statusMsg) statusMsg.textContent = '';
+          }
+        } catch (err) {
+          if (errorMsg) {
+            errorMsg.textContent = 'Neizdevās sazināties ar serveri: ' + (err && err.message ? err.message : err);
+            errorMsg.style.display = 'block';
+            errorMsg.style.color = '#e74c3c';
+          }
+          if (statusMsg) {
+            statusMsg.textContent = '⚠️ Serveris nav pieejams. Pārbaudi interneta savienojumu.';
+            statusMsg.style.color = '#e74c3c';
+          }
+          document.body.classList.remove('online');
+        } finally {
+          if (unlockBtn) unlockBtn.disabled = false;
+        }
+      });
+    }
+
+    // ── SOLIS 3: PIN ievade ─────────────────────────────────────
     if (pinInput) {
       pinInput.addEventListener('input', (e) => {
         const raw = e.target.value.replace(/\D/g, '');
@@ -192,7 +162,7 @@ class LoginController {
         this.pin = newPin;
         e.target.value = '•'.repeat(this.pin.length);
         this.refreshLoginButton();
-        errorMsg.style.display = 'none';
+        if (errorMsg) errorMsg.style.display = 'none';
       });
 
       pinInput.addEventListener('keydown', (e) => {
@@ -201,7 +171,7 @@ class LoginController {
           this.pin = this.pin.substring(0, this.pin.length - 1);
           e.target.value = '•'.repeat(this.pin.length);
           this.refreshLoginButton();
-          errorMsg.style.display = 'none';
+          if (errorMsg) errorMsg.style.display = 'none';
         }
       });
     }
@@ -230,23 +200,28 @@ class LoginController {
       });
     }
 
+    const form = document.getElementById('loginForm');
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!this.selectedEmployee) {
-          errorMsg.textContent = 'Izvēlies darbinieku no saraksta';
-          errorMsg.style.display = 'block';
+          if (errorMsg) {
+            errorMsg.textContent = 'Izvēlies darbinieku no saraksta';
+            errorMsg.style.display = 'block';
+          }
           return;
         }
         if (this.pin.length < 4) {
-          errorMsg.textContent = 'PIN kodā jābūt vismaz 4 cipariem';
-          errorMsg.style.display = 'block';
+          if (errorMsg) {
+            errorMsg.textContent = 'PIN kodā jābūt vismaz 4 cipariem';
+            errorMsg.style.display = 'block';
+          }
           return;
         }
         loginBtn.disabled = true;
-        statusMsg.textContent = 'Pārbaudējam...';
-
+        if (statusMsg) statusMsg.textContent = 'Pārbaudējam...';
         await this.authenticate(this.selectedEmployee, this.pin);
+        loginBtn.disabled = false;
       });
     }
 
@@ -259,50 +234,48 @@ class LoginController {
       });
     }
 
+    // ── Pirmā konfigurācija: parole + pirmais administrators ────
     const setupForm = document.getElementById('setupForm');
     if (setupForm) {
       setupForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
+        const password = String(formData.get('password') || '');
         const data = {
-          vards: formData.get('vards'),
-          uzvards: formData.get('uzvards'),
-          pin: formData.get('pin'),
+          vards: String(formData.get('vards') || ''),
+          uzvards: String(formData.get('uzvards') || ''),
+          pin: String(formData.get('pin') || ''),
           loma: 'administrators'
         };
         const setupStatus = document.getElementById('setupStatus');
         if (setupStatus) {
-          setupStatus.textContent = 'Izveidoju administratoru...';
+          setupStatus.textContent = 'Konfigurēju sistēmu...';
           setupStatus.style.display = 'block';
         }
         try {
-          await this.sync.createEmployee(data);
-          if (setupStatus) {
-            setupStatus.textContent = '✓ Administrators izveidots! Ielādēju...';
-            setupStatus.style.color = '#27ae60';
-          }
-          await this.exitSetupMode();
-          if (statusMsg) {
-            statusMsg.textContent = '✓ Administrators izveidots';
-            statusMsg.style.color = '#27ae60';
-          }
-        } catch (err) {
-          const localId = await this.createLocalEmployee(data);
-          if (localId) {
+          const res = await callBackend('setup', {
+            password: password,
+            employee: data
+          }, 30000);
+          if (res && res.success) {
             if (setupStatus) {
-              setupStatus.textContent = '✓ Administrators izveidots lokāli (bez interneta). Dati tiks sinhronizēti, kad būs savienojums.';
-              setupStatus.style.color = '#f39c12';
+              setupStatus.textContent = '✓ Sistēma konfigurēta! Ielādēju...';
+              setupStatus.style.color = '#27ae60';
             }
             await this.exitSetupMode();
-            if (statusMsg) {
-              statusMsg.textContent = '✓ Administrators izveidots lokāli';
-              statusMsg.style.color = '#f39c12';
-            }
+            // Automātiski atver ar tikko izveidoto paroli
+            if (sharedPassword) sharedPassword.value = password;
+            passwordForm.dispatchEvent(new Event('submit'));
           } else {
             if (setupStatus) {
-              setupStatus.textContent = 'Kļūda: ' + err.message;
+              setupStatus.textContent = 'Kļūda: ' + (res && res.error ? res.error : 'Neizdevās konfigurēt');
               setupStatus.style.color = '#e74c3c';
             }
+          }
+        } catch (err) {
+          if (setupStatus) {
+            setupStatus.textContent = 'Kļūda: ' + (err && err.message ? err.message : err);
+            setupStatus.style.color = '#e74c3c';
           }
         }
       });
@@ -325,85 +298,39 @@ class LoginController {
     }
   }
 
-  async loadEmployees() {
-    const raw = await this.db.getAll('darbinieki');
-    const active = raw.filter(e => {
-      const a = e.aktivs;
-      return a === true || a === 'true' || a === 'TRUE' || a === 1 || a === '1' || a === undefined;
-    });
-
-    // Load tasks to determine which employee ID has tasks assigned
-    // When duplicate employee entries exist (same name, different ID),
-    // prefer the ID that actually has tasks assigned to it
-    let taskCounts = new Map();
-    try {
-      const allTasks = await this.db.getAll('uzdevomi');
-      allTasks.forEach(t => {
-        const empId = String(t.pieskirtDarbiniekamId || t.employeeId || '');
-        if (empId) taskCounts.set(empId, (taskCounts.get(empId) || 0) + 1);
-      });
-    } catch (e) {
-      console.warn('[login] Failed to load tasks for employee matching:', e);
-    }
-
-    // Gruppē pa vārdu/uzvārdu — viena persona var būt ar vairākām lomām
+  // Servera saraksts (viena rinda = viens darbinieka ieraksts)
+  // tiek grupēts pa vārdu/uzvārdu — viena persona var būt ar
+  // vairākām lomām (vairākiem ierakstiem).
+  groupEmployees(list) {
     const grouped = new Map();
-    for (const e of active) {
-      const empId = String(e.id || e.ID || '');
-      const key = ((e.vards || e.Vārds || '') + '|' + (e.uzvards || e.Uzvārds || '')).toLowerCase().trim();
-      const taskCount = taskCounts.get(empId) || 0;
+    for (const e of list) {
+      const empId = String(e.id || '');
+      const key = ((e.vards || '') + '|' + (e.uzvards || '')).toLowerCase().trim();
       if (!grouped.has(key)) {
         grouped.set(key, {
           id: empId,
-          vards: e.vards || e.Vārds,
-          uzvards: e.uzvards || e.Uzvārds,
+          vards: e.vards,
+          uzvards: e.uzvards,
           lomas: [],
-          pins: new Set(),
-          mainaTips: e.maina_tips || e.mainaTips || 'diennakts',
           allIds: [empId],
-          taskCount: taskCount
+          mainaTips: e.maina_tips || 'diennakts'
         });
       } else {
-        // Duplicate employee (same name, different ID) — prefer the one with tasks
         const g = grouped.get(key);
-        g.allIds.push(empId);
-        if (taskCount > g.taskCount) {
-          console.log('[login] Duplicate darbinieks "' + key + '" — pārslēdzu ID no', g.id, 'uz', empId, '(' + taskCount + ' uzdevumi)');
-          g.id = empId;
-          g.taskCount = taskCount;
-        } else if (taskCount === 0 && g.taskCount === 0 && empId > g.id) {
-          // Neither has tasks — prefer the most recent (lexicographically larger timestamp)
-          g.id = empId;
-        }
+        if (empId && !g.allIds.includes(empId)) g.allIds.push(empId);
       }
       const g = grouped.get(key);
-      // Normalize role to remove diacritics (GAS may return 'aprupetajs' instead of 'aprūpētājs')
-      const role = (e.loma || e.Loma || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const roleCanonical = { 'aprupetajs': 'aprūpētājs', 'kontroliere': 'kontroliere', 'administrators': 'administrators' }[role] || role;
+      // Normalize role to remove diacritics (GAS may return 'aprupetajs')
+      const role = (e.loma || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const roleCanonical = { 'aprupetajs': 'aprūpētājs', 'kontroliere': 'kontroliere', 'administrators': 'administrators' }[role] || e.loma;
       if (roleCanonical && !g.lomas.includes(roleCanonical)) g.lomas.push(roleCanonical);
-      if (e.pin) g.pins.add(String(e.pin));
     }
 
-    if (grouped.size > active.length) {
-      console.warn('[login] Konstatēti duplikāti darbinieki (' + (active.length - grouped.size) + ' ieraksti grupēti vienā)');
-    }
-
-    this.employees = Array.from(grouped.values()).sort((a, b) => {
+    return Array.from(grouped.values()).sort((a, b) => {
       const aN = (a.uzvards + ' ' + a.vards).toLowerCase();
       const bN = (b.uzvards + ' ' + b.vards).toLowerCase();
       return aN.localeCompare(bN);
     });
-
-    this.filteredEmployees = [...this.employees];
-    this.renderEmployeeList();
-    const total = this.employees.length;
-    const statusMsg = document.getElementById('statusMessage');
-    if (statusMsg && total > 0) {
-      const existing = statusMsg.textContent;
-      if (existing && !existing.includes('darbinieki')) {
-        statusMsg.textContent = existing + ' • ' + total + ' darbinieki';
-      }
-    }
   }
 
   filterEmployees(term) {
@@ -411,7 +338,6 @@ class LoginController {
   }
 
   applyFilters(searchTerm) {
-    console.log('[login] applyFilters: searchTerm="' + searchTerm + '" activeRoleFilter="' + this.activeRoleFilter + '" totalEmployees=' + this.employees.length);
     const role = this.activeRoleFilter || 'all';
     let result = this.employees;
     if (role !== 'all') {
@@ -425,7 +351,6 @@ class LoginController {
     }
     if (searchTerm) {
       const term = this._normalizeForSearch(searchTerm.trim());
-      console.log('[login] applyFilters: normalized term="' + term + '" roleFilter="' + role + '" filteredByRole=' + result.length);
       if (term) {
         const words = term.split(/\s+/).filter(w => w.length > 0);
         result = result.filter(e => {
@@ -437,30 +362,24 @@ class LoginController {
 
           let matches = false;
           if (words.length === 1) {
-            // Single word: match anywhere
             matches = v.includes(term) || u.includes(term) || v.startsWith(term) || u.startsWith(term) || roleMatch;
           } else {
-            // Multi-word: ALL words must match somewhere in the full name
             matches = words.every(w => fullName.includes(w)) || roleMatch;
           }
-
-          if (matches) console.log('[login] applyFilters: MATCH ' + (e.vards || '') + ' ' + (e.uzvards || '') + ' id=' + e.id);
           return matches;
         });
       }
     }
-    console.log('[login] applyFilters: final result=' + result.length + ' matches');
     this.filteredEmployees = [...result];
   }
 
   // Nozīmē diakritiskos zīmes, lai meklēšana darbotos arī bez diakritikas
-  // (piem., "Janis" atrada "Jānis", "Berzin" atrada "Bērziņš")
   _normalizeForSearch(s) {
     if (!s) return '';
     return String(s)
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+      .replace(/[̀-ͯ]/g, '');
   }
 
   filterByRole(role) {
@@ -492,7 +411,7 @@ class LoginController {
       if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
       return 'var(--accent)';
     };
-    
+
     list.innerHTML = this.filteredEmployees.map(e => {
       const id = e.id;
       const v = e.vards || '';
@@ -551,7 +470,6 @@ class LoginController {
       if (roles.length === 1) {
         role.textContent = roleLabel(roles[0]);
         role.style.color = roleColor(roles[0]);
-        role.innerHTML = '';
       } else {
         role.innerHTML = roles.map(r => `<span class="role-badge" style="background:${roleColor(r)}20;color:${roleColor(r)};border:1px solid ${roleColor(r)}">${roleLabel(r)}</span>`).join(' ');
       }
@@ -567,13 +485,10 @@ class LoginController {
     }
     this.refreshLoginButton();
 
-    // Ja VIENS loma → uzreiz fokus uz PIN (scroll to bottom)
-    // Ja VAIRĀKAS lomas → rādīt role selector iekš kartiņas UN scroll uz to
     if (roles.length === 1) {
       this.focusPinInput();
     } else if (roles.length > 1) {
       this.showRoleSelector(emp);
-      // Scroll uz selected employee kartiņu, lai lietotājs redzētu role selector
       const selectedEl = document.getElementById('selectedEmployee');
       if (selectedEl) {
         setTimeout(() => {
@@ -596,8 +511,7 @@ class LoginController {
     if (loginBtn) loginBtn.disabled = false;
   }
 
-showRoleSelector(emp) {
-    console.log('[login] showRoleSelector called for', emp.vards, emp.uzvards, 'roles:', emp.lomas);
+  showRoleSelector(emp) {
     const roles = emp.lomas || [];
     const roleLabel = (l) => {
       const m = { 'administrators': 'Administrators', 'kontroliere': 'Kontrolieris', 'aprūpētājs': 'Aprūpētājs' };
@@ -622,15 +536,12 @@ showRoleSelector(emp) {
 
     const preSelected = emp.chosenRole || roles[0];
 
-    // Rādīt role selector IEKŠ selected employee kartiņas
     const selectedEl = document.getElementById('selectedEmployee');
     const roleEl = document.getElementById('selectedRole');
     if (!selectedEl || !roleEl) return;
 
-    // Saglabājam originalo saturu
     this._originalRoleContent = roleEl.innerHTML;
 
-    // Izveidojam radio pogas IEKŠ kartiņas
     roleEl.innerHTML = `
       <div class="inline-role-selector">
         <p class="inline-role-prompt">Izvēlies lomu:</p>
@@ -668,19 +579,15 @@ showRoleSelector(emp) {
     });
 
     confirmBtn.addEventListener('click', () => {
-      console.log('[login] confirmBtn clicked');
       const checked = roleEl.querySelector('input[name="inlineRoleChoice"]:checked');
       if (!checked) return;
-      console.log('[login] inline role confirmed:', checked.value);
       this.selectedEmployee.chosenRole = checked.value;
       roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(checked.value)}20;color:${roleColor(checked.value)};border:1px solid ${roleColor(checked.value)}">${roleLabel(checked.value)}</span>`;
       const pinInput = document.getElementById('pinInput');
       const loginBtn = document.getElementById('loginBtn');
-      console.log('[login] pinInput found:', !!pinInput, pinInput);
       if (pinInput) {
         pinInput.disabled = false;
         setTimeout(() => {
-          console.log('[login] focusing and scrolling to pinInput');
           pinInput.focus();
           pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
           window.scrollTo({ top: pinInput.offsetTop - 80, behavior: 'smooth' });
@@ -690,7 +597,6 @@ showRoleSelector(emp) {
     });
 
     cancelBtn.addEventListener('click', () => {
-      console.log('[login] cancelBtn clicked');
       roleEl.innerHTML = this._originalRoleContent || '';
       const pinInput = document.getElementById('pinInput');
       const loginBtn = document.getElementById('loginBtn');
@@ -732,62 +638,82 @@ showRoleSelector(emp) {
     btn.disabled = !(this.selectedEmployee && this.pin.length >= 4);
   }
 
+  // ── SOLIS 3: PIN pārbaude SERVERĪ (HMAC-SHA256) ────────────────
+  // Klients NODRĪKST salīdzināt PIN lokāli — to dara serveris.
   async authenticate(employee, pin) {
     const errorMsg = document.getElementById('errorMessage');
     const statusMsg = document.getElementById('statusMessage');
     const pinInput = document.getElementById('pinInput');
 
-    const pins = employee.pins || new Set([String(employee.pin)]);
-    let pinMatch = false;
-    for (const p of pins) {
-      if (String(p) === String(pin)) { pinMatch = true; break; }
-    }
-    if (!pinMatch) {
-      errorMsg.textContent = 'Nepareizs PIN kods';
-      errorMsg.style.display = 'block';
-      statusMsg.textContent = '';
+    const shiftTypeInput = document.querySelector('input[name="shiftType"]:checked');
+    const mainaTips = shiftTypeInput ? shiftTypeInput.value : 'diennakts';
+
+    // Ja izvēlējās lomu — izmantot to, citāk pirmo
+    const chosenRole = employee.chosenRole || (employee.lomas || [])[0];
+
+    if (statusMsg) statusMsg.textContent = 'Pārbaudējam PIN...';
+
+    try {
+      const res = await callBackend('login.pin', {
+        vards: employee.vards,
+        uzvards: employee.uzvards,
+        pin: pin
+      }, 30000);
+
+      if (res && res.success === true && res.sessionToken) {
+        // ✅ Serveris apstiprināja PIN un atdeva sesijas tokenu.
+        setSessionToken(res.sessionToken);
+
+        const user = {
+          id: (res.employee && res.employee.id) || employee.id,
+          vards: (res.employee && res.employee.vards) || employee.vards,
+          uzvards: (res.employee && res.employee.uzvards) || employee.uzvards,
+          loma: (res.employee && res.employee.loma) || chosenRole,
+          visulasLomas: employee.lomas || [],
+          pinVerified: true,
+          loginTime: Date.now(),
+          mainaTips: mainaTips
+        };
+
+        sessionStorage.setItem('careUser', JSON.stringify(user));
+        this.user = user;
+
+        // Atspoguļot izvēlēto maiņu tipu Google Sheet darbinieka
+        // ierakstā — SAVĀ (sesijas) identitātē.
+        if (this.sync && typeof this.sync.syncShift === 'function') {
+          try {
+            this.sync.syncShift(user.id, mainaTips);
+          } catch (e) {
+            console.warn('[login] maiņas tipa sinhronizācija neizdevās (nav kritiska):', e);
+          }
+        }
+
+        this.showSuccess(user);
+        return;
+      }
+
+      // ❌ Serveris noraidīja PIN
+      const msg = (res && res.error) ? res.error : 'Nepareizs PIN kods';
+      if (errorMsg) {
+        errorMsg.textContent = msg;
+        errorMsg.style.display = 'block';
+      }
+      if (statusMsg) statusMsg.textContent = '';
       this.pin = '';
       if (pinInput) {
         pinInput.value = '';
         setTimeout(() => pinInput.focus(), 50);
       }
       this.refreshLoginButton();
-      return;
-    }
-
-    const shiftTypeInput = document.querySelector('input[name="shiftType"]:checked');
-    const mainaTips = shiftTypeInput ? shiftTypeInput.value : 'diennakts';
-    const sheetShift = String((employee && (employee.maina_tips || employee.mainaTips)) || '').trim().toLowerCase();
-
-    // Ja izvēlējās lomu — izmantot to, citāk pirmo
-    const chosenRole = employee.chosenRole || (employee.lomas || [])[0];
-
-    const user = {
-      id: employee.id,
-      vards: employee.vards,
-      uzvards: employee.uzvards,
-      loma: chosenRole,
-      visulasLomas: employee.lomas || [],
-      pin: pin,
-      pinVerified: true,
-      loginTime: Date.now(),
-      mainaTips: mainaTips
-    };
-
-    sessionStorage.setItem('careUser', JSON.stringify(user));
-    this.user = user;
-    this.showSuccess(user);
-
-    // Atspoguļot izvēlēto maiņu tipu Google Sheet darbinieka ierakstā.
-    // Sūtām TIKAI tad, ja tā patiešām atšķiras no tās, kas jau tur ir —
-    // pārmaiņu grafiks ir mainīgs, bet lieks pieprasījums katrā ielādē
-    // nav nekas labs. Tas NOTIEK ārpus `await` — ielāde negaidīs serveri.
-    if (this.sync && typeof this.sync.syncShift === 'function' && sheetShift !== mainaTips) {
-      try {
-        this.sync.syncShift(user.id, mainaTips);
-      } catch (e) {
-        console.warn('[login] maiņas tipa sinhronizācija neizdevās (nav kritiska):', e);
+    } catch (err) {
+      if (err && err.sessionExpired) return; // handleSessionExpired jau pārsauc uz login
+      if (errorMsg) {
+        errorMsg.textContent = 'Neizdevās pārbaudīt PIN: ' + (err && err.message ? err.message : err);
+        errorMsg.style.display = 'block';
       }
+      if (statusMsg) statusMsg.textContent = '';
+      this.pin = '';
+      this.refreshLoginButton();
     }
   }
 

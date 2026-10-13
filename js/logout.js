@@ -167,14 +167,26 @@ confirm: function(opts) {
     `;
     document.body.appendChild(goodbye);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         if (window.careSync && typeof window.careSync.sync === 'function') {
           window.careSync.sync();
         }
       } catch (e) {}
+      // Serveris: mēģinām likvidēt sesiju. Tas ir
+      // "labāk nekā nekas" — ja servers neizdodas, tokens
+      // beidz derību pēc 8 stundām. Kļūdu ignorējam,
+      // jo iziešana JĀNOTIKU pat, ja nav interneta.
+      try {
+        await callBackend('logout', {}, 5000);
+      } catch (e) {
+        console.warn('[logout] servera sesijas likvidācija neizdevās (ignorē):', e && e.message);
+      }
+      // Klients: noņam sesijas tokenu un identitāti.
+      clearSessionToken();
       sessionStorage.removeItem('careUser');
       sessionStorage.removeItem('careAdminMode');
+      sessionStorage.removeItem('careAdminCaregiverId');
       this.clearPending();
       window.location.href = 'index.html';
     }, 1800);

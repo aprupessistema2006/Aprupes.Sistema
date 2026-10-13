@@ -959,8 +959,7 @@ class AdminPanel {
     result.textContent = t('checkingConnection');
 
     try {
-      const url = CONFIG.GAS_URL + '?action=load&t=' + Date.now();
-      const data = await requestData(url, 10000);
+      const data = await callBackend('load', { mode: 'bootstrap' }, 10000);
       if (data) {
         result.className = 'connection-result success';
         result.textContent = t('connectionActive');

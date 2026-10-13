@@ -2,10 +2,17 @@ const CONFIG = {
   APP_NAME: 'Aprūpes sistēma',
   // Uzkopējama ar version.json un HTML ?v= parametriem. Šis lauks pats
   // nekur netiek lasīts (skripti izmanto version.json), bet tas ir jātur
-  // saskaņots, lai neviens uz to nepaliekoties nepareizas versijas.
-  VERSION: '20261011-2115',
+  // saskaņot, lai neviens uz to nepaliekot nepareizas versijas.
+  VERSION: '20261013-1600',
 
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbyO96MCpUBQiWj9gvhDXEnJZE44BD6b0VVoFIjge6cxxq2X474FGSzvIszklL4xKk22Pg/exec',
+  // ⚠️ DROŠĀ ARHITEKTŪRA: šis URL ir vienīgais servera galapunkts.
+  // Klients tam sūta TIKAI fetch() POST pieprasījumus ar JSON
+  // ķermeni un sesijas tokenu. GET/JSONP vairs nestrādā.
+  //
+  // Pēc jauna GAS izvietojuma (deploy) šeit JĀBŪT jaunai adresei:
+  // nokopējiet "Izvietot kā tīmekļa lietotni" URL un ievietojiet
+  // šeit. Ja adreses nesmaināt, lietotne nesazinās ar serveri.
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbzM2Zj37RRcZERnzJF5leUIHSbf8chk0PzMmctstpz3iEuSIePCTzpktyzGRnHZk3oYMQ/exec',
 
   // ⚠️ Šis lauks klientā netiek lasīts — patieso nolasījumu dara
   // backend/gas_webhook.gs (SHEET_ID, 1. rinda). Šeit tas ir tikai

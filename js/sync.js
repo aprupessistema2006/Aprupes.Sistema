@@ -1,5 +1,96 @@
 const SYNC_URL = typeof CONFIG !== 'undefined' ? CONFIG.GAS_URL : null;
 
+// ───────────────────────────────────────────────────────────────────
+// DROŠS TRANSPORTS — "Nulle uzticēšanās klientam"
+//
+// Visa datu apmaiņa ar GAS notiek ar strukturētiem fetch() POST
+// pieprasījumiem, katram pievienojot unikālu sesijas tokenu.
+// Sesijas tokens tiek ģenerēts SERVERĪ pēc veiksmīgas pieteikšanās
+// un der 8 stundas. Identitāte un loma — TIKAI no sesijas, nevis
+// no klienta nosūtītajiem datiem.
+//
+// Vecie publiskie GET/JSONP datu galapunkti vairs netiek izmantoti:
+// serveris atbildē ar kļūdu jebkuram GET pieprasījumam.
+// ───────────────────────────────────────────────────────────────────
+const SESSION_TOKEN_KEY = 'aprupes_session_token';
+
+function getSessionToken() {
+  try { return localStorage.getItem(SESSION_TOKEN_KEY) || ''; }
+  catch (e) { return ''; }
+}
+
+function setSessionToken(token) {
+  try {
+    if (token) localStorage.setItem(SESSION_TOKEN_KEY, String(token));
+    else localStorage.removeItem(SESSION_TOKEN_KEY);
+  } catch (e) { /* privātais režīms — nekritisks */ }
+}
+
+function clearSessionToken() {
+  try { localStorage.removeItem(SESSION_TOKEN_KEY); }
+  catch (e) { /* ignorējam */ }
+}
+
+// Serveris atbildēja, ka sesija ir beigusies — tīrām visi
+// vietējās sesijas dati un atgriežam uz pieteikšanās ekrānu.
+function handleSessionExpired() {
+  clearSessionToken();
+  try { sessionStorage.removeItem('careUser'); } catch (e) {}
+  try { sessionStorage.removeItem('careAdminMode'); } catch (e) {}
+  try { sessionStorage.removeItem('careAdminCaregiverId'); } catch (e) {}
+  if (typeof window !== 'undefined' && window.location &&
+      !/\/index\.html$/.test(window.location.pathname)) {
+    setTimeout(function () { window.location.href = 'index.html'; }, 100);
+  }
+}
+
+// Vienīgais datu transports: fetch POST + JSON + sesijas tokens.
+async function callBackend(action, data, timeout) {
+  timeout = timeout || 30000;
+  if (!SYNC_URL) throw new Error('Nav konfigurēts servera URL');
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, timeout);
+  try {
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: action,
+        data: data || {},
+        sessionToken: getSessionToken()
+      })
+    });
+    clearTimeout(timer);
+    const text = await res.text();
+    const trimmed = (text || '').trim();
+    if (!trimmed) throw new Error('Serveris atgrieza tukšu atbildi');
+    let parsed;
+    try { parsed = JSON.parse(trimmed); }
+    catch (e) { throw new Error('Neatpazīsta servera atbildi'); }
+    if (parsed && (parsed.session_expired === true ||
+        parsed.auth_required === true ||
+        parsed.error === 'Sesija ir beigusies vai nav derīga. Lūdzu, pieteikieties no jauna.')) {
+      handleSessionExpired();
+      const err = new Error('Sesija ir beigusies');
+      err.sessionExpired = true;
+      err.permanent = true;
+      throw err;
+    }
+    return parsed;
+  } catch (e) {
+    clearTimeout(timer);
+    if (e && e.name === 'AbortError') throw new Error('Timeout');
+    if (e && e.sessionExpired) throw e;
+    if (e && e.permanent) throw e;
+    throw new Error(e && e.message ? e.message : 'Savienojuma kļūda');
+  }
+}
+
 // Mērīšanas fasāde.
 //
 // js/perf.js nav iekļauts visur, kur sync.js tiek izmantots (Node testi,
@@ -421,25 +512,26 @@ async function requestData(url, timeout) {
 // Request deduplication — prevent parallel identical requests
 const pendingActions = new Map();
 
+// Drošā darbības izsaukšana. Vārds `jsonpAction` saglabāts
+// saderībai, bet realizācija ir TIKAI fetch POST ar sesijas
+// tokenu — JSONP vairs netiek izmantots nekur.
 async function jsonpAction(action, data, timeout = 30000) {
   const actionKey = action + ':' + JSON.stringify(data);
 
   if (pendingActions.has(actionKey)) {
-    console.log('[sync] jsonpAction deduplicated:', actionKey);
+    console.log('[sync] action deduplicated:', actionKey);
     return pendingActions.get(actionKey);
   }
 
-  const payload = encodeURIComponent(JSON.stringify({ action: action, data: data }));
-  let url = SYNC_URL + '?data=' + payload;
-  console.log('[sync] jsonpAction SENDING:', action, JSON.stringify(data));
+  console.log('[sync] action SENDING:', action, JSON.stringify(data));
 
-  const promise = requestData(url, timeout)
+  const promise = callBackend(action, data, timeout)
     .then(result => {
-      console.log('[sync] jsonpAction RESPONSE:', action, JSON.stringify(result));
+      console.log('[sync] action RESPONSE:', action, JSON.stringify(result));
       return result;
     })
     .catch(err => {
-      console.error('[sync] jsonpAction ERROR:', action, err.message);
+      console.error('[sync] action ERROR:', action, err.message);
       throw err;
     })
     .finally(() => {
@@ -450,9 +542,7 @@ async function jsonpAction(action, data, timeout = 30000) {
   return promise;
 }
 
-// POST-based action for write operations
-// Uses JSONP (GET) since GAS doesn't support CORS for fetch POST.
-// This is equivalent to jsonpAction but with a distinct key prefix.
+// Rakstīšanas darbība — tas pats drošais transports kā jsonpAction.
 async function postAction(action, data, timeout = 30000) {
   return jsonpAction(action, data, timeout);
 }
@@ -1045,8 +1135,7 @@ class CareSync {
       return { connected: false, status: 'offline', message: t('syncStatusOffline') };
     }
     try {
-      const url = SYNC_URL + '?action=ping&t=' + Date.now();
-      const data = await requestData(url, 15000);
+      const data = await callBackend('ping', {}, 15000);
       if (data && (data.success === true || data.pong === true)) {
         this._connectionStatus = 'connected';
         this._updateSyncStatus(t('syncStatusSaved'));
@@ -1065,8 +1154,7 @@ class CareSync {
   async getServerVersion() {
     if (!SYNC_URL) return null;
     try {
-      const url = SYNC_URL + '?action=ping&t=' + Date.now();
-      const data = await requestData(url, 15000);
+      const data = await callBackend('ping', {}, 15000);
       if (data && data.version) return data.version;
       return null;
     } catch (e) {
@@ -1253,13 +1341,7 @@ class CareSync {
 
   // Faza 1: nelielās tabulas (darbinieki, klienti, uzdevomi) — ātri, vienā pieprasījumā
   async _loadBootstrap(onProgress) {
-    const params = new URLSearchParams({ action: 'load', mode: 'bootstrap', t: Date.now() });
-    const url = SYNC_URL + '?' + params.toString();
-    console.log('[sync] bootstrap SENDING:', url);
-    // Īss, kontrolēts mēģinājums. Nevis 3× 90 sekundēm — GAS aukstais
-    // starts izmērīts 3–10s, tāpēc 2 mēģinājumi ar 1s/2s atkāpi ir
-    // 40 reizes ātrāks nekā iepriekšējais 126s gaidišana.
-    const data = await this._requestWithRetry(url, {
+    const data = await this._callWithRetry('load', { mode: 'bootstrap' }, {
       label: 'bootstrap',
       attempts: 2,
       // ⚠️ Timeout ir izmērīts, nevis uzminēts. 2026-09-28 mērījumi pret
@@ -1299,18 +1381,16 @@ class CareSync {
      let guard = 0;
      const MAX_GUARD = 2000; // 500-row lapas → ~452 lapas
 
-     while (guard++ < MAX_GUARD) {
-       const params = new URLSearchParams({
-         action: 'load', mode: 'marks', t: Date.now(),
-         offset: String(offset), limit: String(LIMIT)
-       });
-       const url = SYNC_URL + '?' + params.toString();
-
-       // GAS atgriež atzimes + atzimes_log vienā atbildē (vienā pieprasījumā)
-       let data;
-       try {
-         data = await this._requestWithRetry(url, { label: 'marks@' + offset, attempts: 2, timeout: 25000 });
-       } catch (e) {
+      while (guard++ < MAX_GUARD) {
+        // GAS atgriež atzimes + atzimes_log vienā atbildē (vienā pieprasījumā)
+        let data;
+        try {
+          data = await this._callWithRetry('load', {
+            mode: 'marks',
+            offset: String(offset),
+            limit: String(LIMIT)
+          }, { label: 'marks@' + offset, attempts: 2, timeout: 25000 });
+        } catch (e) {
          console.warn('[sync] marks page @offset ' + offset + ' neizdevās pēc retry:', e.message);
          break;
        }
@@ -1376,16 +1456,16 @@ class CareSync {
     let pages = 0, truncated = false;
 
     while (pages < MAX_PAGES) {
-      const params = new URLSearchParams({
-        action: 'load', mode: 'range', t: Date.now(),
-        dateFrom: dates[0], dateTo: dates[dates.length - 1],
-        limit: String(PAGE), offset: String(offset),
+      const data = await this._callWithRetry('load', {
+        mode: 'range',
+        dateFrom: dates[0],
+        dateTo: dates[dates.length - 1],
+        limit: String(PAGE),
+        offset: String(offset),
         logOffset: String(logOffset),
         marksDone: marksDone ? 'true' : 'false',
         logDone: logDone ? 'true' : 'false'
-      });
-      const url = SYNC_URL + '?' + params.toString();
-      const data = await this._requestWithRetry(url, {
+      }, {
         label: 'atzīmes (' + span + ' dienas, lapa ' + (pages + 1) + ')',
         attempts: 2, timeout: 25000
       });
@@ -1488,7 +1568,7 @@ _loadRecentMarksBackground(onProgress) {
    }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ĪSS, KONTROLĒTS MĒĒINĀJUMS
+  // ĪSS, KONTROLĒTS MĒĢINĀJUMS DROŠAJAM TRANSPORTAM
   //
   // Vecā loģika: 3–4 mēģinājumi × 60–120s = līdz 5 minūtēm gaidīšanas
   // vienam pieprasījumam, un katrs mēģinājums atkārtoja to pašu 404→JSONP
@@ -1503,7 +1583,7 @@ _loadRecentMarksBackground(onProgress) {
   // nodeva 35s, tāpēc bootstrap varēja ilgt 70s — tieši to lietotājs
   // redzēja žurnālā ("mēģinājums 1/2, 70012ms").
   // ─────────────────────────────────────────────────────────────────────────
-  async _requestWithRetry(url, options = {}) {
+  async _callWithRetry(action, payload, options = {}) {
     const {
       label = 'pieprasījums',
       attempts = 2,
@@ -1528,7 +1608,7 @@ _loadRecentMarksBackground(onProgress) {
       try {
         return await PERF.net(label, (hooks) => {
           hooks.onSent();
-          return requestData(url, left);
+          return callBackend(action, payload, left);
         });
       } catch (e) {
         const spent = _nowMs() - started;
@@ -1542,12 +1622,12 @@ _loadRecentMarksBackground(onProgress) {
           ', ' + Math.round(spent) + 'ms): ' + (e && e.message)
         );
 
-          if (attempt < attempts - 1) {
-            if (onProgress) {
-              try { onProgress('Pārbaudu savienojumu ar Google... (mēģinājums ' + (attempt + 2) + ')'); } catch (cbErr) {}
-            }
-            await new Promise(r => setTimeout(r, this.retryDelayMs(attempt + 1)));
+        if (attempt < attempts - 1) {
+          if (onProgress) {
+            try { onProgress('Pārbaudu savienojumu ar Google... (mēģinājums ' + (attempt + 2) + ')'); } catch (cbErr) {}
           }
+          await new Promise(r => setTimeout(r, this.retryDelayMs(attempt + 1)));
+        }
       }
     }
     throw lastErr;
@@ -1563,21 +1643,21 @@ _loadRecentMarksBackground(onProgress) {
     let guard = 0;
 
     while (guard++ < 60) {
-      const params = new URLSearchParams({
-        action: 'load', mode: 'range', t: Date.now(),
-        clientId: String(clientId),
-        dateFrom: dateFrom || '', dateTo: dateTo || '',
-        offset: String(offset), limit: String(LIMIT)
-      });
-       const url = SYNC_URL + '?' + params.toString();
-       let data;
-       try {
-         data = await this._requestWithRetry(url, { label: 'klients ' + clientId, attempts: 2, timeout: 20000 });
-       } catch (e) {
-         console.warn('[sync] loadClientRange neizdevās:', e.message);
-         break;
-       }
-       if (data.error) break;
+      let data;
+      try {
+        data = await this._callWithRetry('load', {
+          mode: 'range',
+          clientId: String(clientId),
+          dateFrom: dateFrom || '',
+          dateTo: dateTo || '',
+          offset: String(offset),
+          limit: String(LIMIT)
+        }, { label: 'klients ' + clientId, attempts: 2, timeout: 20000 });
+      } catch (e) {
+        console.warn('[sync] loadClientRange neizdevās:', e.message);
+        break;
+      }
+      if (data.error) break;
 
       const marks = (data.atzimes || []).map(normalizeRow);
       const logs = (data.atzimes_log || []).map(normalizeRow);
