@@ -3,14 +3,26 @@ const SYNC_URL = typeof CONFIG !== 'undefined' ? CONFIG.GAS_URL : null;
 // ───────────────────────────────────────────────────────────────────
 // DROŠS TRANSPORTS — "Nulle uzticēšanās klientam"
 //
-// Visa datu apmaiņa ar GAS notiek ar strukturētiem fetch() POST
-// pieprasījumiem, katram pievienojot unikālu sesijas tokenu.
-// Sesijas tokens tiek ģenerēts SERVERĪ pēc veiksmīgas pieteikšanās
-// un der 8 stundas. Identitāte un loma — TIKAI no sesijas, nevis
-// no klienta nosūtītajiem datiem.
+// ⚠️ KĀPĒJ GET AR PARAMETRIEM, NEVIS POST?
 //
-// Vecie publiskie GET/JSONP datu galapunkti vairs netiek izmantoti:
-// serveris atbildē ar kļūdu jebkuram GET pieprasījumam.
+// Google Apps Script tīmekļa lietotnes pārlūka
+// pieprasījumus aizsūta caur "echo relay"
+// (302 → script.googleusercontent.com/macros/echo).
+// Empīriski pārbaudīts uz mūsu deploy:
+//   • relay SAGLABĀ pieprasījuma metodi un URL
+//     parametrus, bet ATMET pieprasījuma ĶERMENI
+//     (e.postData.contents ienāk tukšs);
+//   • relay NEATBALSTA CORS preflight — OPTIONS
+//     atbildei nav Access-Control-Allow-Origin,
+//     tāpēc POST ar Content-Type: application/json
+//     pārlūkā vienmēr beidzas ar "Failed to fetch".
+//
+// GET ķēde beidzas ar 200 OK + Access-Control-Allow-Origin: *,
+// ko fetch var nolasīt. Tas ir tas pats transports, kādu
+// lietoja vecā JSONP plūsma (GET + parametri), tikai ar
+// fetch. Sesijas tokens, identitāte un loma — TIKAI no
+// servera puses; klients nosūta tokenu, ko serveris
+// pārbauda un neatļauj klienta norādīto identitāti.
 // ───────────────────────────────────────────────────────────────────
 const SESSION_TOKEN_KEY = 'aprupes_session_token';
 
@@ -44,26 +56,26 @@ function handleSessionExpired() {
   }
 }
 
-// Vienīgais datu transports: fetch POST + JSON + sesijas tokens.
+// Vienīgais datu transports: fetch GET + URL parametri + sesijas tokens.
 async function callBackend(action, data, timeout) {
   timeout = timeout || 30000;
   if (!SYNC_URL) throw new Error('Nav konfigurēts servera URL');
   const controller = new AbortController();
   const timer = setTimeout(function () { controller.abort(); }, timeout);
   try {
-    const res = await fetch(SYNC_URL, {
-      method: 'POST',
+    const params = new URLSearchParams();
+    params.set('action', action);
+    params.set('data', JSON.stringify(data || {}));
+    params.set('sessionToken', getSessionToken());
+    // Kešas laušana (GET atbildes nedrīkst kalpoties no kešas)
+    params.set('_t', String(Date.now()) + Math.random().toString(36).slice(2, 8));
+    const res = await fetch(SYNC_URL + '?' + params.toString(), {
+      method: 'GET',
       mode: 'cors',
       credentials: 'omit',
       cache: 'no-store',
       redirect: 'follow',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: action,
-        data: data || {},
-        sessionToken: getSessionToken()
-      })
+      signal: controller.signal
     });
     clearTimeout(timer);
     const text = await res.text();
