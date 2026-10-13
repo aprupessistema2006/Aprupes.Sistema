@@ -7,7 +7,7 @@
 // 20261004-1600: HTML zarojums bezsaimes režīmā atgriež īstu Response.
 // 20261013-1905: drošā arhitektūra (POST + sesija) + atjauninājuma
 // banera bezieru cikls (BUILD_VERSION sinhronizēts ar version.json).
-const CACHE_NAME = 'aprupes-sistema-v66'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v67'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -52,7 +52,7 @@ const STATIC_ASSETS = [
 //
 // BUILD_VERSION jābūt SYNCHRONIZĒTS ar version.json. To pārbauda
 // test_deploy_consistency.js.
-const BUILD_VERSION = '20261013-1930';
+const BUILD_VERSION = '20261013-1940';
 
 // Koda failus precachējam ar versijas parametru, pārējos — bez tā.
 const withVersion = (path) =>

@@ -3,7 +3,7 @@ const CONFIG = {
   // Uzkopējama ar version.json un HTML ?v= parametriem. Šis lauks pats
   // nekur netiek lasīts (skripti izmanto version.json), bet tas ir jātur
   // saskaņot, lai neviens uz to nepaliekot nepareizas versijas.
-  VERSION: '20261013-1930',
+  VERSION: '20261013-1940',
 
   // ⚠️ DROŠĀ ARHITEKTŪRA: šis URL ir vienīgais servera galapunkts.
   // Klients tam sūta TIKAI fetch() POST pieprasījumus ar JSON
@@ -12,7 +12,7 @@ const CONFIG = {
   // Pēc jauna GAS izvietojuma (deploy) šeit JĀBŪT jaunai adresei:
   // nokopējiet "Izvietot kā tīmekļa lietotni" URL un ievietojiet
   // šeit. Ja adreses nesmaināt, lietotne nesazinās ar serveri.
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbzM2Zj37RRcZERnzJF5leUIHSbf8chk0PzMmctstpz3iEuSIePCTzpktyzGRnHZk3oYMQ/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbwn2hPRWnzHQRVM-OcVCvitBVyRmBfYfRItfoPMllALoh_-vx3Fqv887geG9ZoyT80cYw/exec',
 
   // ⚠️ Šis lauks klientā netiek lasīts — patieso nolasījumu dara
   // backend/gas_webhook.gs (SHEET_ID, 1. rinda). Šeit tas ir tikai
