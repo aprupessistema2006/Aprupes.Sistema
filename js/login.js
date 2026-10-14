@@ -753,7 +753,7 @@ class LoginController {
   }
 
   redirectByRole(role) {
-    const r = String(role || '').toLowerCase().trim();
+    const r = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
     if (r === 'administrators' || r === 'admins' || r === 'admin') {
       window.location.href = 'admin.html';
     } else if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') {
@@ -785,6 +785,7 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
