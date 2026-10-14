@@ -322,7 +322,7 @@ class LoginController {
       const g = grouped.get(key);
       // Normalize role to remove diacritics (GAS may return 'aprupetajs')
       const role = (e.loma || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-      const roleCanonical = { 'aprupetajs': 'aprūpētājs', 'kontroliere': 'kontroliere', 'administrators': 'administrators' }[role] || e.loma;
+      const roleCanonical = { 'aprupetajs': 'aprūpētājs', 'kontroliere': 'kontroliere', 'administrators': 'administrators', 'mediķis': 'medic', 'arsts': 'medic', 'medicinska': 'medic' }[role] || e.loma;
       if (roleCanonical && !g.lomas.includes(roleCanonical)) g.lomas.push(roleCanonical);
     }
 
@@ -785,5 +785,9 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
+
+
+
 
 
