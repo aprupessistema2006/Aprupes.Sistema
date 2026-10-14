@@ -699,7 +699,8 @@
         <div class="form-group">
           <label>Loma *</label>
           <select name="loma">
-            <option value="aprūpētājs" ${loma === 'aprūpētājs' ? 'selected' : ''}>Aprūpētājs/a</option>
+<option value="aprūpētājs" ${loma === "aprūpētājs" ? "selected" : ""}>Aprūpētājs/a</option>
+<option value="medic" ${loma === "medic" || loma === "medicīnas darbinieks" || loma === "mediķis" || loma === "arsts" ? "selected" : ""}>Medicīnas darbinieks</option>
             <option value="kontroliere" ${loma === 'kontroliere' ? 'selected' : ''}>Kontrolieris/e</option>
             <option value="administrators" ${loma === 'administrators' ? 'selected' : ''}>Administrators/e</option>
           </select>
