@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="lv">
 <head>
   <meta charset="UTF-8">
@@ -6,10 +6,38 @@
   <meta name="theme-color" content="#2c3e50">
   <link rel="manifest" href="manifest.json">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>Medicīniskais skats — Aprūpes sistēma</title>
-  <link rel="stylesheet" href="css/index.css?v=20261013-1940">
-  <link rel="stylesheet" href="css/medicine.css?v=20261013-1940">
+  <title>Medicīniskais uzraudzības skats — Aprūpes sistēma</title>
+  <link rel="stylesheet" href="css/index.css?v=20261014-0955">
+  <link rel="stylesheet" href="css/medicine.css?v=20261014-0955">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
+  <style>
+    .med-tabs { display:flex; gap:8px; margin:12px 16px; }
+    .med-tab { flex:1; padding:10px 12px; border:1px solid #e0e0e0; background:#f9f9f9; border-radius:8px; cursor:pointer; font-weight:600; }
+    .med-tab.active { background:#2c3e50; color:#fff; border-color:#2c3e50; }
+    .med-tab-panel { display:none; margin:0 16px 16px; }
+    .med-tab-panel.active { display:block; }
+    .med-toolbar { display:flex; gap:8px; margin-bottom:8px; }
+    .med-search { flex:1; padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; }
+    .med-date { padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; }
+    .med-table-wrap { overflow:auto; border:1px solid #e0e0e0; border-radius:8px; background:#fff; max-height:calc(100vh - 180px); }
+    .med-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .med-table th, .med-table td { padding:6px 8px; border:1px solid #f0f0f0; white-space:nowrap; }
+    .med-table th { background:#fafafa; position:sticky; top:0; z-index:1; font-weight:600; }
+    .med-table tbody tr:hover { background:#fafafa; }
+    .dir-up { color:#d32f2f; font-weight:700; }
+    .dir-down { color:#2e7d32; font-weight:700; }
+    .dir-flat { color:#666; }
+    .med-offline { margin:16px; padding:12px 16px; background:#fff3cd; border:1px solid #ffc107; border-radius:8px; color:#856404; }
+    .med-online-hint { margin:0 16px 12px; color:#666; font-size:12px; }
+    .med-attn-list { display:flex; flex-direction:column; gap:8px; }
+    .med-attn-item { border:1px solid #f0f0f0; border-radius:8px; padding:10px 12px; background:#fff; }
+    .med-attn-item.crit { border-left:4px solid #d32f2f; }
+    .med-attn-item.attn { border-left:4px solid #f57f17; }
+    .med-attn-header { display:flex; justify-content:space-between; margin-bottom:4px; font-weight:600; }
+    .med-attn-reason { font-size:13px; }
+    .med-attn-meta { font-size:12px; color:#666; margin-top:4px; }
+    .med-empty { padding:16px; text-align:center; color:#666; }
+  </style>
 </head>
 <body>
   <div class="splash-screen" id="splashScreen">
@@ -19,16 +47,16 @@
     <div class="splash-content">
       <img src="logo/logoDS.png" alt="Aprūpes sistēma" class="splash-logo">
       <h1 class="splash-title">Aprūpes sistēma</h1>
-      <p class="splash-subtitle">Medicīniskais skats</p>
+      <p class="splash-subtitle">Medicīniskais uzraudzības skats</p>
     </div>
   </div>
 
   <div class="top-bar">
     <div class="top-bar-left">
       <button id="btnBack" class="icon-btn" title="Atpakaļ">
-        <span>←</span>
+        <span>&larr;</span>
       </button>
-      <h1 class="top-bar-title">🏥 Medicīniskais skats</h1>
+      <h1 class="top-bar-title">&#127973; Medicīniskais uzraudzības skats</h1>
     </div>
     <div class="top-bar-right">
       <div class="lang-switcher-global">
@@ -36,58 +64,65 @@
         <button data-lang="ru" class="lang-btn">RU</button>
         <button data-lang="en" class="lang-btn">EN</button>
       </div>
-      <button id="manualSyncBtn" class="icon-btn" title="Sinhor." style="display:none;">
-        <span>🔄</span>
+      <button id="manualSyncBtn" class="icon-btn" title="Sinhronizēt" style="display:none;">
+        <span>&#8635;</span>
       </button>
       <button id="logoutBtn" class="icon-btn" title="Iziet">
-        <span>🚪</span>
+        <span>&#128682;</span>
       </button>
     </div>
   </div>
 
   <div class="status-message" id="statusMessage"></div>
+  <div id="medOnlineHint" class="med-online-hint" style="display:none;"></div>
+  <div id="medOfflineBox" class="med-offline" style="display:none;">Nepieciešams interneta savienojums</div>
 
-  <!-- ═══════════════════════════════════════════════════════════════════
-       MEDICĪNA kā FILTRS (spec §2, §11).
-
-       Pirmajā ekrānā, bez ritināšanas:
-         🏥 MEDICĪNA
-         🔴 Uzmanība — X klienti
-         📈 Tendence — X klienti
-         🔎 Meklēt klientu
-         👥 Visi klienti (aizvākti līdz apzinātai atvēršanai)
-
-       Nevis "parādi visus datus", bet "parādi, kam šobrīd jāpievērš
-       uzmanība un kāpēc".
-       ═══════════════════════════════════════════════════════════════════ -->
   <main class="med-container">
+    <div class="med-tabs">
+      <button class="med-tab active" data-tab="attention">Nepieciešama uzmanība</button>
+      <button class="med-tab" data-tab="all">Visi klienti</button>
+    </div>
 
-    <section class="med-view" id="medListView">
-      <div id="medHeadline" class="med-headline"></div>
+    <section class="med-tab-panel active" id="panel-attention">
+      <div id="attentionList" class="med-attn-list"></div>
+    </section>
 
+    <section class="med-tab-panel" id="panel-all">
       <div class="med-toolbar">
-        <input type="search" id="clientSearch" class="med-search" placeholder="🔎 Meklēt klientu...">
+        <input type="search" id="clientSearch" class="med-search" placeholder="Meklēt klientu...">
         <input type="date" id="dateFilter" class="med-date">
       </div>
-
-      <div id="medClientList" class="med-client-list"></div>
+      <div class="med-table-wrap">
+        <table class="med-table">
+          <thead>
+            <tr>
+              <th>Klients</th>
+              <th>Datums/Laiks</th>
+              <th>T&#176;</th>
+              <th>Brok.</th>
+              <th>Pusdn.</th>
+              <th>Launags</th>
+              <th>Vak.</th>
+              <th>Urīns (24h)</th>
+              <th>H&#8322;O (24h)</th>
+              <th>Vēdera izeja</th>
+              <th>Dinamika</th>
+            </tr>
+          </thead>
+          <tbody id="allTableBody"></tbody>
+        </table>
+      </div>
     </section>
-
-    <section class="med-view" id="medDetailView" style="display:none;">
-      <div id="medDetail" class="med-detail"></div>
-    </section>
-
   </main>
 
-  <script src="js/config.js?v=20261013-1940"></script>
-  <script src="js/db.js?v=20261013-1940"></script>
-  <script src="js/i18n.js?v=20261013-1940"></script>
-  <script src="js/perf.js?v=20261013-1940"></script>
-  <script src="js/operation_registry.js?v=20261013-1940"></script>
-  <script src="js/sync.js?v=20261013-1940"></script>
-  <script src="js/timezone.js?v=20261013-1940"></script>
-  <script src="js/logout.js?v=20261013-1940"></script>
-  <script src="js/medicine_view.js?v=20261013-1940"></script>
-  <script src="js/update_notifier.js?v=20261013-1940"></script>
+  <script src="js/config.js?v=20261014-0955"></script>
+  <script src="js/db.js?v=20261014-0955"></script>
+  <script src="js/i18n.js?v=20261014-0955"></script>
+  <script src="js/operation_registry.js?v=20261014-0955"></script>
+  <script src="js/sync.js?v=20261014-0955"></script>
+  <script src="js/timezone.js?v=20261014-0955"></script>
+  <script src="js/logout.js?v=20261014-0955"></script>
+  <script src="js/medicine_view.js?v=20261014-0955"></script>
+  <script src="js/update_notifier.js?v=20261014-0955"></script>
 </body>
 </html>
