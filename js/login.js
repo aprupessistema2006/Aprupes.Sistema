@@ -196,7 +196,7 @@ class LoginController {
         if (!btn) return;
         document.querySelectorAll('#roleFilter .role-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        console.log('[roleFilter] btn role=' + btn.dataset.role); this.filterByRole(btn.dataset.role);
+        console.log('[roleFilter] btn role=' + btn.dataset.role, btn); this.filterByRole(btn.dataset.role);
       });
     }
 
@@ -382,7 +382,7 @@ class LoginController {
       .replace(/[̀-ͯ]/g, '');
   }
 
-  filterByRole(role) { console.log('[filterByRole] called with', role, 'active=', this.activeRoleFilter);
+  filterByRole(role) { console.log('[filterByRole] called with', role, 'active=', this.activeRoleFilter, role, 'active=', this.activeRoleFilter);
     this.activeRoleFilter = role; console.log('[filterByRole] set active to', this.activeRoleFilter);
     const searchTerm = document.getElementById('employeeSearch')?.value || '';
     console.log('[filterByRole] applying filters'); this.applyFilters(searchTerm);
@@ -785,6 +785,8 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
+
 
 
 
