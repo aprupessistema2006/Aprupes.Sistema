@@ -357,8 +357,11 @@ applyFilters(searchTerm) {
       // lietots mainīgais "t", bet tas nebija deklarēts (tikai
       // "tMed"). Tā dēļ filtrs kārita ar ReferenceError: t is not
       // defined, un nekas nenotika. Tagad "t" tiek definēts.
+      // ⚠️ Tāpat arī "isMedic" nebija deklarēts šeit, bet tika
+      // lietots 367. rindā. Tagad abas lietas ir salīdzinātas.
       const tMed = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
       const t = tMed;
+      const isMedic = (tMed.indexOf('medic') !== -1 || tMed.indexOf('arsts') !== -1 || tMed.indexOf('medicin') !== -1 || tMed.indexOf('medicina') !== -1);
       result = result.filter(e => {
         const roles = e.lomas || [];
         return roles.some(r => {
