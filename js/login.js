@@ -786,3 +786,4 @@ document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
 
+
