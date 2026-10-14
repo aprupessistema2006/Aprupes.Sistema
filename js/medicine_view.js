@@ -44,7 +44,7 @@ class MedicineView {
     this.sync = new CareSync(this.db, CONFIG);
     window.careSync = this.sync;
     const role = (this.currentUser.loma || '').toLowerCase();
-    if (role !== 'medic' && role !== 'administrators' && role !== 'kontroliere') {
+    if (role.indexOf('medic') === -1 && role !== 'mediķis' && role !== 'arsts' && role !== 'medicinska' && role !== 'medicīnas darbinieks' && role !== 'administrators' && role !== 'kontroliere') {
       window.location.href = 'aprupe.html';
       return;
     }
@@ -312,3 +312,4 @@ class MedicineView {
 
 let medicineView;
 document.addEventListener('DOMContentLoaded',()=>{ medicineView=new MedicineView(); });
+
