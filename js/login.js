@@ -121,7 +121,7 @@ class LoginController {
             const employeeArea = document.getElementById('employeeArea');
             if (passwordSection) passwordSection.style.display = 'none';
             if (employeeArea) employeeArea.style.display = 'block';
-            this.renderEmployeeList();
+            console.log('[filterByRole] rendering, count=' + this.filteredEmployees.length); this.renderEmployeeList();
             if (statusMsg) {
               statusMsg.textContent = '✓ Ierīce atvērta • ' + this.employees.length + ' darbinieki';
               statusMsg.style.color = '#27ae60';
@@ -179,7 +179,7 @@ class LoginController {
     if (employeeSearch) {
       employeeSearch.addEventListener('input', (e) => {
         this.filterEmployees(e.target.value.trim().toLowerCase());
-        this.renderEmployeeList();
+        console.log('[filterByRole] rendering, count=' + this.filteredEmployees.length); this.renderEmployeeList();
       });
     }
 
@@ -191,12 +191,12 @@ class LoginController {
 
     const roleFilter = document.getElementById('roleFilter');
     if (roleFilter) {
-      roleFilter.addEventListener('click', (e) => {
+      roleFilter.addEventListener('click', (e) => { console.log('[roleFilter] click', e.target);
         const btn = e.target.closest('.role-btn');
         if (!btn) return;
         document.querySelectorAll('#roleFilter .role-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        this.filterByRole(btn.dataset.role);
+        console.log('[roleFilter] btn role=' + btn.dataset.role); this.filterByRole(btn.dataset.role);
       });
     }
 
@@ -335,7 +335,7 @@ class LoginController {
     this.applyFilters(term || '');
   }
 
-  applyFilters(searchTerm) {
+  applyFilters(searchTerm) { console.log('[applyFilters] role=' + (this.activeRoleFilter||'all') + ' employees=' + this.employees.length);
     const role = this.activeRoleFilter || 'all';
     let result = this.employees;
     if (role !== 'all') {
@@ -382,11 +382,11 @@ class LoginController {
       .replace(/[̀-ͯ]/g, '');
   }
 
-  filterByRole(role) {
-    this.activeRoleFilter = role;
+  filterByRole(role) { console.log('[filterByRole] called with', role, 'active=', this.activeRoleFilter);
+    this.activeRoleFilter = role; console.log('[filterByRole] set active to', this.activeRoleFilter);
     const searchTerm = document.getElementById('employeeSearch')?.value || '';
-    this.applyFilters(searchTerm);
-    this.renderEmployeeList();
+    console.log('[filterByRole] applying filters'); this.applyFilters(searchTerm);
+    console.log('[filterByRole] rendering, count=' + this.filteredEmployees.length); this.renderEmployeeList();
   }
 
   renderEmployeeList() {
@@ -481,7 +481,7 @@ class LoginController {
     if (search) {
       search.value = '';
       this.applyFilters('');
-      this.renderEmployeeList();
+      console.log('[filterByRole] rendering, count=' + this.filteredEmployees.length); this.renderEmployeeList();
     }
     this.refreshLoginButton();
 
@@ -628,7 +628,7 @@ class LoginController {
     const sub = document.getElementById('loginSubtitle');
     if (sub) sub.textContent = 'Izvēlies darbinieku un ievadi PIN kodu';
     this.applyFilters('');
-    this.renderEmployeeList();
+    console.log('[filterByRole] rendering, count=' + this.filteredEmployees.length); this.renderEmployeeList();
     this.refreshLoginButton();
   }
 
@@ -785,6 +785,9 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
+
+
 
 
 
