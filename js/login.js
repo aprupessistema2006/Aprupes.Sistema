@@ -341,7 +341,7 @@ class LoginController {
     if (role !== 'all') {
       result = result.filter(e => {
         const roles = e.lomas || [];
-        return roles.some(r => { const rRaw2 = r || ''; const rN2 = this._normalizeForSearch(rRaw2); if (t.indexOf('medic') !== -1 && rN2.indexOf('medic') !== -1) return true; if (t.indexOf('aprup') !== -1 && rN2.indexOf('aprup') !== -1) return true; if (t.indexOf('kontrol') !== -1 && rN2.indexOf('kontrol') !== -1) return true; if (t.indexOf('admin') !== -1 && rN2.indexOf('admin') !== -1) return true;
+        return roles.some(r => { const rRaw2 = r || ''; const rN2 = this._normalizeForSearch(rRaw2); if (t.indexOf('medic') !== -1 && (rN2.indexOf('medic') !== -1 || rRaw2.toLowerCase().indexOf('medic') !== -1 || rRaw2.toLowerCase().indexOf('ārsts') !== -1)) return true; if (t.indexOf('aprup') !== -1 && rN2.indexOf('aprup') !== -1) return true; if (t.indexOf('kontrol') !== -1 && rN2.indexOf('kontrol') !== -1) return true; if (t.indexOf('admin') !== -1 && rN2.indexOf('admin') !== -1) return true;
           const l = r.toLowerCase();
           return l === role || l === (CONFIG.ROLES[role] || role);
         });
@@ -783,6 +783,7 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
