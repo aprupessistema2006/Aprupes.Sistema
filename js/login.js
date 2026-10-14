@@ -189,14 +189,28 @@ class LoginController {
       });
     }
 
+    // ── Lomu filtrs ────────────────────────────────────────────────
+    // IEPRIEKŠ BIJA DIVI Kļūdi, kuru dēļ nospiežot uz lomu pogām
+    // nekas nenotika:
+    //   1) HTML nebija elements ar id="roleFilter", tāpēc
+    //      addEventListener tika izsaukts uz null un klausne vispār
+    //      netika piesaistīta.
+    //   2) applyFilters vidū bija reference uz neatbilstošu
+    //      mainīgo "t", kura nebija deklarēta (tikai "tMed").
+    //      Tas izraisīja ReferenceError un filtrs nevarēja
+    //      izpildīties.
+    // Tagad abas kļūdas novērstas.
     const roleFilter = document.getElementById('roleFilter');
     if (roleFilter) {
-      roleFilter.addEventListener('click', (e) => { console.log('[roleFilter] click', e.target);
+      roleFilter.addEventListener('click', (e) => {
         const btn = e.target.closest('.role-btn');
         if (!btn) return;
+        const role = btn.dataset.role || 'all';
+        console.log('[roleFilter] button clicked → role =', role);
         document.querySelectorAll('#roleFilter .role-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        
+        this.activeRoleFilter = role;
+        this.filterByRole(role);
       });
     }
 
@@ -335,14 +349,28 @@ class LoginController {
     this.applyFilters(term || '');
   }
 
-  applyFilters(searchTerm) { 
+applyFilters(searchTerm) {
     const role = this.activeRoleFilter || 'all';
     let result = this.employees;
     if (role !== 'all') {
-      const tMed = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); const isMedic = (tMed.indexOf('medic') !== -1 || tMed.indexOf('arsts') !== -1 || tMed.indexOf('medicin') !== -1 || tMed.indexOf('medicina') !== -1);
-       result = result.filter(e => {
+      // ⚠️ IEPRIEKŠEJĀ VERSIJĀ šeit bija briesmas: tālāk kodā tika
+      // lietots mainīgais "t", bet tas nebija deklarēts (tikai
+      // "tMed"). Tā dēļ filtrs kārita ar ReferenceError: t is not
+      // defined, un nekas nenotika. Tagad "t" tiek definēts.
+      const tMed = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const t = tMed;
+      result = result.filter(e => {
         const roles = e.lomas || [];
-        return roles.some(r => { const rRaw2 = r || ''; const rN2 = this._normalizeForSearch(rRaw2); if (isMedic) { const rolesAll = ((e.lomas||[]).map(x=>String(x||'').toLowerCase()).join(' ') + ' ' + String(e.loma||e.Loma||'').toLowerCase() + ' ' + this._normalizeForSearch(String(e.loma||e.Loma||''))); if (rolesAll.indexOf('medic') !== -1 || rolesAll.indexOf('ārsts') !== -1 || rolesAll.indexOf('arsts') !== -1 || rolesAll.indexOf('medicin') !== -1 || rolesAll.indexOf('medicina') !== -1) return true; } if ((t.indexOf('aprup') !== -1 && rN2.indexOf('aprup') !== -1)) return true; if ((t.indexOf('kontrol') !== -1 && rN2.indexOf('kontrol') !== -1)) return true; if ((t.indexOf('admin') !== -1 && rN2.indexOf('admin') !== -1)) return true;
+        return roles.some(r => {
+          const rRaw2 = r || '';
+          const rN2 = this._normalizeForSearch(rRaw2);
+          if (isMedic) {
+            const rolesAll = ((e.lomas || []).map(x => String(x || '').toLowerCase()).join(' ') + ' ' + String(e.loma || e.Loma || '').toLowerCase() + ' ' + this._normalizeForSearch(String(e.loma || e.Loma || '')));
+            if (rolesAll.indexOf('medic') !== -1 || rolesAll.indexOf('ārsts') !== -1 || rolesAll.indexOf('arsts') !== -1 || rolesAll.indexOf('medicin') !== -1 || rolesAll.indexOf('medicina') !== -1) return true;
+          }
+          if (t.indexOf('aprup') !== -1 && rN2.indexOf('aprup') !== -1) return true;
+          if (t.indexOf('kontrol') !== -1 && rN2.indexOf('kontrol') !== -1) return true;
+          if (t.indexOf('admin') !== -1 && rN2.indexOf('admin') !== -1) return true;
           const l = r.toLowerCase();
           return l === role || l === (CONFIG.ROLES[role] || role);
         });

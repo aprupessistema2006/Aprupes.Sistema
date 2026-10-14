@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20261014-2346';
+const BUILD_VERSION = '20261015-0900';
 
 class UpdateNotifier {
   constructor() {
@@ -215,9 +215,9 @@ class UpdateNotifier {
     btn.style.opacity = busy ? '0.7' : '1';
   }
 
-  // ── Vienmēr redzamā "ielādēt svaisto kodu" poga ───────────────────────────
+// ── Vienmēr redzamā "ielādēt svaisto kodu" poga ───────────────────────────
   //
-  // ⚠️ KĀPĒC ŠĪ POGA IR NEPIECIEŠAMA.
+  // ⚠️ KĀPEC ŠĪ POGA IR NEPIECIEŠAMA.
   //
   // Service worker kešo HTML un JS failus. Kad kods tiek izmainīts un
   // atjaunināts uz GitHub, pārlūks turpina rādīt VECU versiju no kešas —
@@ -234,7 +234,23 @@ class UpdateNotifier {
   // Šī poga ir ikdienas lietošanai: tā pārlādē lapu ar
   // ?v=force_update=1, kas liek apgalvot versijai un iztīrīt TIKAI
   // kešu (nevis ierīces datus). Lietotāja ieraksti paliek neskartī.
+  //
+  // ⚠️ POGA TIKAI TAD, JA VERSIJAS NESAKRĪT.
+  // Ja lietotājs jau ir atjauninājies (storedVersion === BUILD_VERSION),
+  // poga nav vajadzīga — viņš redz jaunāko kodu un nav ko atjaunot.
+  // Bez šīs pārbaudes poga rādījās katrā ielādē, pat pēc veiksmīgas
+  // atjaunināšanas, un tas kļuva apžēlīgi.
   ensureReloadButton() {
+    // ⚠️ Pārbaudām, vai lietotājs jau ir atjauninājies. `appVersion`
+    // tiek rakstīts tikai `applyUpdate()` iekšienē — pirms tā tas ir
+    // tukšs. Ja tagadējais kods ir jaunākais un `appVersion` atbilst,
+  // poga nav nepieciešama.
+    const stored = this.storedVersion();
+    if (stored && stored === BUILD_VERSION) {
+      console.log('[UpdateNotifier] Versija jau atjaunināta (' + stored + '), poga nav redzama.');
+      return;
+    }
+
     if (document.getElementById('freshReloadBtn')) return;
     if (!document.body) return;
 
