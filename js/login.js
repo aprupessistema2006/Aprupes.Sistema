@@ -339,10 +339,10 @@ class LoginController {
     const role = this.activeRoleFilter || 'all';
     let result = this.employees;
     if (role !== 'all') {
-      const isMedic = (t.indexOf('medic') !== -1 || t.indexOf('arsts') !== -1 || t.indexOf('medicin') !== -1 || t.indexOf('medicina') !== -1);
+      const tMed = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); const isMedic = (tMed.indexOf('medic') !== -1 || tMed.indexOf('arsts') !== -1 || tMed.indexOf('medicin') !== -1 || tMed.indexOf('medicina') !== -1);
       result = result.filter(e => {
         const roles = e.lomas || [];
-        return roles.some(r => { const rRaw2 = r || ''; const rN2 = this._normalizeForSearch(rRaw2); if (isMedic && (rN2.indexOf('medic') !== -1 || rRaw2.toLowerCase().indexOf('medic') !== -1 || rRaw2.toLowerCase().indexOf('ārsts') !== -1 || rRaw2.toLowerCase().indexOf('medicī') !== -1 || rRaw2.toLowerCase().indexOf('medicin') !== -1 || rRaw2.toLowerCase().indexOf('medicina') !== -1 || rRaw2.toLowerCase().indexOf('medicinska') !== -1)) return true; if ((t.indexOf('aprup') !== -1 && rN2.indexOf('aprup') !== -1)) return true; if ((t.indexOf('kontrol') !== -1 && rN2.indexOf('kontrol') !== -1)) return true; if ((t.indexOf('admin') !== -1 && rN2.indexOf('admin') !== -1)) return true;
+        return roles.some(r => { const rRaw2 = r || ''; const rN2 = this._normalizeForSearch(rRaw2); if (isMedic) { const rolesAll = ((e.lomas||[]).map(x=>String(x||'').toLowerCase()).join(' ') + ' ' + String(e.loma||e.Loma||'').toLowerCase() + ' ' + this._normalizeForSearch(String(e.loma||e.Loma||''))); if (rolesAll.indexOf('medic') !== -1 || rolesAll.indexOf('ārsts') !== -1 || rolesAll.indexOf('arsts') !== -1 || rolesAll.indexOf('medicin') !== -1 || rolesAll.indexOf('medicina') !== -1) return true; } if ((t.indexOf('aprup') !== -1 && rN2.indexOf('aprup') !== -1)) return true; if ((t.indexOf('kontrol') !== -1 && rN2.indexOf('kontrol') !== -1)) return true; if ((t.indexOf('admin') !== -1 && rN2.indexOf('admin') !== -1)) return true;
           const l = r.toLowerCase();
           return l === role || l === (CONFIG.ROLES[role] || role);
         });
@@ -352,7 +352,7 @@ class LoginController {
       const term = this._normalizeForSearch(searchTerm.trim());
       if (term) {
         const words = term.split(/\s+/).filter(w => w.length > 0);
-        const isMedic = (t.indexOf('medic') !== -1 || t.indexOf('arsts') !== -1 || t.indexOf('medicin') !== -1 || t.indexOf('medicina') !== -1);
+        const tMed = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); const isMedic = (tMed.indexOf('medic') !== -1 || tMed.indexOf('arsts') !== -1 || tMed.indexOf('medicin') !== -1 || tMed.indexOf('medicina') !== -1);
       result = result.filter(e => {
           const v = this._normalizeForSearch(e.vards || '');
           const u = this._normalizeForSearch(e.uzvards || '');
@@ -785,6 +785,8 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
+
 
 
 
