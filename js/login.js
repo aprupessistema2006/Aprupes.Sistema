@@ -339,6 +339,7 @@ class LoginController {
     const role = this.activeRoleFilter || 'all';
     let result = this.employees;
     if (role !== 'all') {
+      const isMedic = (t.indexOf('medic') !== -1 || t.indexOf('arsts') !== -1 || t.indexOf('medicin') !== -1);
       result = result.filter(e => {
         const roles = e.lomas || [];
         return roles.some(r => { const rRaw2 = r || ''; const rN2 = this._normalizeForSearch(rRaw2); if (t.indexOf('medic') !== -1 && (rN2.indexOf('medic') !== -1 || rRaw2.toLowerCase().indexOf('medic') !== -1 || rRaw2.toLowerCase().indexOf('ārsts') !== -1 || rRaw2.toLowerCase().indexOf('medicī') !== -1 || rRaw2.toLowerCase().indexOf('medicin') !== -1)) return true; if (t.indexOf('aprup') !== -1 && rN2.indexOf('aprup') !== -1) return true; if (t.indexOf('kontrol') !== -1 && rN2.indexOf('kontrol') !== -1) return true; if (t.indexOf('admin') !== -1 && rN2.indexOf('admin') !== -1) return true;
@@ -351,7 +352,8 @@ class LoginController {
       const term = this._normalizeForSearch(searchTerm.trim());
       if (term) {
         const words = term.split(/\s+/).filter(w => w.length > 0);
-        result = result.filter(e => {
+        const isMedic = (t.indexOf('medic') !== -1 || t.indexOf('arsts') !== -1 || t.indexOf('medicin') !== -1);
+      result = result.filter(e => {
           const v = this._normalizeForSearch(e.vards || '');
           const u = this._normalizeForSearch(e.uzvards || '');
           const fullName = (v + ' ' + u).trim();
