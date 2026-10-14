@@ -1,4 +1,4 @@
-/**
+﻿/**
  * UpdateNotifier — automātiski pārbauda jaunu versiju un piedāvā vienu
  * lielu, vienkāršu pogu. Tas ir izstrādāts DARBA vietai, nevis manai
  * mašīnai: lietotājs (65+ aprūpētājs) nekad neatvērs pārlūka kešatmiņu,
@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20261013-1940';
+const BUILD_VERSION = '20261014-1347';
 
 class UpdateNotifier {
   constructor() {
