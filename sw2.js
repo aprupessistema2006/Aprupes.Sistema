@@ -1,4 +1,4 @@
-// ⚠️ Kešas nosaukumam JĀBŪT jauns katrā versijā. Ja tas paliek tāds pats,
+﻿// ⚠️ Kešas nosaukumam JĀBŪT jauns katrā versijā. Ja tas paliek tāds pats,
 // `activate` nopirksīs veco kešu, bet jaunais SW joprojām izmantojtu to pašu
 // kešu — un vecās rindas (ar vecajiem `?v=`) paliktu tur.
 // 20260929-1559: klienta formas datu svaigums starp ierīcēm (fona atsvaidzināšana).
@@ -7,7 +7,7 @@
 // 20261004-1600: HTML zarojums bezsaimes režīmā atgriež īstu Response.
 // 20261013-1905: drošā arhitektūra (POST + sesija) + atjauninājuma
 // banera bezieru cikls (BUILD_VERSION sinhronizēts ar version.json).
-const CACHE_NAME = 'aprupes-sistema-v67'; // SW never intercepts cross-origin JSONP
+const CACHE_NAME = 'aprupes-sistema-v20261014-1347'; // SW never intercepts cross-origin JSONP
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
