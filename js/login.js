@@ -321,7 +321,7 @@ class LoginController {
       }
       const g = grouped.get(key);
       const role = (e.loma || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-      const roleCanonical = { 'aprupetajs': 'aprūpētājs', 'kontroliere': 'kontroliere', 'administrators': 'administrators', 'medicis': 'medic', 'medicina': 'medic', 'medicinska': 'medic', 'arsts': 'medic', 'medicin': 'medic', 'medicinas': 'medic' }[role] || e.loma;
+      const roleCanonical = { 'aprupetajs': 'aprūpētājs', 'kontroliere': 'kontroliere', 'administrators': 'administrators', 'medicis': 'medic', 'medicina': 'medic', 'medicinska': 'medic', 'arsts': 'medic', 'medicin': 'medic', 'medicinas': 'medic', 'medicinas darbinieks': 'medic' }[role] || (role.indexOf('medic') !== -1 ? 'medic' : e.loma);
       if (roleCanonical && !g.lomas.includes(roleCanonical)) g.lomas.push(roleCanonical);
     }
     return Array.from(grouped.values()).sort((a, b) => {
@@ -783,6 +783,7 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
