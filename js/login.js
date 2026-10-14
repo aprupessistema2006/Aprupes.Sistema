@@ -1,4 +1,4 @@
-// ───────────────────────────────────────────────────────────────────
+﻿// ───────────────────────────────────────────────────────────────────
 // PIETEIKŠANĀS — trīssoļu plūsma (drošība: "nulle uzticēšanās klientam")
 //
 //   1) Kopīgā parole      → atver ierīci (login.start)
@@ -723,7 +723,7 @@ class LoginController {
       this.redirectByRole(user.loma);
       return;
     }
-    const roleLbl = { 'administrators': 'administrator', 'kontroliere': 'kontrolier', 'aprūpētājs': 'aprūpētāj' };
+    const roleLbl = { 'administrators': 'administrator', 'kontroliere': 'kontrolier', 'aprūpētājs': 'aprūpētāj', 'medic': 'medicīnas darbinieks', 'mediķis': 'medicīnas darbinieks', 'ārsts': 'medicīnas darbinieks' };
     const role = roleLbl[(user.loma || '').toLowerCase()] || user.loma;
     const fname = user.vards || '';
     const compliments = [
@@ -785,3 +785,4 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+

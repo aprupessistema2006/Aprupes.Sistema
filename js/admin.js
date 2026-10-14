@@ -1,4 +1,4 @@
-class AdminPanel {
+﻿class AdminPanel {
   constructor() {
     this.db = null;
     this.sync = null;
@@ -1047,3 +1047,4 @@ class AdminPanel {
 document.addEventListener('DOMContentLoaded', () => {
   window.adminPanel = new AdminPanel();
 });
+
