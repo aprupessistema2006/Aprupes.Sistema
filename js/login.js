@@ -305,7 +305,7 @@ class LoginController {
     const grouped = new Map();
     for (const e of list) {
       const empId = String(e.id || '');
-      const key = ((e.vards || '') + '|' + (e.uzvards || '')).toLowerCase().trim();
+      const key = empId; // Katrs ieraksts ir atsevišķs pēc ID
       if (!grouped.has(key)) {
         grouped.set(key, {
           id: empId,
@@ -320,12 +320,10 @@ class LoginController {
         if (empId && !g.allIds.includes(empId)) g.allIds.push(empId);
       }
       const g = grouped.get(key);
-      // Normalize role to remove diacritics (GAS may return 'aprupetajs')
       const role = (e.loma || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
       const roleCanonical = { 'aprupetajs': 'aprūpētājs', 'kontroliere': 'kontroliere', 'administrators': 'administrators', 'mediķis': 'medic', 'arsts': 'medic', 'medicinska': 'medic' }[role] || e.loma;
       if (roleCanonical && !g.lomas.includes(roleCanonical)) g.lomas.push(roleCanonical);
     }
-
     return Array.from(grouped.values()).sort((a, b) => {
       const aN = (a.uzvards + ' ' + a.vards).toLowerCase();
       const bN = (b.uzvards + ' ' + b.vards).toLowerCase();
@@ -785,6 +783,7 @@ class LoginController {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
