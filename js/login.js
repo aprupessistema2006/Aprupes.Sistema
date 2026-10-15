@@ -700,7 +700,7 @@ applyFilters(searchTerm) {
           id: (res.employee && res.employee.id) || employee.id,
           vards: (res.employee && res.employee.vards) || employee.vards,
           uzvards: (res.employee && res.employee.uzvards) || employee.uzvards,
-          loma: (res.employee && res.employee.loma) || chosenRole,
+          loma: chosenRole || (res.employee && res.employee.loma),
           visulasLomas: employee.lomas || [],
           pinVerified: true,
           loginTime: Date.now(),
