@@ -193,13 +193,6 @@ class AprupeController {
     }
 
     try {
-      await Promise.all([
-        this.loadClients(),
-        this.loadTodayMarks()
-      ]);
-      this.filteredClients = [...this.clients];
-      this.renderCards();
-
     // Lietotājs jau var strādāt ar pēdējiem datiem — ekrāns nav bloķēts.
     // Google atjauninājumi notiek fonā un patiekošie dati pārķāpj ekrānu
     // tikai tad, ja serveris kļūst pieejams.
@@ -220,6 +213,26 @@ class AprupeController {
     });
     if (syncResult && syncResult.offline && retryBtn) {
       retryBtn.style.display = 'block';
+    }
+
+    // "Atjaunot" poga — notīra IndexedDB cache un pārlašo lapu
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '<span>⏳</span> <span data-i18n="clearing">Notīru cache...</span>';
+        try {
+          const stores = ['darbinieki', 'klienti', 'atzimes', 'atzimes_log', 'uzdevomi', 'sync_queue', 'sync_audit'];
+          for (const store of stores) {
+            await this.db.clear(store);
+          }
+          window.location.reload();
+        } catch (e) {
+          this.toast && this.toast('Kļūda: ' + e.message, 4000);
+          refreshBtn.disabled = false;
+          refreshBtn.innerHTML = '<span>🔄</span> <span data-i18n="refreshBtn">Atjaunot</span>';
+        }
+      });
     }
     } catch (e) {
       console.error(e);
