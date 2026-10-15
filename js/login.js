@@ -43,7 +43,8 @@ class LoginController {
           this.redirectByRole(user.loma);
           return;
         }
-      } catch (e) {
+      } catch (e) {    const r = this._resolveRoleForRedirect(role);
+
         // Sesija beigusies vai servers nepieejams — rādām pieteikšanos.
         console.warn('[login] sesijas pārbaude neizdevās:', e && e.message);
       }
@@ -842,6 +843,7 @@ applyFilters(searchTerm) {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
