@@ -787,20 +787,20 @@ applyFilters(searchTerm) {
   }
 
   _resolveRoleForRedirect(role) {
-    const raw = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const rawOrig = String(role || '');
+    const raw = rawOrig.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    if (rawOrig === 'Medicīnas darbinieks' || raw.indexOf('medicinas darbinieks') !== -1 || raw.indexOf('medicīnas darbinieks') !== -1) return 'medic';
     const key = raw.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     if (key === 'administrators' || key === 'administrator' || key === 'admins' || key === 'admin') return 'administrators';
     if (key === 'kontroliere' || key === 'kontrolieris' || key === 'controller' || key === 'kontrolieri') return 'kontroliere';
     if (key === 'aprupetajs' || key === 'aprupetaja' || key === 'aprupetas' || key.indexOf('aprup') !== -1) return 'aprupetas';
-    if (key === 'medic' || key === 'medicis' || key === 'medicina' || key === 'medicinska' || key === 'arsts' || key === 'medicin' || key === 'medicinas' || key === 'medicinas_darbinieks' || key === 'medicinasdarbinieks' || key === 'medicinasdarbinieks_noaccent' || key === 'medicinas_darbinieks_full' || key === 'medic_darbinieks' || raw.indexOf('medicīnas darbinieks') !== -1 || raw.indexOf('medicinas darbinieks') !== -1) return 'medic';
-    // arī oriģinālais "medicīnas darbinieks" bez normalizācijas var būt
-    if (raw.indexOf('medic') !== -1 || raw.indexOf('arsts') !== -1) return 'medic';
+    if (key === 'medic' || key === 'medicis' || key === 'medicina' || key === 'medicinska' || key === 'arsts' || key === 'medicin' || key === 'medicinas' || key.indexOf('medic') !== -1) return 'medic';
     if (raw.indexOf('aprup') !== -1) return 'aprupetas';
     if (raw.indexOf('kontrol') !== -1) return 'kontroliere';
     if (raw.indexOf('admin') !== -1) return 'administrators';
+    if (raw.indexOf('medic') !== -1 || raw.indexOf('arsts') !== -1) return 'medic';
     return key;
   }
-
   redirectByRole(role) {
     const r = this._resolveRoleForRedirect(role);
     if (r === 'administrators') {
@@ -844,6 +844,7 @@ applyFilters(searchTerm) {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
