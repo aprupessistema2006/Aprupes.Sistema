@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20261015-0900';
+const BUILD_VERSION = '20261015-1935';
 
 class UpdateNotifier {
   constructor() {
@@ -401,17 +401,19 @@ class UpdateNotifier {
 
       this.setUpdateState('Notiek…', true);
 
-      // ── 2) Service worker ───────────────────────────────────────────────
-      if ('serviceWorker' in navigator) {
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          if (reg.waiting) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-        } catch (e) {
-          console.warn('[UpdateNotifier] SW nav pieejams:', e);
-        }
-      }
+       // ── 2) Service worker ───────────────────────────────────────────────
+       if ('serviceWorker' in navigator) {
+         try {
+           // Register/update service worker to ensure we get the latest version
+           const reg = await navigator.serviceWorker.register('sw2.js' + this.versionParam, { updateViaCache: 'none' });
+           if (reg.waiting) {
+             reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+           }
+           await reg.update();
+         } catch (e) {
+           console.warn('[UpdateNotifier] Service worker registration/update failed:', e);
+         }
+       }
 
       // ── 3) Lokālo datu tīrīšana ──────────────────────────────────────────
       await this.clearAllLocalData();

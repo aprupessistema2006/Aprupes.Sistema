@@ -316,13 +316,12 @@ class LoginController {
   // Servera saraksts (viena rinda = viens darbinieka ieraksts)
   // tiek grupēts pa vārdu/uzvārdu — viena persona var būt ar
   // vairākām lomām (vairākiem ierakstiem).
-  groupEmployees(list) {
-    const grouped = new Map();
-    for (const e of list) {
-      const empId = String(e.id || '');
-      if (rawOrig === 'Medicīnas darbinieks' || raw.indexOf('medicinas darbinieks') !== -1 || raw.indexOf('medicīnas darbinieks') !== -1) return 'medic';
-    const key = empId; // Katrs ieraksts ir atsevišķs pēc ID
-      if (!grouped.has(key)) {
+   groupEmployees(list) {
+     const grouped = new Map();
+     for (const e of list) {
+       const empId = String(e.id || '');
+       const key = empId; // Katrs ieraksts ir atsevišķs pēc ID
+       if (!grouped.has(key)) {
         grouped.set(key, {
           id: empId,
           vards: e.vards,
