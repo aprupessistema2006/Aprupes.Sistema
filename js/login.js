@@ -754,8 +754,9 @@ applyFilters(searchTerm) {
       this.redirectByRole(user.loma);
       return;
     }
-    const roleLbl = { 'administrators': 'administrator', 'kontroliere': 'kontrolier', 'aprūpētājs': 'aprūpētāj', 'medic': 'medicīnas darbinieks', 'mediķis': 'medicīnas darbinieks', 'ārsts': 'medicīnas darbinieks' };
-    const role = roleLbl[(user.loma || '').toLowerCase()] || user.loma;
+    const resolvedShow = this._resolveRoleForRedirect(user.loma);
+    const roleLbl = { 'administrators': 'administrator', 'kontroliere': 'kontrolier', 'aprupetas': 'aprūpētāj', 'medic': 'medicīnas darbinieks' };
+    const role = roleLbl[resolvedShow] || user.loma;
     const fname = user.vards || '';
     const compliments = [
       'Paldies par darbu! 🌟',
@@ -841,6 +842,7 @@ applyFilters(searchTerm) {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
