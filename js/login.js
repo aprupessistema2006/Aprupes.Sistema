@@ -799,6 +799,7 @@ applyFilters(searchTerm) {
   }
 
   redirectByRole(role) {
+    const r = this._resolveRoleForRedirect(role);
     if (r === 'administrators') {
       window.location.href = 'admin.html';
     } else if (r === 'kontroliere') {
@@ -840,6 +841,9 @@ applyFilters(searchTerm) {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
+
+
 
 
 
