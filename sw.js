@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'aprupes-sistema-v20261015-1753';
+﻿const CACHE_NAME = 'aprupes-sistema-v20261015-1935';
 const VERSION_URL = 'version.json';
 const STATIC_ASSETS = [
   'index.html',
@@ -208,5 +208,6 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
 
 
