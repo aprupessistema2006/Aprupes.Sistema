@@ -783,11 +783,41 @@ applyFilters(searchTerm) {
     setTimeout(() => this.redirectByRole(user.loma), 1500);
   }
 
+  _resolveRoleForRedirect(role) {
+    const raw = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const key = raw.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    if (key === 'administrators' || key === 'administrator' || key === 'admins' || key === 'admin') return 'administrators';
+    if (key === 'kontroliere' || key === 'kontrolieris' || key === 'controller' || key === 'kontrolieri') return 'kontroliere';
+    if (key === 'aprupetajs' || key === 'aprupetaja' || key === 'aprupetas' || key.indexOf('aprup') !== -1) return 'aprupetas';
+    if (key === 'medic' || key === 'medicis' || key === 'medicina' || key === 'medicinska' || key === 'arsts' || key === 'medicin' || key === 'medicinas' || key === 'medicinas_darbinieks' || key === 'medicinasdarbinieks' || key === 'medic_darbinieks') return 'medic';
+    // arī oriģinālais "medicīnas darbinieks" bez normalizācijas var būt
+    if (raw.indexOf('medic') !== -1 || raw.indexOf('arsts') !== -1) return 'medic';
+    if (raw.indexOf('aprup') !== -1) return 'aprupetas';
+    if (raw.indexOf('kontrol') !== -1) return 'kontroliere';
+    if (raw.indexOf('admin') !== -1) return 'administrators';
+    return key;
+  }
+
   redirectByRole(role) {
-    const r = String(role || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-    if (r === 'administrators' || r === 'admins' || r === 'admin') {
+    const r = this._resolveRoleForRedirect(role);
+    if (r === 'administrators') {
       window.location.href = 'admin.html';
-    } else if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') {
+    } else if (r === 'kontroliere') {
+      window.location.href = 'control.html';
+    } else if (r === 'medic') {
+      window.location.href = 'medicine.html';
+    } else if (r === 'aprupetas') {
+      window.location.href = 'aprupe.html';
+    } else {
+      // fallback
+      const raw = String(role || '').toLowerCase();
+      if (raw.indexOf('medic') !== -1 || raw.indexOf('ārsts') !== -1 || raw.indexOf('arsts') !== -1) {
+        window.location.href = 'medicine.html';
+        return;
+      }
+      window.location.href = 'aprupe.html';
+    }
+  } else if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') {
       window.location.href = 'control.html';
     } else {
       window.location.href = 'aprupe.html';
@@ -816,6 +846,8 @@ applyFilters(searchTerm) {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
+
 
 
 
