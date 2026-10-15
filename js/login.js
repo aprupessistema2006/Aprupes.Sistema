@@ -320,7 +320,8 @@ class LoginController {
     const grouped = new Map();
     for (const e of list) {
       const empId = String(e.id || '');
-      const key = empId; // Katrs ieraksts ir atsevišķs pēc ID
+      if (rawOrig === 'Medicīnas darbinieks' || raw.indexOf('medicinas darbinieks') !== -1 || raw.indexOf('medicīnas darbinieks') !== -1) return 'medic';
+    const key = empId; // Katrs ieraksts ir atsevišķs pēc ID
       if (!grouped.has(key)) {
         grouped.set(key, {
           id: empId,
@@ -843,6 +844,7 @@ applyFilters(searchTerm) {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
