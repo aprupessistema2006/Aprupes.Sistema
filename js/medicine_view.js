@@ -156,8 +156,8 @@ class MedicineView {
   }
 
   renderTabs(){
-    const splash=document.getElementById('medSplash');
-    if(splash) setTimeout(()=>splash.classList.add('hidden'),200);
+    const splash=document.getElementById('splashScreen');
+    if(splash) splash.classList.add('hidden');
     this.renderAttention();
     this.renderAllTable();
     const back=document.getElementById('btnBack');
