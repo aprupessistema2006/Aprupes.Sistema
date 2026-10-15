@@ -817,11 +817,6 @@ applyFilters(searchTerm) {
       }
       window.location.href = 'aprupe.html';
     }
-  } else if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') {
-      window.location.href = 'control.html';
-    } else {
-      window.location.href = 'aprupe.html';
-    }
   }
 
   escapeHtml(text) {
@@ -846,6 +841,9 @@ applyFilters(searchTerm) {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
+
+
 
 
 
