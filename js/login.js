@@ -790,7 +790,7 @@ applyFilters(searchTerm) {
     if (key === 'administrators' || key === 'administrator' || key === 'admins' || key === 'admin') return 'administrators';
     if (key === 'kontroliere' || key === 'kontrolieris' || key === 'controller' || key === 'kontrolieri') return 'kontroliere';
     if (key === 'aprupetajs' || key === 'aprupetaja' || key === 'aprupetas' || key.indexOf('aprup') !== -1) return 'aprupetas';
-    if (key === 'medic' || key === 'medicis' || key === 'medicina' || key === 'medicinska' || key === 'arsts' || key === 'medicin' || key === 'medicinas' || key === 'medicinas_darbinieks' || key === 'medicinasdarbinieks' || key === 'medic_darbinieks') return 'medic';
+    if (key === 'medic' || key === 'medicis' || key === 'medicina' || key === 'medicinska' || key === 'arsts' || key === 'medicin' || key === 'medicinas' || key === 'medicinas_darbinieks','medicinasdarbinieks_noaccent' || key === 'medicinasdarbinieks' || key === 'medic_darbinieks','medicinas_darbinieks_full') return 'medic';
     // arī oriģinālais "medicīnas darbinieks" bez normalizācijas var būt
     if (raw.indexOf('medic') !== -1 || raw.indexOf('arsts') !== -1) return 'medic';
     if (raw.indexOf('aprup') !== -1) return 'aprupetas';
@@ -842,6 +842,7 @@ applyFilters(searchTerm) {
 document.addEventListener('DOMContentLoaded', () => {
   window.loginController = new LoginController();
 });
+
 
 
 
