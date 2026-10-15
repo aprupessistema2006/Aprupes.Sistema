@@ -102,6 +102,7 @@ class ControlPanel {
           this._refreshClientSearch();
         },
         onServerData: async () => {
+          await this.sync.waitForMarks();
           await this.loadData();
           this.renderAll();
           await this.renderTasksList();
@@ -226,6 +227,8 @@ class ControlPanel {
           const result = await this.sync.forceFullSync((msg) => {
             this._setBackgroundSyncNote(msg);
           });
+          // Gaidīt, kamēr fona fāze 2 (atzīmes) beidzas ielādē, pirms lasīšanas no IDB
+          await this.sync.waitForMarks();
           if (result.offline) {
             this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
           } else if (result.cooled) {
