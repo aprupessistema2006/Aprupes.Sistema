@@ -23,7 +23,7 @@
  *  3. LANGU IZĀGLABĀT. localStorage.clear() dzēsa arī 'lang', tāpēc
  *     katrs atjauninājums klusējot atgrieza lietotāju uz latviešu.
  */
-const BUILD_VERSION = '20261016-1000';
+const BUILD_VERSION = '20261016-1400';
 
 class UpdateNotifier {
   constructor() {
@@ -415,8 +415,15 @@ class UpdateNotifier {
          }
        }
 
-      // ── 3) Lokālo datu tīrīšana ──────────────────────────────────────────
-      await this.clearAllLocalData();
+      // ── 3) Tikai keša notīrīšana (nekad IndexedDB datus!) ──────────────────
+      if ('caches' in window) {
+        try {
+          const keys = await caches.keys();
+          for (const key of keys) await caches.delete(key);
+        } catch (e) {
+          console.warn('[UpdateNotifier] Cache notīrīšana neizdevās:', e);
+        }
+      }
 
       // ── 4) Atzīmējam versiju TIKAI tagad ───────────────────────────────
       try {
