@@ -48,6 +48,32 @@ class MedicineView {
       window.location.href = 'aprupe.html';
       return;
     }
+
+    // Online-only enforcement: medicine page requires internet
+    const offlineBox = document.getElementById('medOfflineBox');
+    const blockOffline = () => {
+      if (!navigator.onLine) {
+        if (offlineBox) {
+          offlineBox.textContent = t('offlineRequiredMsg');
+          offlineBox.style.display = 'block';
+        }
+        const main = document.querySelector('.med-container');
+        if (main) main.style.display = 'none';
+        return true;
+      }
+      if (offlineBox) offlineBox.style.display = 'none';
+      const main = document.querySelector('.med-container');
+      if (main) main.style.display = 'block';
+      return false;
+    };
+    const t = (key) => (window.t ? window.t(key) : key);
+    if (blockOffline()) {
+      window.addEventListener('online', () => { if (!blockOffline()) location.reload(); });
+      window.addEventListener('offline', blockOffline);
+      return;
+    }
+    window.addEventListener('online', blockOffline);
+    window.addEventListener('offline', blockOffline);
     this.setupUI();
     this.setupLanguageSwitcher();
     try {
@@ -161,7 +187,7 @@ class MedicineView {
     this.renderAttention();
     this.renderAllTable();
     const back=document.getElementById('btnBack');
-    if(back) back.onclick=()=>{window.location.href='control.html';};
+    if(back) back.onclick=()=>{window.location.href='aprupe.html';};
     document.querySelectorAll('.med-tab').forEach(btn=>{
       btn.addEventListener('click',()=>{
         document.querySelectorAll('.med-tab').forEach(b=>b.classList.remove('active'));

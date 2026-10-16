@@ -171,6 +171,20 @@ class AprupeController {
     const retryBtn = document.getElementById('retryLoadBtn');
     if (overlay) overlay.style.display = 'none';
 
+    // Offline support for caregiver section — allow work using cached IndexedDB data
+    const offlineBox = document.getElementById('caregiverOfflineBox');
+    const toggleOfflineBox = () => {
+      if (!offlineBox) return;
+      if (!navigator.onLine) {
+        offlineBox.style.display = 'inline-flex';
+      } else {
+        offlineBox.style.display = 'none';
+      }
+    };
+    window.addEventListener('online', toggleOfflineBox);
+    window.addEventListener('offline', toggleOfflineBox);
+    toggleOfflineBox();
+
     // Retry button handler - clears IndexedDB cache and reloads
     if (retryBtn) {
       retryBtn.onclick = async () => {
@@ -198,13 +212,13 @@ class AprupeController {
     // tikai tad, ja serveris kļūst pieejams.
     const syncResult = await this.sync.bootstrapUI({
       onLocalReady: async () => {
-        await Promise.all([this.loadClients(), this.loadTodayMarks()]);
+        await Promise.all([this.loadClients(), this.loadTodayMarks(), this.loadColleagueActivity48h()]);
         this.filteredClients = [...this.clients];
         this.renderCards();
         Perf.markUI('UI gatavs (no lokālajiem datiem)');
       },
       onServerData: async () => {
-        await Promise.all([this.loadClients(), this.loadTodayMarks()]);
+        await Promise.all([this.loadClients(), this.loadTodayMarks(), this.loadColleagueActivity48h()]);
         this.filteredClients = [...this.clients];
         this.renderCards();
         await this.renderTasksTable();
@@ -829,6 +843,86 @@ class AprupeController {
     });
     uniq.delete(String(this.currentUser.id));
     return uniq.size;
+  }
+
+  async loadColleagueActivity48h() {
+    try {
+      const allMarks = await this.db.getAll(CONFIG.STORES.ATZIMES);
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+      const recent = allMarks.filter(m => {
+        const d = this.extractDate(m.pedeja_laiks || m.lastModified || m.created || m.izveidots || m.date || m.datums);
+        if (!d) return false;
+        const ms = new Date(d).getTime();
+        return !isNaN(ms) && ms >= cutoff.getTime();
+      });
+      const currentUserId = String(this.currentUser.id || this.currentUser.ID || '');
+      const byColleague = new Map();
+      recent.forEach(m => {
+        const eid = String(m.employeeId || m.darbinieks_id || '');
+        if (!eid || eid === currentUserId) return;
+        const name = m.employeeName || m.darbinieks_vards || '';
+        if (!byColleague.has(eid)) {
+          byColleague.set(eid, { name, count: 0, clients: new Set(), categories: new Set() });
+        }
+        const entry = byColleague.get(eid);
+        entry.count++;
+        const cid = m.clientId || m.klients_id || m.klientsId;
+        if (cid) entry.clients.add(String(cid));
+        if (m.category) entry.categories.add(m.category);
+      });
+      this.colleagueActivity = Array.from(byColleague.values()).sort((a, b) => b.count - a.count);
+      await this.renderColleagueActivity();
+    } catch (e) {
+      console.error('[aprupe] loadColleagueActivity48h error:', e);
+    }
+  }
+
+  async renderColleagueActivity() {
+    const section = document.getElementById('colleagueActivitySection');
+    const grid = document.getElementById('colleagueActivityGrid');
+    const empty = document.getElementById('colleagueActivityEmpty');
+    if (!section || !grid || !empty) return;
+    if (!this.colleagueActivity || this.colleagueActivity.length === 0) {
+      section.style.display = 'none';
+      empty.style.display = 'block';
+      grid.innerHTML = '';
+      return;
+    }
+    section.style.display = 'block';
+    empty.style.display = 'none';
+    const employees = await this.db.getAll('darbinieki');
+    const employeeMap = {};
+    employees.forEach(e => {
+      const id = e.id || e.ID;
+      const name = ((e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '')).trim();
+      employeeMap[String(id)] = name;
+    });
+    grid.innerHTML = this.colleagueActivity.map(entry => {
+      const empName = entry.name || employeeMap[String(entry.name)] || 'Nezināms darbinieks';
+      const clientList = Array.from(entry.clients).slice(0, 3).join(', ');
+      const more = entry.clients.size > 3 ? ' +' + (entry.clients.size - 3) : '';
+      return `
+        <div class="colleague-activity-card">
+          <div class="colleague-name">${this.escapeHtml(empName)}</div>
+          <div class="colleague-stats">
+            <span class="colleague-count">${entry.count} atzīme${entry.count !== 1 ? 's' : ''}</span>
+            <span class="colleague-clients">${clientList}${more}</span>
+          </div>
+          <div class="colleague-categories">${Array.from(entry.categories).join(', ')}</div>
+        </div>
+      `;
+    }).join('');
+    const btn = document.getElementById('refreshColleagueActivityBtn');
+    if (btn) {
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = '⏳';
+        await this.loadColleagueActivity48h();
+        btn.disabled = false;
+        btn.textContent = '🔄 Atjaunot';
+      };
+    }
   }
 
   calculateAge(dob) {

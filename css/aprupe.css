@@ -2056,3 +2056,117 @@ body {
     max-width: 520px;
   }
 }
+
+.colleague-activity-section {
+  margin: 20px 16px;
+}
+
+.colleague-activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.colleague-activity-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-colleague-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition);
+}
+
+.refresh-colleague-btn:hover {
+  background: var(--primary-dark);
+}
+
+.refresh-colleague-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.colleague-activity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.colleague-activity-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+
+.colleague-activity-card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary);
+}
+
+.colleague-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.colleague-stats {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.colleague-count {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.colleague-clients {
+  color: var(--gray-dark);
+}
+
+.colleague-categories {
+  font-size: 12px;
+  color: var(--gray);
+  margin-top: 6px;
+}
+
+.colleague-activity-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+.caregiver-offline-box {
+  background: #fff3cd;
+  color: #856404;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  border: 1px solid #ffeeba;
+}

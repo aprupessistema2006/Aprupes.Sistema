@@ -25,6 +25,48 @@
     this.sync = new CareSync(this.db, CONFIG);
     window.careSync = this.sync;
 
+    // Online-only enforcement: admin panel requires internet
+    const tAdmin = (key) => (window.t ? window.t(key) : key);
+    const offlineOverlayAdmin = document.getElementById('offlineOverlay');
+    const blockOfflineAdmin = () => {
+      if (!navigator.onLine) {
+        if (!offlineOverlayAdmin) {
+          const ov = document.createElement('div');
+          ov.id = 'offlineOverlay';
+          ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:#fff3cd;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;';
+          ov.innerHTML =
+            '<div style="font-size:20px;font-weight:700;color:#856404;margin-bottom:12px;">' +
+            tAdmin('offlineRequiredTitle') + '</div>' +
+            '<div style="font-size:16px;color:#856404;margin-bottom:20px;">' +
+            tAdmin('offlineRequiredMsg') + '</div>' +
+            '<div style="font-size:14px;color:#856404;margin-bottom:20px;">' +
+            tAdmin('offlineRequiredHint') + '</div>' +
+            '<button id="offlineRetryBtn" style="padding:10px 20px;font-size:14px;cursor:pointer;">' +
+            tAdmin('offlineRetryBtn') + '</button>';
+          document.body.appendChild(ov);
+          ov.querySelector('#offlineRetryBtn').addEventListener('click', () => {
+            if (navigator.onLine) location.reload();
+          });
+        } else {
+          offlineOverlayAdmin.style.display = 'flex';
+        }
+        const main = document.querySelector('.main');
+        if (main) main.style.display = 'none';
+        return true;
+      }
+      if (offlineOverlayAdmin) offlineOverlayAdmin.style.display = 'none';
+      const main = document.querySelector('.main');
+      if (main) main.style.display = 'block';
+      return false;
+    };
+    if (blockOfflineAdmin()) {
+      window.addEventListener('online', () => { if (!blockOfflineAdmin()) location.reload(); });
+      window.addEventListener('offline', blockOfflineAdmin);
+      return;
+    }
+    window.addEventListener('online', blockOfflineAdmin);
+    window.addEventListener('offline', blockOfflineAdmin);
+
     const syncStatusEl = document.getElementById('syncStatus');
     const manualSyncBtn = document.getElementById('manualSyncBtn');
     if (syncStatusEl) {

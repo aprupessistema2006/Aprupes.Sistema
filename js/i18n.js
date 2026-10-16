@@ -152,6 +152,8 @@ const I18N = {
     taskAssigned: 'Piešķirts',
     taskCompleted: 'Pabeigts',
     myTasksTitle: '📋 Mani uzdevomi',
+    colleagueActivityTitle: '👥 Kolēģu darbība (pēdējie 48h)',
+    colleagueActivityEmpty: 'Nav datu par kolēģu darbību pēdējos 48 stundas.',
     newTaskAlert: 'Jauns uzdevums — skatīt zemāk',
     newTasksAlert: '{count} jauni uzdevumi — skatīt zemāk',
     taskColClient: 'Klients',
@@ -693,6 +695,12 @@ walkNotDone: 'Nav bijis',
     manualSyncBtnSyncing: '⏳ Sūtu datus uz Google Sheets…',
     manualSyncBtnTooltip: 'Nospiediet, lai atgrieztos darbam (sinhronizācija turpinās fonā)',
     manualSyncBtnSyncNow: 'Sinhronizēt tūlīt',
+
+    // Offline enforcement (medicine, control, admin)
+    offlineRequiredTitle: 'Nav interneta savienojuma',
+    offlineRequiredMsg: 'NAV INTERNETA SAVIENOJUMA — LŪDZU, PIESLĒDZIET INTERNETU!',
+    offlineRequiredHint: 'Šī sadaļa darbojas tikai interneta savienojumā.',
+    offlineRetryBtn: 'Mēģināt vēlreiz',
   },
   ru: {
     // ── 🏥 Медицинский обзор ────────────────────────────────────────────────
@@ -849,6 +857,8 @@ walkNotDone: 'Nav bijis',
     taskAssigned: 'Назначено',
     taskCompleted: 'Выполнено',
     myTasksTitle: '📋 Мои задачи',
+    colleagueActivityTitle: '👥 Активность коллег (за последние 48ч)',
+    colleagueActivityEmpty: 'Нет данных об активности коллег за последние 48 часов.',
     newTaskAlert: 'Новая задача — смотрите ниже',
     newTasksAlert: '{count} новых задач — смотрите ниже',
     taskColClient: 'Клиент',
@@ -1294,6 +1304,12 @@ walkNotDone: 'Nav bijis',
     mealSwitchToMorning: 'Пожалуйста, переключитесь на утреннюю смену',
     mealSwitchToEvening: 'Пожалуйста, переключитесь на вечернюю смену',
     visitorsMarkedByOther: 'В другой смене уже отмечено — посетители были:'
+
+    // Offline enforcement (medicine, control, admin)
+    offlineRequiredTitle: 'Нет интернет-соединения',
+    offlineRequiredMsg: 'НЕТ ИНТЕРНЕТ-СОЕДИНЕНИЯ — ПОЖАЛУЙСТА, ПОДКЛЮЧИТЕСЬ К ИНТЕРНЕТУ!',
+    offlineRequiredHint: 'Этот раздел работает только с интернет-соединением.',
+    offlineRetryBtn: 'Попробовать снова',
   },
   en: {
     // ── 🏥 Medical overview ──────────────────────────────────────────────────
@@ -1450,6 +1466,8 @@ walkNotDone: 'Nav bijis',
     taskAssigned: 'Assigned',
     taskCompleted: 'Completed',
     myTasksTitle: '📋 My tasks',
+    colleagueActivityTitle: '👥 Colleague activity (last 48h)',
+    colleagueActivityEmpty: 'No data on colleague activity for the last 48 hours.',
     newTaskAlert: 'New task — see below',
     newTasksAlert: '{count} new tasks — see below',
     taskColClient: 'Client',
@@ -1896,6 +1914,12 @@ walkNotDone: 'Nav bijis',
     mealSwitchToMorning: 'Please switch to morning section',
     mealSwitchToEvening: 'Please switch to evening section',
     visitorsMarkedByOther: 'Already marked in another section — visitors came:'
+
+    // Offline enforcement (medicine, control, admin)
+    offlineRequiredTitle: 'No internet connection',
+    offlineRequiredMsg: 'NO INTERNET CONNECTION — PLEASE CONNECT TO THE INTERNET!',
+    offlineRequiredHint: 'This section works only with an internet connection.',
+    offlineRetryBtn: 'Try again',
   }
 };
 

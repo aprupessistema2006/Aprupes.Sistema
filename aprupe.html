@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#2c3e50">
   <link rel="manifest" href="manifest.json">
   <title data-i18n="loginTitle">Aprūpes sistēma – Klienti</title>
-  <link rel="stylesheet" href="css/aprupe.css?v=20261015-1935">
+  <link rel="stylesheet" href="css/aprupe.css?v=20261016-1000">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
@@ -26,6 +26,7 @@
      </div>
       <div class="header-right">
         <span id="syncStatus" class="sync-badge" data-i18n="syncBtn">Saglabāts</span>
+        <div id="caregiverOfflineBox" class="caregiver-offline-box" style="display:none;">🔴 Darbojaties bezsaistē — dati tiks sinhronizēti, kad būs internets</div>
         <button id="manualSyncBtn" class="btn-icon btn-text-icon sync-btn" title="Sinhronizēt" data-i18n-title="syncBtn" style="display:inline-flex;"><span>🔄</span> <span data-i18n="syncBtn">Sinhronizēt</span></button>
         <button id="refreshBtn" class="btn-icon btn-text-icon refresh-btn" title="Atjaunot datus un pārlašot" data-i18n-title="refreshBtn"><span>🔄</span> <span data-i18n="refreshBtn">Atjaunot</span></button>
         <div class="lang-switcher">
@@ -57,6 +58,15 @@
           <div class="loading" data-i18n="loading">Ielādēju...</div>
         </div>
       </div>
+
+      <section class="colleague-activity-section" id="colleagueActivitySection" style="display:none;">
+        <div class="colleague-activity-header">
+          <h3 class="colleague-activity-title" data-i18n="colleagueActivityTitle">👥 Kolēģu darbība (pēdējie 48h)</h3>
+          <button id="refreshColleagueActivityBtn" class="refresh-colleague-btn" data-i18n="refreshBtn">🔄 Atjaunot</button>
+        </div>
+        <div id="colleagueActivityGrid" class="colleague-activity-grid"></div>
+        <div id="colleagueActivityEmpty" class="colleague-activity-empty" style="display:none;" data-i18n="colleagueActivityEmpty">Nav datu par kolēģu darbību pēdējos 48 stundas.</div>
+      </section>
 
       <section class="tasks-section" id="tasksSection">
         <div class="tasks-section-header">
@@ -154,17 +164,17 @@
     </div>
   </div>
 
-<script src="js/config.js?v=20261015-1935"></script>
-  <script src="js/i18n.js?v=20261015-1935"></script>
-  <script src="js/timezone.js?v=20261015-1935"></script>
-  <script src="js/db.js?v=20261015-1935"></script>
-  <script src="js/perf.js?v=20261015-1935"></script>
-  <script src="js/operation_registry.js?v=20261015-1935"></script>
-  <script src="js/sync.js?v=20261015-1935"></script>
-  <script src="js/logout.js?v=20261015-1935"></script>
-  <script src="js/tasks.js?v=20261015-1935"></script>
-  <script src="js/aprupe.js?v=20261015-1935"></script>
-  <script src="js/update_notifier.js?v=20261015-1935"></script>
+<script src="js/config.js?v=20261016-1000"></script>
+  <script src="js/i18n.js?v=20261016-1000"></script>
+  <script src="js/timezone.js?v=20261016-1000"></script>
+  <script src="js/db.js?v=20261016-1000"></script>
+  <script src="js/perf.js?v=20261016-1000"></script>
+  <script src="js/operation_registry.js?v=20261016-1000"></script>
+  <script src="js/sync.js?v=20261016-1000"></script>
+  <script src="js/logout.js?v=20261016-1000"></script>
+  <script src="js/tasks.js?v=20261016-1000"></script>
+  <script src="js/aprupe.js?v=20261016-1000"></script>
+  <script src="js/update_notifier.js?v=20261016-1000"></script>
 </body>
 </html>
 

@@ -24,6 +24,48 @@ class ControlPanel {
     this.sync = new CareSync(this.db, CONFIG);
     window.careSync = this.sync;
 
+    // Online-only enforcement: control panel requires internet
+    const tCtrl = (key) => (window.t ? window.t(key) : key);
+    const offlineOverlay = document.getElementById('offlineOverlay');
+    const blockOfflineCtrl = () => {
+      if (!navigator.onLine) {
+        if (!offlineOverlay) {
+          const ov = document.createElement('div');
+          ov.id = 'offlineOverlay';
+          ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:#fff3cd;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;';
+          ov.innerHTML =
+            '<div style="font-size:20px;font-weight:700;color:#856404;margin-bottom:12px;">' +
+            tCtrl('offlineRequiredTitle') + '</div>' +
+            '<div style="font-size:16px;color:#856404;margin-bottom:20px;">' +
+            tCtrl('offlineRequiredMsg') + '</div>' +
+            '<div style="font-size:14px;color:#856404;margin-bottom:20px;">' +
+            tCtrl('offlineRequiredHint') + '</div>' +
+            '<button id="offlineRetryBtn" style="padding:10px 20px;font-size:14px;cursor:pointer;">' +
+            tCtrl('offlineRetryBtn') + '</button>';
+          document.body.appendChild(ov);
+          ov.querySelector('#offlineRetryBtn').addEventListener('click', () => {
+            if (navigator.onLine) location.reload();
+          });
+        } else {
+          offlineOverlay.style.display = 'flex';
+        }
+        const main = document.querySelector('.main');
+        if (main) main.style.display = 'none';
+        return true;
+      }
+      if (offlineOverlay) offlineOverlay.style.display = 'none';
+      const main = document.querySelector('.main');
+      if (main) main.style.display = 'block';
+      return false;
+    };
+    if (blockOfflineCtrl()) {
+      window.addEventListener('online', () => { if (!blockOfflineCtrl()) location.reload(); });
+      window.addEventListener('offline', blockOfflineCtrl);
+      return;
+    }
+    window.addEventListener('online', blockOfflineCtrl);
+    window.addEventListener('offline', blockOfflineCtrl);
+
     const syncStatusEl = document.getElementById('syncStatus');
     const manualSyncBtn = document.getElementById('manualSyncBtn');
     if (syncStatusEl) {
