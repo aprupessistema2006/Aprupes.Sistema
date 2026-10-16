@@ -1303,7 +1303,7 @@ walkNotDone: 'Nav bijis',
     mealAlreadyMarkedEvening: 'Уже отмечено в вечерней смене',
     mealSwitchToMorning: 'Пожалуйста, переключитесь на утреннюю смену',
     mealSwitchToEvening: 'Пожалуйста, переключитесь на вечернюю смену',
-    visitorsMarkedByOther: 'В другой смене уже отмечено — посетители были:'
+    visitorsMarkedByOther: 'В другой смене уже отмечено — посетители были:',
 
     // Offline enforcement (medicine, control, admin)
     offlineRequiredTitle: 'Нет интернет-соединения',
