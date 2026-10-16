@@ -266,6 +266,13 @@ class MedicineView {
         const status = this._clientStatus(cid, day);
         const latest = this._getLatestByClient(cid, day);
         const t = latest['temperatura'];
+        const b = latest['brokastis'];
+        const l = latest['pusdienas'];
+        const sn = latest['launags'];
+        const d = latest['vakariņi'];
+        const ur = latest['urina_daudzums'];
+        const h2o = latest['uznemts_ml'];
+        const v = latest['vedera_izeja'];
         const when = (t && t.time) ? (t.date + ' ' + t.time) : day;
         const critCount = this._checkObjCrit(cid, day).length;
         const flagged = this._hasFlagAttention(cid);
