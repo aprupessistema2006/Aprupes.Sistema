@@ -112,11 +112,7 @@ class AprupeController {
     const backBtn = document.getElementById('backBtn');
     if (backBtn) {
       backBtn.addEventListener('click', () => {
-        if (this.adminMode) {
-          window.location.href = 'admin.html';
-        } else {
-          window.location.href = 'aprupe.html';
-        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
 

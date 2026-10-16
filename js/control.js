@@ -190,7 +190,7 @@ class ControlPanel {
     const backBtn = document.getElementById('backBtn');
     if (backBtn) {
       backBtn.addEventListener('click', () => {
-        window.location.href = 'index.html';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
     const logoutBtn = document.getElementById('logoutBtn');

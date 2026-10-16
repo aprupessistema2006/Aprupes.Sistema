@@ -11,14 +11,15 @@
   <link rel="stylesheet" href="css/medicine.css?v=20261016-1000">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
   <style>
-    .med-tabs { display:flex; gap:8px; margin:12px 16px; }
-    .med-tab { flex:1; padding:10px 12px; border:1px solid #e0e0e0; background:#f9f9f9; border-radius:8px; cursor:pointer; font-weight:600; }
+    .med-tabs { display:flex; gap:8px; margin:12px 16px; flex-wrap:wrap; }
+    .med-tab { flex:1; padding:10px 12px; border:1px solid #e0e0e0; background:#f9f9f9; border-radius:8px; cursor:pointer; font-weight:600; min-width:140px; }
     .med-tab.active { background:#2c3e50; color:#fff; border-color:#2c3e50; }
     .med-tab-panel { display:none; margin:0 16px 16px; }
     .med-tab-panel.active { display:block; }
-    .med-toolbar { display:flex; gap:8px; margin-bottom:8px; }
-    .med-search { flex:1; padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; }
+    .med-toolbar { display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
+    .med-search { flex:1; min-width:200px; padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; }
     .med-date { padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; }
+    .med-select { padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; background:#fff; font-size:14px; min-width:180px; }
     .med-table-wrap { overflow:auto; border:1px solid #e0e0e0; border-radius:8px; background:#fff; max-height:calc(100vh - 180px); }
     .med-table { width:100%; border-collapse:collapse; font-size:13px; }
     .med-table th, .med-table td { padding:6px 8px; border:1px solid #f0f0f0; white-space:nowrap; }
@@ -37,6 +38,8 @@
     .med-attn-reason { font-size:13px; }
     .med-attn-meta { font-size:12px; color:#666; margin-top:4px; }
     .med-empty { padding:16px; text-align:center; color:#666; }
+    .med-filter-bar { display:flex; gap:8px; margin:12px 16px; align-items:center; flex-wrap:wrap; }
+    .med-filter-label { font-size:13px; font-weight:600; color:#333; white-space:nowrap; }
   </style>
 </head>
 <body>
@@ -78,9 +81,21 @@
   <div id="medOfflineBox" class="med-offline" style="display:none;">Nepieciešams interneta savienojums</div>
 
   <main class="med-container">
+    <div class="med-filter-bar">
+      <span class="med-filter-label" data-i18n="client">Klients</span>
+      <select id="medClientFilter" class="med-select">
+        <option value="" data-i18n="allClients">Visi klienti</option>
+      </select>
+      <input type="search" id="medClientSearch" class="med-search" placeholder="Meklēt klientu pēc vārda...">
+      <input type="date" id="medDateFilter" class="med-date">
+    </div>
+
+    <div class="med-kpis" id="medKpis"></div>
+    <div class="med-legend" id="medLegend"></div>
+
     <div class="med-tabs">
-      <button class="med-tab active" data-tab="attention">Nepieciešama uzmanība</button>
-      <button class="med-tab" data-tab="all">Visi klienti</button>
+      <button class="med-tab active" data-tab="attention">🔴 Nepieciešama uzmanība</button>
+      <button class="med-tab" data-tab="all">👥 Visi klienti</button>
     </div>
 
     <section class="med-tab-panel active" id="panel-attention">
@@ -88,30 +103,20 @@
     </section>
 
     <section class="med-tab-panel" id="panel-all">
-      <div class="med-toolbar">
-        <input type="search" id="clientSearch" class="med-search" placeholder="Meklēt klientu...">
-        <input type="date" id="dateFilter" class="med-date">
+      <div class="med-client-list" id="medClientList"></div>
+    </section>
+
+    <section class="med-detail" id="medClientDetail" style="display:none;">
+      <button class="med-back" id="medBackToList">← Atpakaļ uz klientu sarakstu</button>
+      <div class="med-detail-head">
+        <div class="med-detail-id">
+          <h2 id="medDetailName"></h2>
+          <div class="med-detail-meta" id="medDetailMeta"></div>
+        </div>
       </div>
-      <div class="med-table-wrap">
-        <table class="med-table">
-          <thead>
-            <tr>
-              <th>Klients</th>
-              <th>Datums/Laiks</th>
-              <th>T&#176;</th>
-              <th>Brok.</th>
-              <th>Pusdn.</th>
-              <th>Launags</th>
-              <th>Vak.</th>
-              <th>Urīns (24h)</th>
-              <th>H&#8322;O (24h)</th>
-              <th>Vēdera izeja</th>
-              <th>Dinamika</th>
-            </tr>
-          </thead>
-          <tbody id="allTableBody"></tbody>
-        </table>
-      </div>
+      <div class="med-detail-date" id="medDetailDate"></div>
+      <div class="med-kpis" id="medDetailKpis"></div>
+      <div id="medDetailBlocks"></div>
     </section>
   </main>
 
@@ -126,8 +131,3 @@
   <script src="js/update_notifier.js?v=20261016-1000"></script>
 </body>
 </html>
-
-
-
-
-

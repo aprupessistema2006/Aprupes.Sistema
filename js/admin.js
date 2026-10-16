@@ -159,7 +159,7 @@
 
   setupUI() {
     document.getElementById('backBtn').addEventListener('click', () => {
-      window.location.href = 'index.html';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     document.getElementById('logoutBtn').addEventListener('click', async (e) => {
       if (e) e.preventDefault();
