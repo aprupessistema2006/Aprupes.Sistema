@@ -192,6 +192,10 @@ class MedicineView {
     return sym==='↑'?'dir-up':sym==='↓'?'dir-down':'dir-flat';
   }
 
+  renderAll() {
+    this.renderTabs();
+  }
+
   renderClientFilter() {
     const sel = document.getElementById('medClientFilter');
     if (!sel) return;
