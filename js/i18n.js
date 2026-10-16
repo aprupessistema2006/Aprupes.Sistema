@@ -1913,7 +1913,7 @@ walkNotDone: 'Nav bijis',
     mealAlreadyMarkedEvening: 'Already marked in evening section',
     mealSwitchToMorning: 'Please switch to morning section',
     mealSwitchToEvening: 'Please switch to evening section',
-    visitorsMarkedByOther: 'Already marked in another section — visitors came:'
+    visitorsMarkedByOther: 'Already marked in another section — visitors came:',
 
     // Offline enforcement (medicine, control, admin)
     offlineRequiredTitle: 'No internet connection',
