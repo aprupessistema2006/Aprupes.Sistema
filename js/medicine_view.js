@@ -228,8 +228,13 @@ class MedicineView {
   _clientStatus(cid, day) {
     const latest = this._getLatestByClient(cid, day);
     const t = latest['temperatura'];
+    const b = latest['brokastis'];
+    const l = latest['pusdienas'];
+    const sn = latest['launags'];
+    const d = latest['vakariņi'];
     const ur = latest['urina_daudzums'];
     const h2o = latest['uznemts_ml'];
+    const v = latest['vedera_izeja'];
     const nT = t ? num(t.value) : NaN;
     const nU = ur ? num(ur.value) : NaN;
     const nH = h2o ? num(h2o.value) : NaN;
