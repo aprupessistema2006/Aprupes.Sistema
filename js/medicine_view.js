@@ -86,12 +86,26 @@ class MedicineView {
     this.setupLanguageSwitcher();
     try {
       await this.sync.bootstrapUI({
-        onLocalReady: async () => { await this.loadData(); this.renderAll(); },
-        onServerData: async () => { await this.loadData(); this.renderAll(); },
+        onLocalReady: async () => {
+          try { await this.loadData(); } catch (e) { console.warn('[medicine] loadData kļūda, vizualizācija tāpat tiks rādīta:', e); }
+          this.renderAll();
+        },
+        onServerData: async () => {
+          try { await this.loadData(); } catch (e) { console.warn('[medicine] loadData (server) kļūda, vizualizācija tāpat tiks rādīta:', e); }
+          this.renderAll();
+        },
         onProgress: (msg) => this._setStatus(msg)
       });
     } catch (e) { console.warn('[medicine] ielādes kļūda:', e); }
-    finally { this._setStatus(null); }
+    finally { 
+      this._setStatus(null);
+      // Garantēts splash slēpšana — ja renderView() nekad netika izsaukts vai kļūda notika pirms to
+      const splash = document.getElementById('splashScreen');
+      if (splash) {
+        splash.classList.add('hidden');
+        splash.style.display = 'none';
+      }
+    }
   }
 
   async loadData() {
@@ -254,6 +268,8 @@ class MedicineView {
   }
 
   renderView() {
+    const splash = document.getElementById('splashScreen');
+    if (splash) splash.classList.add('hidden');
     this.renderAttention();
     ['mhViewDay', 'mhViewWeek', 'mhViewMonth'].forEach(id => {
       const el = document.getElementById(id);

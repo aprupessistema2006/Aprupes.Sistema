@@ -173,6 +173,7 @@ body.online {
 
 .splash-screen.hidden {
   animation: fadeOut 0.6s ease forwards;
+  display: none !important;
 }
 
 @keyframes fadeOut {
