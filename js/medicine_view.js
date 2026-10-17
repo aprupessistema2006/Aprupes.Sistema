@@ -1,23 +1,33 @@
-﻿// MedicineView - minimal uzraudzības skats
+﻿// MedicineView — medicīniskais uzraudzība ar diena/nedēļa/mēneša skatiem
 'use strict';
 
 const MEDICINE_FIELDS = [
-  { cat: 'temp', field: 'temperatura', unit: '°C' },
-  { cat: 'edinasana', field: 'brokastis' },
-  { cat: 'edinasana', field: 'pusdienas' },
-  { cat: 'edinasana', field: 'launags' },
-  { cat: 'edinasana', field: 'vakariņi' },
-  { cat: 'sikdrumi', field: 'urina_daudzums', unit: 'ml' },
-  { cat: 'sikdrumi', field: 'uznemts_ml', unit: 'ml' },
-  { cat: 'fiziologija', field: 'vedera_izeja' }
+  { key: 'temperatura', label: '🌡', cat: 'temp', unit: '°C', critMin: null, critMax: 38.0, dirInv: false },
+  { key: 'brokastis', label: '🍽', cat: 'food', unit: '', critMin: null, critMax: null, dirInv: false },
+  { key: 'pusdienas', label: '🍽', cat: 'food', unit: '', critMin: null, critMax: null, dirInv: false },
+  { key: 'launags', label: '🍽', cat: 'food', unit: '', critMin: null, critMax: null, dirInv: false },
+  { key: 'vakariņi', label: '🍽', cat: 'food', unit: '', critMin: null, critMax: null, dirInv: false },
+  { key: 'urina_daudzums', label: '💧', cat: 'fluid', unit: 'ml', critMin: 400, critMax: null, dirInv: true },
+  { key: 'uznemts_ml', label: '🥤', cat: 'fluid', unit: 'ml', critMin: 800, critMax: null, dirInv: true },
+  { key: 'vedera_izeja', label: '🚽', cat: 'physio', unit: '', critMin: null, critMax: null, dirInv: false }
 ];
-const MEDICINE_FIELD_SET = new Set(MEDICINE_FIELDS.map(f => f.field));
+const FIELD_BY_KEY = new Map(MEDICINE_FIELDS.map(f => [f.key, f]));
 
 function num(v) {
   if (v === null || v === undefined) return NaN;
   const s = String(v).trim().replace(',', '.');
   if (s === '' || s === '-') return NaN;
   return parseFloat(s);
+}
+
+function isCrit(f, v) {
+  const n = num(v);
+  if (isNaN(n)) return false;
+  const fd = FIELD_BY_KEY.get(f);
+  if (!fd) return false;
+  if (fd.critMin !== null && n < fd.critMin) return true;
+  if (fd.critMax !== null && n > fd.critMax) return true;
+  return false;
 }
 
 class MedicineView {
@@ -33,6 +43,7 @@ class MedicineView {
     this.searchTerm = '';
     this.selectedClientId = null;
     this.filteredClientIds = [];
+    this.view = 'day';
     this.init();
   }
 
@@ -51,24 +62,19 @@ class MedicineView {
       return;
     }
 
-    // Online-only enforcement: medicine page requires internet
-    const offlineBox = document.getElementById('medOfflineBox');
+    const offlineBox = document.getElementById('mhOffline');
     const blockOffline = () => {
       if (!navigator.onLine) {
-        if (offlineBox) {
-          offlineBox.textContent = t('offlineRequiredMsg');
-          offlineBox.style.display = 'block';
-        }
-        const main = document.querySelector('.med-container');
+        if (offlineBox) offlineBox.style.display = 'flex';
+        const main = document.querySelector('.mh-main');
         if (main) main.style.display = 'none';
         return true;
       }
       if (offlineBox) offlineBox.style.display = 'none';
-      const main = document.querySelector('.med-container');
+      const main = document.querySelector('.mh-main');
       if (main) main.style.display = 'block';
       return false;
     };
-    const t = (key) => (window.t ? window.t(key) : key);
     if (blockOffline()) {
       window.addEventListener('online', () => { if (!blockOffline()) location.reload(); });
       window.addEventListener('offline', blockOffline);
@@ -115,14 +121,20 @@ class MedicineView {
       if (!clientId) return;
       const field = String(raw.field || raw.lauka_nosaukums || '').trim();
       if (!field) return;
-      const item = { raw, clientId, field, value: raw.value !== undefined && raw.value !== null ? raw.value : raw.vertiba, date: this._markDate(raw), time: String(raw.time || raw.laiks || '').slice(0,5), ts: raw.lastModified || raw.pedeja_laiks || raw.created || 0 };
+      const item = {
+        raw, clientId, field,
+        value: raw.value !== undefined && raw.value !== null ? raw.value : raw.vertiba,
+        date: this._markDate(raw),
+        time: String(raw.time || raw.laiks || '').slice(0, 5),
+        ts: raw.lastModified || raw.pedeja_laiks || raw.created || 0
+      };
       let list = this._byClient.get(clientId); if (!list) { list = []; this._byClient.set(clientId, list); }
       list.push(item);
       let byField = this._byClientField.get(clientId); if (!byField) { byField = new Map(); this._byClientField.set(clientId, byField); }
       let series = byField.get(field); if (!series) { series = []; byField.set(field, series); }
       series.push(item);
     });
-    const bySort = (a,b) => (a.date+a.time).localeCompare(b.date+b.time);
+    const bySort = (a, b) => (a.date + a.time).localeCompare(b.date + b.time);
     this._byClient.forEach(list => list.sort(bySort));
     this._byClientField.forEach(byField => byField.forEach(series => series.sort(bySort)));
   }
@@ -131,73 +143,67 @@ class MedicineView {
     if (!m) return '';
     const raw = m.date || m.datums || '';
     const s = String(raw);
-    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (iso) return iso[1]+'-'+iso[2]+'-'+iso[3];
-    const lv = s.match(/^(\d{2})\.(\d{2})\.(\d{4})/); if (lv) return lv[3]+'-'+lv[2]+'-'+lv[1];
-    const idTs = String(m.id||'').match(/^[a-z]+_(\d{10,13})/);
-    if (idTs) { const d=new Date(parseInt(idTs[1],10)); if(!isNaN(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-    const d2=new Date(s); if(!isNaN(d2.getTime())) return d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+    const lv = s.match(/^(\d{2})\.(\d{2})\.(\d{4})/); if (lv) return lv[3] + '-' + lv[2] + '-' + lv[1];
+    const idTs = String(m.id || '').match(/^[a-z]+_(\d{10,13})/);
+    if (idTs) { const d = new Date(parseInt(idTs[1], 10)); if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    const d2 = new Date(s); if (!isNaN(d2.getTime())) return d2.getFullYear() + '-' + String(d2.getMonth() + 1).padStart(2, '0') + '-' + String(d2.getDate()).padStart(2, '0');
     return '';
   }
 
   _today() {
     if (typeof TimezoneUtils !== 'undefined' && TimezoneUtils.getTodayRiga) return TimezoneUtils.getTodayRiga();
-    const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  _val(v){ return v===undefined||v===null?'':String(v); }
+  _val(v) { return v === undefined || v === null ? '' : String(v); }
 
-  _getLatestByClient(clientId,date){
-    const day=date||this._today();
-    const fields=this._byClientField.get(String(clientId));
-    const out={};
-    if(!fields) return out;
-    MEDICINE_FIELDS.forEach(f=>{
-      const series=fields.get(f.field)||[];
-      for(let i=series.length-1;i>=0;i--){
-        if(series[i].date===day){ out[f.field]=series[i]; break; }
+  _getLatestByClient(clientId, date) {
+    const day = date || this._today();
+    const fields = this._byClientField.get(String(clientId));
+    const out = {};
+    if (!fields) return out;
+    MEDICINE_FIELDS.forEach(f => {
+      const series = fields.get(f.key) || [];
+      for (let i = series.length - 1; i >= 0; i--) {
+        if (series[i].date === day) { out[f.key] = series[i]; break; }
       }
     });
     return out;
   }
 
-  _getPrevious(clientId,field,beforeDate){
-    const fields=this._byClientField.get(String(clientId));
-    if(!fields) return null;
-    const series=fields.get(field)||[];
-    for(let i=series.length-1;i>=0;i--){
-      if(series[i].date<beforeDate) return series[i];
-      if(series[i].date===beforeDate&&i>0) return series[i-1];
-    }
-    return series.length>1?series[series.length-2]:null;
+  _getItemsOnDate(clientId, date) {
+    const list = this._byClient.get(String(clientId)) || [];
+    return list.filter(i => i.date === date);
   }
 
-  _dirSymbol(curr,prev,field){
-    if(!curr||!prev) return '→';
-    const cv=num(curr.value), pv=num(prev.value);
-    if(isNaN(cv)||isNaN(pv)){
-      return String(curr.value)===String(prev.value)?'→':'↑';
-    }
-    if(field==='temperatura'){
-      if(Math.abs(cv-pv)<0.2) return '→';
-      return cv<pv?'↓':'↑';
-    }
-    if(field==='urina_daudzums'||field==='uznemts_ml'){
-      if(Math.abs(cv-pv)<10) return '→';
-      return cv<pv?'↑':'↓';
-    }
-    return String(curr.value)===String(prev.value)?'→':'↑';
+  _clientStatusOnDate(cid, day) {
+    let worst = 'none';
+    let hasAny = false;
+    MEDICINE_FIELDS.forEach(f => {
+      const latest = this._getLatestByClient(cid, day)[f.key];
+      if (!latest) return;
+      hasAny = true;
+      if (isCrit(f.key, latest.value)) { worst = 'crit'; return; }
+      if (worst !== 'crit') worst = 'ok';
+    });
+    if (!hasAny) return 'none';
+    return worst;
   }
 
-  _dirClass(curr,prev,field){
-    const sym=this._dirSymbol(curr,prev,field);
-    return sym==='↑'?'dir-up':sym==='↓'?'dir-down':'dir-flat';
+  _clientAttentionOnDate(cid, day) {
+    const items = this._getItemsOnDate(cid, day);
+    return items.some(i => String(i.category || i.kategorija || '').toLowerCase() === 'pievienot' || String(i.field || i.lauka_nosaukums || '').toLowerCase() === 'uzmaniba');
   }
 
   renderAll() {
-    this.renderTabs();
+    this._wireTabs();
+    this.renderClientFilter();
+    this.renderDateDefault();
+    this.renderView();
   }
 
   renderClientFilter() {
-    const sel = document.getElementById('medClientFilter');
+    const sel = document.getElementById('mhClientFilter');
     if (!sel) return;
     const current = sel.value;
     sel.innerHTML = '<option value="" data-i18n="allClients">Visi klienti</option>';
@@ -212,366 +218,384 @@ class MedicineView {
     if (current && Array.from(sel.options).some(o => o.value === current)) sel.value = current;
   }
 
-  _clientSummary(cid, day) {
-    const latest = this._getLatestByClient(cid, day);
-    const t = latest['temperatura'];
-    const b = latest['brokastis'];
-    const l = latest['pusdienas'];
-    const sn = latest['launags'];
-    const d = latest['vakariņi'];
-    const ur = latest['urina_daudzums'];
-    const h2o = latest['uznemts_ml'];
-    const v = latest['vedera_izeja'];
-    return { t, b, l, sn, d, ur, h2o, v };
+  renderDateDefault() {
+    const el = document.getElementById('mhDateFilter');
+    if (el && !el.value) el.value = this._today();
   }
 
-  _clientStatus(cid, day) {
-    const latest = this._getLatestByClient(cid, day);
-    const t = latest['temperatura'];
-    const b = latest['brokastis'];
-    const l = latest['pusdienas'];
-    const sn = latest['launags'];
-    const d = latest['vakariņi'];
-    const ur = latest['urina_daudzums'];
-    const h2o = latest['uznemts_ml'];
-    const v = latest['vedera_izeja'];
-    const nT = t ? num(t.value) : NaN;
-    const nU = ur ? num(ur.value) : NaN;
-    const nH = h2o ? num(h2o.value) : NaN;
-    if (!isNaN(nT) && nT >= 38.0) return 'crit';
-    if (!isNaN(nU) && nU < 400) return 'crit';
-    if (!isNaN(nH) && nH < 800) return 'crit';
-    const hasAny = t || b || l || sn || d || ur || h2o || v;
-    return hasAny ? 'ok' : 'none';
+  renderAttention() {
+    const box = document.getElementById('mhAttentionList');
+    const countEl = document.getElementById('mhAttnCount');
+    if (!box) return;
+    const day = document.getElementById('mhDateFilter').value || this._today();
+    const items = [];
+    this.filteredClientIds.forEach(cid => {
+      const c = this.allClients.find(x => String(x.id || x.ID) === cid);
+      if (!c) return;
+      const crit = this._clientStatusOnDate(cid, day) === 'crit';
+      const attn = this._clientAttentionOnDate(cid, day);
+      if (crit || attn) items.push({ cid, name: this._clientName(c), crit, attn });
+    });
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    if (countEl) countEl.textContent = items.length;
+    if (!items.length) {
+      box.innerHTML = '<div class="mh-empty">Nav klientu, kam šodien nepieciešama uzmanība.</div>';
+      return;
+    }
+    let html = '';
+    items.forEach(it => {
+      html += '<div class="mh-attn-item ' + (it.crit ? 'mh-attn-crit' : 'mh-attn-warn') + '" onclick="medicineView.openClientDetail(\'' + it.cid.replace(/'/g, "\\'") + '\', \'' + day + '\');" style="cursor:pointer;">';
+      html += '<span class="mh-attn-dot">' + (it.crit ? '🔴' : '🟡') + '</span>';
+      html += '<span class="mh-attn-name">' + this.escapeHtml(it.name) + '</span>';
+      html += '<span class="mh-attn-reason">' + (it.crit ? 'Objektīvs kritērijs šodien' : 'Manuāli atzīmēts uzmanībai') + '</span>';
+      html += '</div>';
+    });
+    box.innerHTML = html;
   }
 
-  renderClientCards() {
-    const container = document.getElementById('medClientList');
-    if (!container) return;
-    const day = (document.getElementById('medDateFilter') && document.getElementById('medDateFilter').value) || this._today();
+  renderView() {
+    this.renderAttention();
+    ['mhViewDay', 'mhViewWeek', 'mhViewMonth'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const active = document.getElementById('mhView' + this.view.charAt(0).toUpperCase() + this.view.slice(1));
+    if (active) active.style.display = 'block';
+    if (this.view === 'day') this.renderDay();
+    else if (this.view === 'week') this.renderWeek();
+    else this.renderMonth();
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // DIENAS SKATS
+  // ════════════════════════════════════════════════════════════════════
+
+  renderDay() {
+    const day = document.getElementById('mhDateFilter').value || this._today();
+    document.getElementById('mhDayDateLabel').textContent = this._fmtDayLabel(day);
+    const tbody = document.getElementById('mhDayBody');
+    if (!tbody) return;
     const list = [];
     this.filteredClientIds.forEach(cid => {
       const c = this.allClients.find(x => String(x.id || x.ID) === cid);
       if (!c) return;
-      const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim() || ('ID: ' + cid);
-      list.push({ cid, c, name });
+      list.push({ cid, c, name: this._clientName(c) });
     });
     list.sort((a, b) => a.name.localeCompare(b.name));
 
     let html = '';
     if (!list.length) {
-      html = '<div class="med-empty">Nav klientu atbilstoši filtram.</div>';
+      html = '<tr><td colspan="11" class="mh-empty">Nav klientu atbilstoši filtram.</td></tr>';
     } else {
       list.forEach(({ cid, c, name }) => {
-        const status = this._clientStatus(cid, day);
         const latest = this._getLatestByClient(cid, day);
-        const t = latest['temperatura'];
-        const b = latest['brokastis'];
-        const l = latest['pusdienas'];
-        const sn = latest['launags'];
-        const d = latest['vakariņi'];
-        const ur = latest['urina_daudzums'];
-        const h2o = latest['uznemts_ml'];
-        const v = latest['vedera_izeja'];
-        const when = (t && t.time) ? (t.date + ' ' + t.time) : day;
-        const critCount = this._checkObjCrit(cid, day).length;
-        const flagged = this._hasFlagAttention(cid);
-        const problem = critCount > 0 || flagged;
-        html +=
-          '<div class="med-client' + (problem ? ' has-problem' : '') + '" onclick="medicineView.openClientDetail(\'' + cid.replace(/'/g, "\\'") + '\');">' +
-          '<div class="med-client-row">' +
-          '<div class="med-client-name">' +
-          '<span>' + this.escapeHtml(name) + '</span>' +
-          (flagged ? ' <span style="color:#b9770e;font-weight:700;">🟡</span>' : '') +
-          (critCount > 0 ? ' <span style="color:#a81e12;font-weight:700;">🔴</span>' : '') +
-          '</div>' +
-          '<div class="med-client-meta">' + this.escapeHtml(when) + '</div>' +
-          '<span class="med-badge ' + status + '">' + (status === 'crit' ? 'Kritiski' : status === 'ok' ? 'OK' : 'Nav datu') + '</span>' +
-          '</div>' +
-          '<div class="med-client-sum">' +
-          (t ? '<span class="med-sum' + (num(t.value) >= 38 ? ' crit' : '') + '">🌡 ' + this._val(t.value) + '°C</span>' : '<span class="med-sum none">🌡 –</span>') +
-          (b ? '<span class="med-sum">🍽 Br: ' + this._val(b.value) + '</span>' : '<span class="med-sum none">🍽 –</span>') +
-          (l ? '<span class="med-sum">🍽 Pusd: ' + this._val(l.value) + '</span>' : '<span class="med-sum none">🍽 –</span>') +
-          (sn ? '<span class="med-sum">🍽 L: ' + this._val(sn.value) + '</span>' : '<span class="med-sum none">🍽 –</span>') +
-          (d ? '<span class="med-sum">🍽 Vak: ' + this._val(d.value) + '</span>' : '<span class="med-sum none">🍽 –</span>') +
-          (ur ? '<span class="med-sum' + (!isNaN(num(ur.value)) && num(ur.value) < 400 ? ' crit' : '') + '">💧 ' + this._val(ur.value) + 'ml</span>' : '<span class="med-sum none">💧 –</span>') +
-          (h2o ? '<span class="med-sum' + (!isNaN(num(h2o.value)) && num(h2o.value) < 800 ? ' crit' : '') + '">🥤 ' + this._val(h2o.value) + 'ml</span>' : '<span class="med-sum none">🥤 –</span>') +
-          (v ? '<span class="med-sum">🚽 ' + this._val(v.value) + '</span>' : '<span class="med-sum none">🚽 –</span>') +
-          '</div>' +
-          '</div>';
+        const items = this._getItemsOnDate(cid, day);
+        const attn = this._clientAttentionOnDate(cid, day);
+        const worst = this._clientStatusOnDate(cid, day);
+        const rowClass = worst === 'crit' ? 'mh-row-crit' : (worst === 'ok' ? 'mh-row-ok' : 'mh-row-none');
+        const attnCls = attn ? ' mh-row-attn' : '';
+        html += '<tr class="' + rowClass + attnCls + '" onclick="medicineView.openClientDetail(\'' + cid.replace(/'/g, "\\'") + '\', \'' + day + '\');" style="cursor:pointer;">';
+        html += '<td class="mh-td-client"><span class="mh-client-name">' + this.escapeHtml(name) + '</span>' + (attn ? ' <span class="mh-attn-dot" title="Manuāli atzīmēts uzmanībai">🟡</span>' : '') + '</td>';
+        MEDICINE_FIELDS.forEach(f => {
+          const it = latest[f.key];
+          const crit = it && isCrit(f.key, it.value);
+          html += '<td class="mh-td-val ' + (crit ? 'mh-val-crit' : '') + '">' + this._renderValCell(it, f) + '</td>';
+        });
+        const last = items.length ? items[items.length - 1] : null;
+        html += '<td class="mh-td-time">' + (last ? (last.date + (last.time ? ' ' + last.time : '')) : '–') + '</td>';
+        html += '</tr>';
       });
     }
-    container.innerHTML = html;
+    tbody.innerHTML = html;
+    document.getElementById('mhDataTitle').textContent = '📋 Diena — ' + this._fmtDayLabel(day);
+    document.getElementById('mhDataCount').textContent = list.length + ' klienti';
   }
 
-  openClientDetail(cid) {
+  _renderValCell(it, f) {
+    if (!it) return '<span class="mh-empty-cell">–</span>';
+    const crit = isCrit(f.key, it.value);
+    const unit = f.unit ? (' ' + f.unit) : '';
+    return '<span class="mh-val ' + (crit ? 'mh-val-crit' : '') + '">' + this.escapeHtml(this._val(it.value)) + '</span>' +
+      '<span class="mh-unit">' + this.escapeHtml(unit) + '</span>' +
+      (it.time ? '<span class="mh-time">' + this.escapeHtml(it.time) + '</span>' : '');
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // NEDĒĻAS SKATS — 7 dienas kolonnas, klienti rindās
+  // ════════════════════════════════════════════════════════════════════
+
+  renderWeek() {
+    const start = this._weekStart(document.getElementById('mhDateFilter').value || this._today());
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      days.push(this._iso(d));
+    }
+    document.getElementById('mhWeekHeader').textContent = this._fmtWeekLabel(days[0], days[6]);
+
+    const thead = document.querySelector('#mhWeekTable thead');
+    const tbody = document.getElementById('mhWeekBody');
+    if (!thead || !tbody) return;
+
+    // Build header
+    let thHtml = '<th class="mh-th-client" data-i18n="client">Klients</th>';
+    days.forEach(d => {
+      const dd = new Date(d);
+      const dayName = ['Sv','Pirm','Otr','Treš','Cetur','Piekt','Sest'][dd.getDay()];
+      thHtml += '<th class="mh-th-week-day"><div class="mh-week-dayname">' + dayName + '</div><div class="mh-week-daynum">' + dd.getDate() + '.' + String(dd.getMonth() + 1).padStart(2, '0') + '</div></th>';
+    });
+    thead.innerHTML = '<tr>' + thHtml + '</tr>';
+
+    const list = [];
+    this.filteredClientIds.forEach(cid => {
+      const c = this.allClients.find(x => String(x.id || x.ID) === cid);
+      if (!c) return;
+      list.push({ cid, c, name: this._clientName(c) });
+    });
+    list.sort((a, b) => a.name.localeCompare(b.name));
+
+    let html = '';
+    if (!list.length) {
+      html = '<tr><td colspan="8" class="mh-empty">Nav klientu atbilstoši filtram.</td></tr>';
+    } else {
+      list.forEach(({ cid, c, name }) => {
+        html += '<tr class="mh-week-client-row" onclick="medicineView.openClientDetail(\'' + cid.replace(/'/g, "\\'") + '\');" style="cursor:pointer;">';
+        html += '<td class="mh-td-client"><span class="mh-client-name">' + this.escapeHtml(name) + '</span></td>';
+        days.forEach(day => {
+          const worst = this._clientStatusOnDate(cid, day);
+          const attn = this._clientAttentionOnDate(cid, day);
+          let cellClass = 'mh-week-cell ' + (worst === 'crit' ? 'mh-cell-crit' : worst === 'ok' ? 'mh-cell-ok' : 'mh-cell-none');
+          if (attn) cellClass += ' mh-cell-attn';
+          html += '<td class="' + cellClass + '" title="' + this.escapeHtml(name) + ' — ' + day + ' — ' + worst + '">' + (worst === 'none' ? '–' : '') + '</td>';
+        });
+        html += '</tr>';
+      });
+    }
+    tbody.innerHTML = html;
+    document.getElementById('mhDataTitle').textContent = '📅 Nedēļa — ' + this._fmtWeekLabel(days[0], days[6]);
+    document.getElementById('mhDataCount').textContent = list.length + ' klienti';
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // MĒNEŠA SKATS — klienti rindās, mēneša dienas kolonnas (heatmap)
+  // ════════════════════════════════════════════════════════════════════
+
+  renderMonth() {
+    const dateVal = document.getElementById('mhDateFilter').value || this._today();
+    const y = parseInt(dateVal.slice(0, 4), 10);
+    const m = parseInt(dateVal.slice(5, 7), 10) - 1;
+    const first = new Date(y, m, 1);
+    const last = new Date(y, m + 1, 0);
+    const totalDays = last.getDate();
+    const startWeekday = first.getDay(); // 0=Sun
+
+    document.getElementById('mhMonthHeader').textContent = this._fmtMonthLabel(y, m);
+
+    const thead = document.querySelector('#mhMonthTable thead');
+    const tbody = document.getElementById('mhMonthBody');
+    if (!thead || !tbody) return;
+
+    let thHtml = '<th class="mh-th-client" data-i18n="client">Klients</th>';
+    for (let d = 1; d <= totalDays; d++) thHtml += '<th class="mh-th-month-day">' + d + '</th>';
+    thead.innerHTML = '<tr>' + thHtml + '</tr>';
+
+    const list = [];
+    this.filteredClientIds.forEach(cid => {
+      const c = this.allClients.find(x => String(x.id || x.ID) === cid);
+      if (!c) return;
+      list.push({ cid, c, name: this._clientName(c) });
+    });
+    list.sort((a, b) => a.name.localeCompare(b.name));
+
+    let html = '';
+    if (!list.length) {
+      html = '<tr><td colspan="' + (totalDays + 1) + '" class="mh-empty">Nav klientu atbilstoši filtram.</td></tr>';
+    } else {
+      list.forEach(({ cid, c, name }) => {
+        html += '<tr class="mh-month-client-row" onclick="medicineView.openClientDetail(\'' + cid.replace(/'/g, "\\'") + '\');" style="cursor:pointer;">';
+        html += '<td class="mh-td-client"><span class="mh-client-name">' + this.escapeHtml(name) + '</span></td>';
+        for (let d = 1; d <= totalDays; d++) {
+          const dayStr = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+          const worst = this._clientStatusOnDate(cid, dayStr);
+          const attn = this._clientAttentionOnDate(cid, dayStr);
+          let cellClass = 'mh-month-cell ' + (worst === 'crit' ? 'mh-cell-crit' : worst === 'ok' ? 'mh-cell-ok' : 'mh-cell-none');
+          if (attn) cellClass += ' mh-cell-attn';
+          html += '<td class="' + cellClass + '" title="' + this.escapeHtml(name) + ' — ' + dayStr + ' — ' + worst + '"></td>';
+        }
+        html += '</tr>';
+      });
+    }
+    tbody.innerHTML = html;
+    document.getElementById('mhDataTitle').textContent = '🗓️ Mēnesis — ' + this._fmtMonthLabel(y, m);
+    document.getElementById('mhDataCount').textContent = list.length + ' klienti';
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // KLIEŅA DETĀĻA SKATS
+  // ════════════════════════════════════════════════════════════════════
+
+  openClientDetail(cid, day) {
     this.selectedClientId = cid;
-    document.getElementById('panel-attention').style.display = 'none';
-    document.getElementById('panel-all').style.display = 'none';
-    document.getElementById('medClientDetail').style.display = 'block';
-    document.querySelectorAll('.med-tab').forEach(b => b.classList.remove('active'));
-    this.renderClientDetail(cid);
+    document.getElementById('mhViewDay').style.display = 'none';
+    document.getElementById('mhViewWeek').style.display = 'none';
+    document.getElementById('mhViewMonth').style.display = 'none';
+    const detail = document.getElementById('mhClientDetail');
+    if (detail) detail.style.display = 'block';
+    document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
+    this.renderClientDetail(cid, day || (document.getElementById('mhDateFilter').value || this._today()));
   }
 
   closeClientDetail() {
     this.selectedClientId = null;
-    document.getElementById('medClientDetail').style.display = 'none';
-    document.getElementById('panel-attention').style.display = 'block';
-    document.getElementById('panel-all').style.display = 'block';
-    const activeTab = document.querySelector('.med-tab.active');
-    if (activeTab) activeTab.classList.add('active');
-    const panelId = 'panel-' + activeTab.dataset.tab;
-    document.querySelectorAll('.med-tab-panel').forEach(p => p.classList.toggle('active', p.id === panelId));
-    if (document.getElementById('panel-all').classList.contains('active')) {
-      document.getElementById('panel-all').style.display = 'block';
-    }
+    const detail = document.getElementById('mhClientDetail');
+    if (detail) detail.style.display = 'none';
+    document.getElementById('mhViewDay').style.display = 'block';
+    document.getElementById('mhViewWeek').style.display = 'none';
+    document.getElementById('mhViewMonth').style.display = 'none';
+    document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.mh-view-btn[data-view="day"]').classList.add('active');
+    this.renderView();
   }
 
-  renderClientDetail(cid) {
+  renderClientDetail(cid, day) {
     const c = this.allClients.find(x => String(x.id || x.ID) === cid);
     if (!c) return;
-    const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim() || ('ID: ' + cid);
-    const day = (document.getElementById('medDateFilter') && document.getElementById('medDateFilter').value) || this._today();
+    const name = this._clientName(c);
 
-    document.getElementById('medDetailName').textContent = name;
-    document.getElementById('medDetailMeta').textContent = 'ID: ' + cid + '  ·  Loma: medicīnas skats';
-    document.getElementById('medDetailDate').textContent = 'Datums: ' + day;
+    document.getElementById('mhDetailName').textContent = name;
+    document.getElementById('mhDetailMeta').textContent = 'ID: ' + cid;
+    document.getElementById('mhDetailDate').textContent = this._fmtDayLabel(day);
 
     const latest = this._getLatestByClient(cid, day);
-    const t = latest['temperatura'];
-    const b = latest['brokastis'];
-    const l = latest['pusdienas'];
-    const sn = latest['launags'];
-    const d = latest['vakariņi'];
-    const ur = latest['urina_daudzums'];
-    const h2o = latest['uznemts_ml'];
-    const v = latest['vedera_izeja'];
+    const items = this._getItemsOnDate(cid, day);
 
-    // KPIs for detail
-    const kpiEl = document.getElementById('medDetailKpis');
+    const kpiEl = document.getElementById('mhDetailKpis');
     kpiEl.innerHTML = '';
-    const kpis = [
-      { label: 'Temperatūra', val: t ? this._val(t.value) + '°C' : '–', crit: t && !isNaN(num(t.value)) && num(t.value) >= 38 },
-      { label: 'Brokkastis', val: b ? this._val(b.value) : '–', crit: false },
-      { label: 'Pusdienas', val: l ? this._val(l.value) : '–', crit: false },
-      { label: 'Launags', val: sn ? this._val(sn.value) : '–', crit: false },
-      { label: 'Vakariņi', val: d ? this._val(d.value) : '–', crit: false },
-      { label: 'Urīns (24h)', val: ur ? this._val(ur.value) + ' ml' : '–', crit: ur && !isNaN(num(ur.value)) && num(ur.value) < 400 },
-      { label: 'Ūdens (24h)', val: h2o ? this._val(h2o.value) + ' ml' : '–', crit: h2o && !isNaN(num(h2o.value)) && num(h2o.value) < 800 },
-      { label: 'Vēdera izeja', val: v ? this._val(v.value) : '–', crit: false }
-    ];
-    kpis.forEach(k => {
+    MEDICINE_FIELDS.forEach(f => {
+      const it = latest[f.key];
+      const crit = it && isCrit(f.key, it.value);
       const div = document.createElement('div');
-      div.className = 'med-kpi' + (k.crit ? ' attn' : '');
-      div.innerHTML = '<div class="med-kpi-num">' + this.escapeHtml(k.val) + '</div><div class="med-kpi-label">' + this.escapeHtml(k.label) + '</div>';
+      div.className = 'mh-kpi ' + (crit ? 'mh-kpi-crit' : '') + (it ? '' : ' mh-kpi-empty');
+      div.innerHTML = '<div class="mh-kpi-val">' + (it ? this.escapeHtml(this._val(it.value)) : '–') + '</div>' +
+        '<div class="mh-kpi-label">' + f.label + ' ' + (f.unit ? f.unit : '') + '</div>' +
+        (it && it.time ? '<div class="mh-kpi-time">' + this.escapeHtml(it.time) + '</div>' : '');
       kpiEl.appendChild(div);
     });
 
-    // Detail blocks: temp, meals, fluids, physiology
-    const blocksEl = document.getElementById('medDetailBlocks');
+    const blocksEl = document.getElementById('mhDetailBlocks');
     blocksEl.innerHTML = '';
 
-    // Temperatūra
-    const tBlock = document.createElement('div');
-    tBlock.className = 'med-block' + (t && !isNaN(num(t.value)) && num(t.value) >= 38 ? ' crit' : '');
-    tBlock.innerHTML =
-      '<h3>🌡 Temperatūra</h3>' +
-      '<div class="med-state"><span class="med-big' + (t ? '' : ' med-none') + '">' + (t ? this._val(t.value) + '<small>°C</small>' : '–') + '</span>' +
-      (t ? '<div class="med-when">' + this.escapeHtml(t.date) + (t.time ? ' ' + t.time : '') + '</div>' : '') +
-      (t ? '<div class="med-trend-line">Dinamika: <span class="' + this._dirClass(t, this._getPrevious(cid, 'temperatura', day), 'temperatura') + '">' + this._dirSymbol(t, this._getPrevious(cid, 'temperatura', day), 'temperatura') + '</span></div>' : '') +
-      '</div>';
-    blocksEl.appendChild(tBlock);
-
-    // Ēšana
-    const mealBlock = document.createElement('div');
-    mealBlock.className = 'med-block';
-    mealBlock.innerHTML =
-      '<h3>🍽 Ēšana (pēdējais ieraksts)</h3>' +
-      '<div class="med-meals">' +
-      '<div class="med-meal' + (b ? '' : ' empty') + '"><div class="med-meal-name">Brokkastis</div><div class="med-meal-val">' + (b ? this._val(b.value) : '–') + '</div></div>' +
-      '<div class="med-meal' + (l ? '' : ' empty') + '"><div class="med-meal-name">Pusdienas</div><div class="med-meal-val">' + (l ? this._val(l.value) : '–') + '</div></div>' +
-      '<div class="med-meal' + (sn ? '' : ' empty') + '"><div class="med-meal-name">Launags</div><div class="med-meal-val">' + (sn ? this._val(sn.value) : '–') + '</div></div>' +
-      '<div class="med-meal' + (d ? '' : ' empty') + '"><div class="med-meal-name">Vakariņi</div><div class="med-meal-val">' + (d ? this._val(d.value) : '–') + '</div></div>' +
-      '</div>';
-    blocksEl.appendChild(mealBlock);
-
-    // Šķidrumi
-    const fluidBlock = document.createElement('div');
-    fluidBlock.className = 'med-block' + ((ur && !isNaN(num(ur.value)) && num(ur.value) < 400) || (h2o && !isNaN(num(h2o.value)) && num(h2o.value) < 800) ? ' crit' : '');
-    fluidBlock.innerHTML =
-      '<h3>💧 Šķidrumi (24h)</h3>' +
-      '<div class="med-fluids">' +
-      '<div class="med-fluid' + (ur && !isNaN(num(ur.value)) && num(ur.value) < 400 ? ' crit' : '') + '">' +
-      '<span class="med-fluid-name">Urīns</span><span class="med-fluid-val">' + (ur ? this._val(ur.value) : '–') + '<small> ml</small></span>' +
-      '</div>' +
-      '<div class="med-fluid' + (h2o && !isNaN(num(h2o.value)) && num(h2o.value) < 800 ? ' crit' : '') + '">' +
-      '<span class="med-fluid-name">Ūdens</span><span class="med-fluid-val">' + (h2o ? this._val(h2o.value) : '–') + '<small> ml</small></span>' +
-      '</div>' +
-      '</div>';
-    blocksEl.appendChild(fluidBlock);
-
-    // Fizioloģija
-    const physBlock = document.createElement('div');
-    physBlock.className = 'med-block';
-    physBlock.innerHTML =
-      '<h3>🚽 Vēdera izeja</h3>' +
-      '<div class="med-state"><span class="med-big' + (v ? '' : ' med-none') + '">' + (v ? this._val(v.value) : '–') + '</span>' +
-      (v ? '<div class="med-when">' + this.escapeHtml(v.date) + (v.time ? ' ' + v.time : '') + '</div>' : '') +
-      '</div>';
-    blocksEl.appendChild(physBlock);
-
-    const critFindings = this._checkObjCrit(cid, day);
-    if (critFindings.length) {
-      const findingsEl = document.createElement('div');
-      findingsEl.className = 'med-findings';
-      critFindings.forEach(f => {
-        findingsEl.innerHTML +=
-          '<div class="med-finding crit">' +
-          '<div class="med-finding-label">🔴 ' + this.escapeHtml(f.reason) + '</div>' +
-          (f.meta ? '<div class="med-finding-detail">' + this.escapeHtml(f.meta) + '</div>' : '') +
-          '</div>';
+    // Timeline of all entries that day
+    const tl = document.createElement('div');
+    tl.className = 'mh-detail-section';
+    tl.innerHTML = '<h3 class="mh-detail-section-title">Ieraksti dienas <span class="mh-detail-section-day">' + this._fmtDayLabel(day) + '</span></h3>';
+    if (items.length) {
+      const tbl = document.createElement('table');
+      tbl.className = 'mh-detail-table';
+      let th = '<thead><tr><th>Laiks</th><th>Lauks</th><th>Vērtība</th><th>Statuss</th></tr></thead>';
+      let tb = '<tbody>';
+      items.forEach(it => {
+        const f = FIELD_BY_KEY.get(it.field);
+        const label = f ? f.label + ' ' + (f.unit || '') : it.field;
+        const crit = f && isCrit(it.field, it.value);
+        tb += '<tr class="' + (crit ? 'mh-detail-row-crit' : '') + '">' +
+          '<td class="mh-detail-time">' + this.escapeHtml(it.time) + '</td>' +
+          '<td class="mh-detail-field">' + this.escapeHtml(label) + '</td>' +
+          '<td class="mh-detail-val">' + this.escapeHtml(this._val(it.value)) + '</td>' +
+          '<td class="mh-detail-status"><span class="mh-status-dot ' + (crit ? 'mh-status-crit' : 'mh-status-ok') + '"></span>' + (crit ? 'Kritiski' : 'Normāli') + '</td>' +
+          '</tr>';
       });
-      blocksEl.appendChild(findingsEl);
+      tb += '</tbody>';
+      tbl.innerHTML = th + tb;
+      tl.appendChild(tbl);
+    } else {
+      tl.innerHTML += '<div class="mh-empty">Nav ierakstīts neviens datums šajā dienā.</div>';
+    }
+    blocksEl.appendChild(tl);
+
+    // Attention flag
+    const attn = this._clientAttentionOnDate(cid, day);
+    if (attn) {
+      const box = document.createElement('div');
+      box.className = 'mh-attention-box';
+      box.innerHTML = '<span class="mh-attn-dot">🟡</span> <strong>Manuāli atzīmēts uzmanībai</strong> — aprūpētājs ir pievēris medicīnisko uzmanību.';
+      blocksEl.appendChild(box);
     }
   }
 
-  renderTabs() {
-    const splash = document.getElementById('splashScreen');
-    if (splash) splash.classList.add('hidden');
-    this.renderAttention();
-    this.renderClientFilter();
-    this.renderClientCards();
-    const back = document.getElementById('btnBack');
-    if (back) back.onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    const medBack = document.getElementById('medBackToList');
-    if (medBack) medBack.onclick = () => { this.closeClientDetail(); };
-    document.querySelectorAll('.med-tab').forEach(btn => {
+  // ════════════════════════════════════════════════════════════════════
+  // TABS + UI WIRING
+  // ════════════════════════════════════════════════════════════════════
+
+  _wireTabs() {
+    document.querySelectorAll('.mh-view-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (this.selectedClientId) {
-          this.closeClientDetail();
-        }
-        document.querySelectorAll('.med-tab').forEach(b => b.classList.remove('active'));
+        if (this.selectedClientId) this.closeClientDetail();
+        document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const tab = btn.dataset.tab;
-        document.querySelectorAll('.med-tab-panel').forEach(p => p.classList.toggle('active', p.id === ('panel-' + tab)));
-        const panelAtt = document.getElementById('panel-attention');
-        const panelAll = document.getElementById('panel-all');
-        if (tab === 'attention') {
-          panelAtt.style.display = 'block';
-          panelAll.style.display = 'none';
-        } else {
-          panelAtt.style.display = 'none';
-          panelAll.style.display = 'block';
-        }
-        if (tab === 'all') {
-          this.renderClientCards();
-        }
+        this.view = btn.dataset.view;
+        this.renderView();
       });
     });
-    this._wireUi();
-  }
-
-  renderAllTable() {
-    const tbody = document.getElementById('allTableBody');
-    const dateEl = document.getElementById('dateFilter');
-    const day = (dateEl && dateEl.value) || this._today();
-    if (!tbody) return;
-    const term = (document.getElementById('clientSearch') && document.getElementById('clientSearch').value || '').toLowerCase();
-    const list = [];
-    this.allClients.forEach(c => {
-      const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim();
-      if (term && name.toLowerCase().indexOf(term) === -1) return;
-      list.push({ c, name });
-    });
-    list.sort((a, b) => a.name.localeCompare(b.name));
-    let html = '';
-    list.forEach(({ c, name }) => {
-      const cid = c.id || c.ID;
-      const latest = this._getLatestByClient(cid, day);
-      const t = latest['temperatura'], b = latest['brokastis'], l = latest['pusdienas'], sn = latest['launags'], d = latest['vakariņi'], ur = latest['urina_daudzums'], h2o = latest['uznemts_ml'], v = latest['vedera_izeja'];
-      const pt = this._getPrevious(cid, 'temperatura', day), pb = this._getPrevious(cid, 'brokastis', day), pl = this._getPrevious(cid, 'pusdienas', day), ps = this._getPrevious(cid, 'launags', day), pd = this._getPrevious(cid, 'vakariņi', day), pur = this._getPrevious(cid, 'urina_daudzums', day), ph = this._getPrevious(cid, 'uznemts_ml', day), pv = this._getPrevious(cid, 'vedera_izeja', day);
-      const when = (t && t.time) ? (t.date + ' ' + t.time) : ((latest['brokastis'] || {}).date || day);
-      html += '<tr><td>' + this.escapeHtml(name) + '</td><td>' + this.escapeHtml(when) + '</td>' +
-        '<td>' + this.escapeHtml(this._val(t && t.value)) + '</td><td>' + this.escapeHtml(this._val(b && b.value)) + '</td><td>' + this.escapeHtml(this._val(l && l.value)) + '</td><td>' + this.escapeHtml(this._val(sn && sn.value)) + '</td><td>' + this.escapeHtml(this._val(d && d.value)) + '</td><td>' + this.escapeHtml(this._val(ur && ur.value)) + '</td><td>' + this.escapeHtml(this._val(h2o && h2o.value)) + '</td><td>' + this.escapeHtml(this._val(v && v.value)) + '</td>' +
-        '<td><span class="' + this._dirClass(t, pt, 'temperatura') + '">' + this._dirSymbol(t, pt, 'temperatura') + '</span> T° · <span class="' + this._dirClass(b, pb, 'brokastis') + '">' + this._dirSymbol(b, pb, 'brokastis') + '</span> Br · <span class="' + this._dirClass(l, pl, 'pusdienas') + '">' + this._dirSymbol(l, pl, 'pusdienas') + '</span> P · <span class="' + this._dirClass(sn, ps, 'launags') + '">' + this._dirSymbol(sn, ps, 'launags') + '</span> L · <span class="' + this._dirClass(d, pd, 'vakariņi') + '">' + this._dirSymbol(d, pd, 'vakariņi') + '</span> V · <span class="' + this._dirClass(ur, pur, 'urina_daudzums') + '">' + this._dirSymbol(ur, pur, 'urina_daudzums') + '</span> U · <span class="' + this._dirClass(h2o, ph, 'uznemts_ml') + '">' + this._dirSymbol(h2o, ph, 'uznemts_ml') + '</span> H · <span class="' + this._dirClass(v, pv, 'vedera_izeja') + '">' + this._dirSymbol(v, pv, 'vedera_izeja') + '</span> Vz</td></tr>';
-    });
-    tbody.innerHTML = html || '<tr><td colspan="11" class="med-empty">Nav datu</td></tr>';
-  }
-
-  _hasFlagAttention(cid) {
-    const marks = this.allMarks || [];
-    const now = Date.now();
-    for (let i = marks.length - 1; i >= 0; i--) {
-      const m = marks[i]; const mcid = String(m.clientId || m.klients_id || '');
-      if (mcid !== String(cid)) continue;
-      const cat = String(m.category || m.kategorija || '').toLowerCase();
-      const field = String(m.field || m.lauka_nosaukums || '').toLowerCase();
-      if (cat === 'pievienot' || field === 'uzmaniba') { const ts = m.lastModified || m.pedeja_laiks || m.created || m.eventTime || 0; if (ts && (now - ts) < 7 * 24 * 3600 * 1000) return true; if (!ts) return true; }
-    }
-    return false;
-  }
-
-  _checkObjCrit(cid, day) {
-    const latest = this._getLatestByClient(cid, day);
-    const t = latest['temperatura'], ur = latest['urina_daudzums'], h2o = latest['uznemts_ml'];
-    const findings = [];
-    const nT = t ? num(t.value) : NaN; if (!isNaN(nT) && nT >= 38.0) findings.push({ sev: 'crit', reason: 'Temperatūra >= 38.0 °C', meta: (t.date || '') + (t.time ? (' ' + t.time) : '') });
-    const nU = ur ? num(ur.value) : NaN; if (!isNaN(nU) && nU < 400) findings.push({ sev: 'crit', reason: 'Urīns 24h < 400 ml', meta: (ur.date || '') + (ur.time ? (' ' + ur.time) : '') });
-    const nH = h2o ? num(h2o.value) : NaN; if (!isNaN(nH) && nH < 800) findings.push({ sev: 'crit', reason: 'H₂O 24h < 800 ml', meta: (h2o.date || '') + (h2o.time ? (' ' + h2o.time) : '') });
-    return findings;
-  }
-
-  renderAttention() {
-    const box = document.getElementById('attentionList');
-    if (!box) return;
-    const dateEl = document.getElementById('medDateFilter');
-    const day = (dateEl && dateEl.value) || this._today();
-    const items = [];
-    this.allClients.forEach(c => {
-      const cid = c.id || c.ID; const name = ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim();
-      const flagged = this._hasFlagAttention(cid); const crit = this._checkObjCrit(cid, day);
-      if (flagged || crit.length) items.push({ cid, name, flagged, crit });
-    });
-    items.sort((a, b) => a.name.localeCompare(b.name));
-    if (!items.length) { box.innerHTML = '<div class="med-empty">Nav klientu, kam nepieciešama uzmanība</div>'; return; }
-    let html = '';
-    items.forEach(it => {
-      if (it.flagged) { html += '<div class="med-attn-item note"><div class="med-attn-header"><span>' + this.escapeHtml(it.name) + '</span><span>🟡 Manuāli atzīmēts</span></div><div class="med-attn-reason">Aprūpes lapā pievienota "Pievērst medicīnisko uzmanību" atzīme (aktīva ≤ 7 dienas)</div></div>'; }
-      it.crit.forEach(x => { html += '<div class="med-attn-item crit"><div class="med-attn-header"><span>' + this.escapeHtml(it.name) + '</span><span>🔴 Objektīvs kritērijs</span></div><div class="med-attn-reason">' + this.escapeHtml(x.reason) + '</div>' + (x.meta ? '<div class="med-attn-meta">' + this.escapeHtml(x.meta) + '</div>' : '') + '</div>'; });
-    });
-    box.innerHTML = html;
   }
 
   _wireUi() {
-    const search = document.getElementById('medClientSearch');
+    const search = document.getElementById('mhClientSearch');
     if (search) {
-      search.oninput = () => { this.searchTerm = search.value; this._rebuildFilteredClientIds(); this.renderClientCards(); this.renderAttention(); };
+      search.oninput = () => { this.searchTerm = search.value; this._rebuildFilteredClientIds(); this.renderView(); };
     }
-    const date = document.getElementById('medDateFilter');
-    if (date) {
-      date.value = this._today();
-      date.onchange = () => { this.renderClientCards(); this.renderAttention(); this.renderClientFilter(); };
-    }
-    const clientFilter = document.getElementById('medClientFilter');
+    const clientFilter = document.getElementById('mhClientFilter');
     if (clientFilter) {
       clientFilter.onchange = () => {
         const val = clientFilter.value;
         if (val) {
-          this.openClientDetail(val);
+          this.selectedClientId = val;
+          document.getElementById('mhViewDay').style.display = 'none';
+          document.getElementById('mhViewWeek').style.display = 'none';
+          document.getElementById('mhViewMonth').style.display = 'none';
+          const detail = document.getElementById('mhClientDetail');
+          if (detail) detail.style.display = 'block';
+          document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
+          this.renderClientDetail(val, document.getElementById('mhDateFilter').value || this._today());
         } else {
-          this.closeClientDetail();
+          this.selectedClientId = null;
+          document.getElementById('mhClientDetail').style.display = 'none';
+          document.getElementById('mhViewDay').style.display = 'block';
+          document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
+          document.querySelector('.mh-view-btn[data-view="day"]').classList.add('active');
+          this.view = 'day';
+          this.renderView();
         }
       };
     }
-    const off = document.getElementById('medOfflineBox');
-    const hint = document.getElementById('medOnlineHint');
-    const setNet = () => {
-      const online = navigator.onLine;
-      if (off) off.style.display = online ? 'none' : 'block';
-      if (hint) hint.style.display = online ? 'block' : 'none';
-      if (hint && online) hint.textContent = 'Skats ir tikai lasāms. Dati tiek ielādēti no Google Apps Script.';
-    };
-    setNet(); window.addEventListener('online', setNet); window.addEventListener('offline', setNet);
+    const date = document.getElementById('mhDateFilter');
+    if (date) {
+      date.onchange = () => {
+        if (this.selectedClientId) {
+          this.renderClientDetail(this.selectedClientId, date.value || this._today());
+        } else {
+          this.renderView();
+        }
+      };
+    }
+    const refresh = document.getElementById('mhRefreshBtn');
+    if (refresh) {
+      refresh.onclick = async () => {
+        if (!navigator.onLine) { this._setStatus('Nav savienojuma'); return; }
+        refresh.disabled = true; this._setStatus('Sinhronizē...');
+        try {
+          const result = await this.sync.forceFullSync((msg) => this._setStatus(msg));
+          if (result.offline) { this._setStatus('Sinhronizācija neizdevās'); }
+          else { await this.loadData(); this.renderView(); this._setStatus(null); }
+        } catch (err) { this._setStatus('Kļūda: ' + err.message); }
+        finally { refresh.disabled = false; }
+      };
+    }
+    const back = document.getElementById('btnBack');
+    if (back) back.onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    const medBack = document.getElementById('mhBackToList');
+    if (medBack) medBack.onclick = () => { this.closeClientDetail(); };
   }
 
   setupUI() {
@@ -600,34 +624,76 @@ class MedicineView {
         try {
           const result = await this.sync.forceFullSync((msg) => this._setStatus(msg));
           if (result.offline) { this._setStatus('Sinhronizācija neizdevās'); }
-          else { await this.loadData(); this.renderTabs(); this._setStatus(null); }
+          else { await this.loadData(); this.renderView(); this._setStatus(null); }
         } catch (err) { this._setStatus('Kļūda'); }
         finally { syncBtn.disabled = false; }
       });
     }
+    this._wireUi();
   }
 
   setupLanguageSwitcher() {
-    document.querySelectorAll('.lang-btn').forEach(btn => {
+    document.querySelectorAll('.mh-lang-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const lang = btn.dataset.lang;
-        if (lang && typeof setLang === 'function') { setLang(lang); document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+        if (lang && typeof setLang === 'function') { setLang(lang); document.querySelectorAll('.mh-lang-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
       });
     });
     if (typeof applyLanguage === 'function') applyLanguage();
   }
 
   _setStatus(msg) {
-    let el = document.getElementById('medStatus');
-    if (!el) { el = document.createElement('div'); el.id = 'medStatus'; document.body.appendChild(el); }
-    if (msg) { el.textContent = '🔄 ' + msg; el.className = 'med-status on'; } else { el.className = 'med-status'; }
+    const el = document.getElementById('mhStatus');
+    if (!el) return;
+    if (msg) { el.textContent = '🔄 ' + msg; el.style.display = 'block'; }
+    else { el.style.display = 'none'; }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ════════════════════════════════════════════════════════════════════
+
+  _clientName(c) {
+    return ((c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '')).trim() || ('ID: ' + (c.id || c.ID));
+  }
+
+  _weekStart(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    const day = d.getDay(); // 0=Sun
+    const diff = (day === 0 ? -6 : 1 - day); // Monday start
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  _iso(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  _fmtDayLabel(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    const names = ['Svētdiena','Pirmdiena','Otrdiena','Trešdiena','Ceturtdiena','Piektdiena','Sestdiena'];
+    const months = ['janv','febr','marts','apr','maijs','jūnijs','jūlijs','aug','sept','okt','nov','dec'];
+    return names[d.getDay()] + ', ' + d.getDate() + '. ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  _fmtWeekLabel(start, end) {
+    const s = new Date(start + 'T00:00:00');
+    const e = new Date(end + 'T00:00:00');
+    const months = ['janv','febr','marts','apr','maijs','jūnijs','jūlijs','aug','sept','okt','nov','dec'];
+    return s.getDate() + '. ' + months[s.getMonth()] + ' – ' + e.getDate() + '. ' + months[e.getMonth()] + ' ' + e.getFullYear();
+  }
+
+  _fmtMonthLabel(y, m) {
+    const months = ['janvāris','februāris','marts','aprīlis','maijs','jūnijs','jūlijs','augusts','septembris','oktobris','novembris','decembris'];
+    return months[m] + ' ' + y;
   }
 
   escapeHtml(text) {
     return String(text === null || text === undefined ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  render() { this.renderTabs(); }
+  render() { this.renderAll(); }
 }
 
 let medicineView;

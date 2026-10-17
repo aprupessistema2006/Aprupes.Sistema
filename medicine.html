@@ -3,44 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#2c3e50">
+  <meta name="theme-color" content="#1a3a5c">
   <link rel="manifest" href="manifest.json">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>Medicīniskais uzraudzības skats — Aprūpes sistēma</title>
+  <title>Medicīniskais uzraudzība — Aprūpes sistēma</title>
   <link rel="stylesheet" href="css/index.css?v=20261016-1400">
   <link rel="stylesheet" href="css/medicine.css?v=20261016-1400">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
-  <style>
-    .med-tabs { display:flex; gap:8px; margin:12px 16px; flex-wrap:wrap; }
-    .med-tab { flex:1; padding:10px 12px; border:1px solid #e0e0e0; background:#f9f9f9; border-radius:8px; cursor:pointer; font-weight:600; min-width:140px; }
-    .med-tab.active { background:#2c3e50; color:#fff; border-color:#2c3e50; }
-    .med-tab-panel { display:none; margin:0 16px 16px; }
-    .med-tab-panel.active { display:block; }
-    .med-toolbar { display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
-    .med-search { flex:1; min-width:200px; padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; }
-    .med-date { padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; }
-    .med-select { padding:8px 10px; border:1px solid #e0e0e0; border-radius:8px; background:#fff; font-size:14px; min-width:180px; }
-    .med-table-wrap { overflow:auto; border:1px solid #e0e0e0; border-radius:8px; background:#fff; max-height:calc(100vh - 180px); }
-    .med-table { width:100%; border-collapse:collapse; font-size:13px; }
-    .med-table th, .med-table td { padding:6px 8px; border:1px solid #f0f0f0; white-space:nowrap; }
-    .med-table th { background:#fafafa; position:sticky; top:0; z-index:1; font-weight:600; }
-    .med-table tbody tr:hover { background:#fafafa; }
-    .dir-up { color:#d32f2f; font-weight:700; }
-    .dir-down { color:#2e7d32; font-weight:700; }
-    .dir-flat { color:#666; }
-    .med-offline { margin:16px; padding:12px 16px; background:#fff3cd; border:1px solid #ffc107; border-radius:8px; color:#856404; }
-    .med-online-hint { margin:0 16px 12px; color:#666; font-size:12px; }
-    .med-attn-list { display:flex; flex-direction:column; gap:8px; }
-    .med-attn-item { border:1px solid #f0f0f0; border-radius:8px; padding:10px 12px; background:#fff; }
-    .med-attn-item.crit { border-left:4px solid #d32f2f; }
-    .med-attn-item.attn { border-left:4px solid #f57f17; }
-    .med-attn-header { display:flex; justify-content:space-between; margin-bottom:4px; font-weight:600; }
-    .med-attn-reason { font-size:13px; }
-    .med-attn-meta { font-size:12px; color:#666; margin-top:4px; }
-    .med-empty { padding:16px; text-align:center; color:#666; }
-    .med-filter-bar { display:flex; gap:8px; margin:12px 16px; align-items:center; flex-wrap:wrap; }
-    .med-filter-label { font-size:13px; font-weight:600; color:#333; white-space:nowrap; }
-  </style>
 </head>
 <body>
   <div class="splash-screen" id="splashScreen">
@@ -50,75 +19,144 @@
     <div class="splash-content">
       <img src="logo/logoDS.png" alt="Aprūpes sistēma" class="splash-logo">
       <h1 class="splash-title">Aprūpes sistēma</h1>
-      <p class="splash-subtitle">Medicīniskais uzraudzības skats</p>
+      <p class="splash-subtitle">Medicīniskais uzraudzība</p>
     </div>
   </div>
 
-  <div class="top-bar">
-    <div class="top-bar-left">
-      <button id="btnBack" class="icon-btn" title="Atpakaļ">
-        <span>&larr;</span>
-      </button>
-      <h1 class="top-bar-title">&#127973; Medicīniskais uzraudzības skats</h1>
-    </div>
-    <div class="top-bar-right">
-      <div class="lang-switcher-global">
-        <button data-lang="lv" class="lang-btn active">LV</button>
-        <button data-lang="ru" class="lang-btn">RU</button>
-        <button data-lang="en" class="lang-btn">EN</button>
+  <header class="mh-header">
+    <div class="mh-brand">
+      <div class="mh-logo">🏥</div>
+      <div class="mh-title">
+        <div class="mh-title-main">Medicīniskais uzraudzība</div>
+        <div class="mh-title-sub">Aprūpes sistēma</div>
       </div>
-      <button id="manualSyncBtn" class="icon-btn" title="Sinhronizēt" style="display:none;">
-        <span>&#8635;</span>
+    </div>
+    <div class="mh-actions">
+      <div class="mh-lang">
+        <button data-lang="lv" class="mh-lang-btn active">LV</button>
+        <button data-lang="ru" class="mh-lang-btn">RU</button>
+        <button data-lang="en" class="mh-lang-btn">EN</button>
+      </div>
+      <button id="manualSyncBtn" class="mh-btn-sync" title="Sinhronizēt" style="display:none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 12a9 9 0 11-9-9 9 9 0 019 9z"/><path d="M17 12h-4"/><path d="M12 17v-4"/><path d="M16 12a4 4 0 11-4-4 4 4 0 014 4z"/></svg>
       </button>
-      <button id="logoutBtn" class="icon-btn" title="Iziet">
-        <span>&#128682;</span>
+      <button id="logoutBtn" class="mh-btn-logout" title="Iziet">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><polyline points="17 18 12 23 7 18"/><line x1="12" y1="23" x2="12" y2="1"/></svg>
       </button>
     </div>
+  </header>
+
+  <div class="mh-offline" id="mhOffline">
+    <span>🔴</span> Darbojaties bezsaistē — dati tiks sinhronizēti, kad atkal būs internets
   </div>
 
-  <div class="status-message" id="statusMessage"></div>
-  <div id="medOnlineHint" class="med-online-hint" style="display:none;"></div>
-  <div id="medOfflineBox" class="med-offline" style="display:none;">Nepieciešams interneta savienojums</div>
+  <div class="mh-status" id="mhStatus"></div>
 
-  <main class="med-container">
-    <div class="med-filter-bar">
-      <span class="med-filter-label" data-i18n="client">Klients</span>
-      <select id="medClientFilter" class="med-select">
-        <option value="" data-i18n="allClients">Visi klienti</option>
-      </select>
-      <input type="search" id="medClientSearch" class="med-search" placeholder="Meklēt klientu pēc vārda...">
-      <input type="date" id="medDateFilter" class="med-date">
+  <main class="mh-main">
+    <!-- Top filter bar -->
+    <div class="mh-filter-bar">
+      <div class="mh-filter-group">
+        <label class="mh-filter-label" data-i18n="client">Klients</label>
+        <select id="mhClientFilter" class="mh-select">
+          <option value="" data-i18n="allClients">Visi klienti</option>
+        </select>
+      </div>
+      <div class="mh-filter-group">
+        <label class="mh-filter-label" data-i18n="search">Meklēt</label>
+        <input type="search" id="mhClientSearch" class="mh-search" placeholder="Klienta vārds...">
+      </div>
+      <div class="mh-filter-group mh-filter-group-date">
+        <label class="mh-filter-label" data-i18n="date">Datums</label>
+        <input type="date" id="mhDateFilter" class="mh-date">
+      </div>
+      <div class="mh-view-toggle">
+        <label class="mh-view-label" data-i18n="view">Skats</label>
+        <button class="mh-view-btn active" data-view="day" title="Diena"><svg width="14" height="14" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" fill="none" stroke="currentColor" stroke-width="2" rx="2"/></svg> Diena</button>
+        <button class="mh-view-btn" data-view="week" title="Nedēļa"><svg width="14" height="14" viewBox="0 0 24 24"><rect width="4" height="18" x="3" y="3" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><rect width="4" height="18" x="9" y="3" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><rect width="4" height="18" x="15" y="3" fill="none" stroke="currentColor" stroke-width="2" rx="1"/><rect width="4" height="18" x="21" y="3" fill="none" stroke="currentColor" stroke-width="2" rx="1"/></svg> Nedēļa</button>
+        <button class="mh-view-btn" data-view="month" title="Mēnesis"><svg width="14" height="14" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" fill="none" stroke="currentColor" stroke-width="2" rx="2"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="2"/><line x1="9" y1="21" x2="9" y2="21" stroke="currentColor" stroke-width="2"/><line x1="21" y1="9" x2="21" y2="21" stroke="currentColor" stroke-width="2"/><line x1="9" y1="21" x2="9" y2="3" stroke="currentColor" stroke-width="2"/></svg> Mēnesis</button>
+      </div>
+      <button id="mhRefreshBtn" class="mh-btn-refresh" title="Atjaunināt datus">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 12a9 9 0 11-9-9 9 9 0 019 9z"/><path d="M17 12h-4"/><path d="M12 17v-4"/></svg>
+      </button>
     </div>
 
-    <div class="med-kpis" id="medKpis"></div>
-    <div class="med-legend" id="medLegend"></div>
-
-    <div class="med-tabs">
-      <button class="med-tab active" data-tab="attention">🔴 Nepieciešama uzmanība</button>
-      <button class="med-tab" data-tab="all">👥 Visi klienti</button>
-    </div>
-
-    <section class="med-tab-panel active" id="panel-attention">
-      <div id="attentionList" class="med-attn-list"></div>
+    <!-- Attention banner -->
+    <section class="mh-attention-section">
+      <div class="mh-section-header">
+        <h2 class="mh-section-title" data-i18n="attention">🔴 Nepieciešama uzmanība</h2>
+        <span class="mh-section-count" id="mhAttnCount">0</span>
+      </div>
+      <div id="mhAttentionList" class="mh-attention-list"></div>
     </section>
 
-    <section class="med-tab-panel" id="panel-all">
-      <div class="med-client-list" id="medClientList"></div>
-    </section>
+    <!-- Main data view -->
+    <section class="mh-data-section">
+      <div class="mh-section-header">
+        <h2 class="mh-section-title" id="mhDataTitle">👥 Klientu datu skats</h2>
+        <span class="mh-section-count" id="mhDataCount">0 klienti</span>
+      </div>
 
-    <section class="med-detail" id="medClientDetail" style="display:none;">
-      <button class="med-back" id="medBackToList">← Atpakaļ uz klientu sarakstu</button>
-      <div class="med-detail-head">
-        <div class="med-detail-id">
-          <h2 id="medDetailName"></h2>
-          <div class="med-detail-meta" id="medDetailMeta"></div>
+      <!-- Day view -->
+      <div id="mhViewDay" class="mh-view mh-view-day active">
+        <div class="mh-day-header">
+          <span id="mhDayDateLabel" class="mh-day-label"></span>
+        </div>
+        <div class="mh-day-table-wrap">
+          <table class="mh-day-table">
+            <thead>
+              <tr>
+                <th class="mh-th-client" data-i18n="client">Klients</th>
+                <th class="mh-th-field"><span>🌡</span> Temperatūra</th>
+                <th class="mh-th-field"><span>🍽</span> Brokkastis</th>
+                <th class="mh-th-field"><span>🍽</span> Pusdienas</th>
+                <th class="mh-th-field"><span>🍽</span> Launags</th>
+                <th class="mh-th-field"><span>🍽</span> Vakariņi</th>
+                <th class="mh-th-field"><span>💧</span> Urīns (ml)</th>
+                <th class="mh-th-field"><span>🥤</span> Ūdens (ml)</th>
+                <th class="mh-th-field"><span>🚽</span> Vēdera izeja</th>
+                <th class="mh-th-time" data-i18n="updated">Atjaunināts</th>
+              </tr>
+            </thead>
+            <tbody id="mhDayBody"></tbody>
+          </table>
         </div>
       </div>
-      <div class="med-detail-date" id="medDetailDate"></div>
-      <div class="med-kpis" id="medDetailKpis"></div>
-      <div id="medDetailBlocks"></div>
+
+      <!-- Week view -->
+      <div id="mhViewWeek" class="mh-view mh-view-week">
+        <div class="mh-week-header" id="mhWeekHeader"></div>
+        <div class="mh-week-table-wrap">
+          <table id="mhWeekTable" class="mh-week-table">
+            <thead><tr></tr></thead>
+            <tbody id="mhWeekBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Month view -->
+      <div id="mhViewMonth" class="mh-view mh-view-month">
+        <div class="mh-month-header" id="mhMonthHeader"></div>
+        <div class="mh-month-table-wrap">
+          <table id="mhMonthTable" class="mh-month-table">
+            <thead><tr></tr></thead>
+            <tbody id="mhMonthBody"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
   </main>
+
+  <!-- Client detail panel -->
+  <section class="mh-detail-panel" id="mhClientDetail" style="display:none;">
+    <button class="mh-detail-close" id="mhBackToList">← Atpakaļ uz skatu</button>
+    <div class="mh-detail-header">
+      <h2 id="mhDetailName"></h2>
+      <div class="mh-detail-meta" id="mhDetailMeta"></div>
+    </div>
+    <div class="mh-detail-date" id="mhDetailDate"></div>
+    <div class="mh-detail-kpis" id="mhDetailKpis"></div>
+    <div id="mhDetailBlocks"></div>
+  </section>
 
   <script src="js/config.js?v=20261016-1400"></script>
   <script src="js/db.js?v=20261016-1400"></script>
@@ -131,4 +169,3 @@
   <script src="js/update_notifier.js?v=20261016-1400"></script>
 </body>
 </html>
-
