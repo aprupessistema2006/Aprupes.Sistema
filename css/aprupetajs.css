@@ -6,35 +6,36 @@
 }
 
 :root {
-  --primary: #2c3e50;
-  --primary-dark: #1a252f;
-  --accent: #27ae60;
-  --accent-light: #2ecc71;
-  --accent-bg: #e8f5e9;
-  --danger: #e74c3c;
-  --danger-bg: #fdecea;
-  --warning: #f39c12;
-  --warning-bg: #fff3e0;
-  --info: #3498db;
-  --info-bg: #e3f2fd;
+  /* Pamattokēni — saskaņā ar css/design-system.css */
+  --primary: #1e3a8a;
+  --primary-dark: #1e40af;
+  --accent: #059669;
+  --accent-light: #bbf7d0;
+  --accent-bg: #eef2ff;
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --info: #1e3a8a;
+  --info-bg: #eef2ff;
   --purple: #9b59b6;
   --purple-bg: #f4ecf7;
   --teal: #16a085;
   --teal-bg: #e0f5f1;
-  --light: #ecf0f1;
-  --gray: #95a5a6;
+  --light: #f1f5f9;
+  --gray: #94a3b8;
   --gray-light: #f5f6fa;
   --gray-lighter: #fafbfc;
   --gray-dark: #bdc3c7;
-  --text: #2c3e50;
-  --text-light: #7f8c8d;
-  --border: #e0e6ed;
+  --text: #0f172a;
+  --text-light: #64748b;
+  --border: #e2e8f0;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
   --shadow: 0 2px 12px rgba(0,0,0,0.08);
   --shadow-lg: 0 4px 20px rgba(0,0,0,0.12);
-  --transition: all 0.2s ease;
-  --radius: 14px;
-  --radius-sm: 10px;
+  --transition: all 0.15s ease;
+  --radius: 8px;
+  --radius-sm: 6px;
 }
 
 html, body {
@@ -1058,6 +1059,34 @@ body {
   background: var(--gray-dark);
   transform: none;
 }
+
+.sign-btn-attention {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+}
+
+.sign-btn-attention:hover {
+  background: #ffeeba;
+  border-color: #ffc107;
+}
+
+.ds-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: inherit;
+  box-sizing: border-box;
+}
+
+.ds-textarea:focus {
+  outline: none;
+  border-color: var(--ds-primary);
+}
+
 
 .history-card {
   background: white;

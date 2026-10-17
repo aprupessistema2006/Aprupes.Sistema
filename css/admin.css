@@ -5,19 +5,21 @@
 }
 
 :root {
-  --primary: #2c3e50;
-  --primary-dark: #1a252f;
-  --accent: #27ae60;
-  --danger: #e74c3c;
-  --warning: #f39c12;
-  --gray: #95a5a6;
-  --gray-light: #ecf0f1;
-  --border: #e0e0e0;
-  --text: #2c3e50;
-  --text-light: #7f8c8d;
-  --shadow: 0 2px 8px rgba(0,0,0,0.1);
-  --border-radius: 10px;
-  --transition: all 0.2s ease;
+  /* Pamattokēni — saskaņā ar css/design-system.css */
+  --primary: #1e3a8a;
+  --primary-dark: #1e40af;
+  --accent: #059669;
+  --accent-light: #bbf7d0;
+  --danger: #b91c1c;
+  --warning: #d97706;
+  --gray: #94a3b8;
+  --gray-light: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-light: #64748b;
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --border-radius: 8px;
+  --transition: all 0.15s ease;
 }
 
 body {
@@ -1742,5 +1744,60 @@ body {
 @media (max-width: 480px) {
   .client-autocomplete-item { font-size: 15px; padding: 14px; }
 }
+
+/* ── Admin eksporta sadaļas (izvadīti no inline stiliem) ── */
+
+.export-section-blue {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-left: 4px solid #1976d2;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.export-title-blue { color: #0d47a1; margin: 0 0 8px 0; font-size: 16px; font-weight: 700; }
+.export-help-blue { color: #1565c0; margin: 0 0 12px 0; font-size: 14px; }
+
+.export-section-orange {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  border-left: 4px solid #e65100;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.export-title-orange { color: #bf360c; margin: 0 0 8px 0; font-size: 16px; font-weight: 700; }
+.export-help-orange { color: #e65100; margin: 0 0 12px 0; font-size: 14px; }
+
+.export-row-start { align-items: flex-start; gap: 12px; }
+.export-label-wide { flex: 1; min-width: 200px; display: block; }
+.export-mt { margin-top: 10px; }
+.ds-mt-3 { margin-top: 12px; }
+
+.export-help-sm { color: #666; font-size: 13px; margin-bottom: 14px; }
+
+.ds-select-multi {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  min-height: 100px;
+  background: white;
+}
+
+.ds-select-sm {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e0e6ed;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: white;
+  font-size: 14px;
+}
+
+.btn-block { width: 100%; }
+.btn-mt-sm { margin-top: 4px; }
+
 
 

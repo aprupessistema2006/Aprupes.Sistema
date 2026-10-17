@@ -9,7 +9,8 @@
   <meta name="theme-color" content="#2c3e50">
   <link rel="manifest" href="manifest.json">
   <title data-i18n="loginTitle">Aprūpes forma</title>
-  <link rel="stylesheet" href="css/aprupetajs.css?v=20261016-1400">
+  <link rel="stylesheet" href="css/design-system.css?v=20261017-2000">
+  <link rel="stylesheet" href="css/aprupetajs.css?v=20261017-2000">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
@@ -170,7 +171,7 @@
         <div class="signature-card-title" style="color:#e74c3c;">⚠️ Pievērst medicīnisko uzmanību</div>
         <div class="signature-card-info" id="attentionInfo" style="display:none;"></div>
       </div>
-      <button id="attentionBtn" class="sign-btn" style="background:#fff3cd;color:#856404;border:1px solid #ffc107;" title="Pievienot komentāru par medicīnisko situāciju">
+      <button id="attentionBtn" class="sign-btn sign-btn-attention" title="Pievienot komentāru par medicīnisko situāciju">
         Pievienot
       </button>
     </div>
@@ -185,7 +186,7 @@
         <div class="modal-body">
           <div style="margin-bottom:12px;">
             <label style="display:block;font-weight:600;margin-bottom:4px;">Komentārs medicīniskajam darbiniekam:</label>
-            <textarea id="attentionComment" placeholder="Aprakstiet, kāda palīdzība/vērtība ir vajadzīga..." style="width:100%;min-height:80px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;"></textarea>
+            <textarea id="attentionComment" placeholder="Aprakstiet, kāda palīdzība/vērtība ir vajadzīga..." class="ds-textarea"></textarea>
           </div>
           <div style="display:flex;gap:8px;justify-content:flex-end;">
             <button id="attentionModalCancel" class="btn-secondary">Atcelt</button>

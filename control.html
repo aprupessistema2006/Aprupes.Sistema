@@ -9,7 +9,8 @@
   <meta name="theme-color" content="#2c3e50">
   <link rel="manifest" href="manifest.json">
   <title data-i18n="loginTitle">Kontroliera panelis</title>
-  <link rel="stylesheet" href="css/admin.css?v=20261016-1400">
+  <link rel="stylesheet" href="css/design-system.css?v=20261017-2000">
+  <link rel="stylesheet" href="css/admin.css?v=20261017-2000">
   <link rel="icon" href="logo/logo_admin.png" type="image/png">
 </head>
 <body>
@@ -49,7 +50,7 @@
         <div class="client-search-wrap">
           <span data-i18n="client">Klients</span>: 
           <div class="client-autocomplete" id="exportClientAuto">
-            <input type="text" id="exportClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
+            <input type="text" id="exportClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" class="ds-input">
             <div class="client-autocomplete-list" id="exportClientList"></div>
           </div>
           <input type="hidden" id="exportClient" required>
@@ -66,7 +67,7 @@
         <div class="client-search-wrap">
           <span data-i18n="client">Klients</span>: 
           <div class="client-autocomplete" id="monthViewClientAuto">
-            <input type="text" id="monthViewClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" style="width:100%;padding:12px 14px;font-size:16px;border:2px solid var(--border);border-radius:8px;box-sizing:border-box;">
+            <input type="text" id="monthViewClientSearch" placeholder="🔍 Raksti vārdu..." autocomplete="off" class="ds-input">
             <div class="client-autocomplete-list" id="monthViewClientList"></div>
           </div>
           <input type="hidden" id="monthViewClient" required>
