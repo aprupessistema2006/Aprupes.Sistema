@@ -237,6 +237,21 @@ body {
   background: var(--gray-light);
 }
 
+/* Atpakaļ poga — abas klases (btn-icon + btn-text-icon) kopā */
+.btn-icon.btn-text-icon {
+  width: auto;
+  height: auto;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--border-radius);
+  padding: 8px 12px;
+  gap: 6px;
+  color: var(--text);
+}
+.btn-icon.btn-text-icon:hover {
+  background: var(--gray-light);
+}
+
 .logout-btn.btn-text-icon {
   color: var(--danger) !important;
   background: rgba(231, 76, 60, 0.08) !important;
@@ -654,14 +669,8 @@ body {
     gap: 6px;
   }
    .client-filter-badge {
-    align-self: flex-start;
-  }
-}
-  .sync-btn {
-    min-height: 44px !important;
-    font-size: 12px !important;
-    padding: 6px 12px !important;
-  }
+     align-self: flex-start;
+   }
 }
 
 @media (min-width: 481px) and (max-width: 1024px) {
@@ -1348,6 +1357,8 @@ body {
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 600px;
   -webkit-overflow-scrolling: touch;
 }
 

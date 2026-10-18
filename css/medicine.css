@@ -712,6 +712,19 @@ img {
   padding-right: var(--space-5);
 }
 
+/* Table view wraps — horizontal and vertical scrolling */
+.mh-day-table-wrap,
+.mh-week-table-wrap,
+.mh-month-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 60vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  -webkit-overflow-scrolling: touch;
+}
+
 .mh-day-table td,
 .mh-week-table td,
 .mh-month-table td {
@@ -851,21 +864,24 @@ img {
   top: var(--space-4);
   left: var(--space-4);
   z-index: 5;
-  width: 36px;
-  height: 36px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  color: var(--color-text-muted);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--color-text-primary);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  transition: background-color 0.15s, color 0.15s;
+  min-width: 44px;
+  min-height: 44px;
+  transition: background-color var(--ds-duration-fast), border-color var(--ds-duration-fast);
 }
 
 .mh-detail-panel .mh-detail-close:hover {
   background: var(--color-surface-tertiary);
+  border-color: var(--color-border-hover);
   color: var(--color-text-primary);
 }
 

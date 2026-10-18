@@ -666,10 +666,7 @@ textarea.input { height: auto; min-height: 100px; padding: var(--ds-space-3); re
   line-height: var(--ds-line-height-normal);
 }
 
-/* Atbalsta esošajām lapām — ne pārrakstīt mh-klases, kas ir medicīnai specifiskas */
-.mh-header, .mh-main, .mh-filter-bar, .mh-view-btn, .mh-lang-btn, .mh-btn-sync, .mh-btn-logout, .mh-select, .mh-search, .mh-date, .mh-view-toggle, .mh-attention-section, .mh-data-section, .mh-detail-panel, .mh-detail-body, .mh-row {
-  /* šīs klases ir definētas medicine.css — design system neatverts tās */
-}
+/* Atbalsta esošajām lapām — mh-* klases ir definētas medicine.css, design sistemā to neatverts */
 
 /* ───────────────────────── VIEWPORT BREAKPOINTS (9 classes) ───────────────────────── */
 /* Mobile S: 320–479px | Mobile M: 480–599px | Mobile L: 600–767px */
