@@ -854,12 +854,15 @@ body {
 
 .logout-confirm-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 9999;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
   animation: fadeIn 0.2s ease;
 }
 
@@ -873,87 +876,109 @@ body {
   top: 12vh !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  background: white;
-  border-radius: 16px;
-  padding: 26px 22px;
-  max-width: 380px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-6) var(--ds-space-5);
+  max-width: 420px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-  animation: scaleIn 0.2s ease;
+  box-shadow: var(--ds-shadow-lg);
+  animation: scaleIn 0.25s ease;
   box-sizing: border-box;
+  text-align: center;
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.85); }
+  from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
 }
 
 .logout-confirm-icon {
-  font-size: 48px;
-  text-align: center;
-  margin-bottom: 8px;
+  font-size: 56px;
+  margin-bottom: var(--ds-space-3);
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+  display: block;
 }
 
 .logout-confirm-title {
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--primary);
-  text-align: center;
-  margin-bottom: 10px;
+  font-size: var(--ds-font-size-lg);
+  font-weight: var(--ds-font-weight-bold);
+  color: var(--ds-text-primary);
+  margin: 0 0 var(--ds-space-2);
+  line-height: var(--ds-line-height-tight);
 }
 
 .logout-confirm-msg {
-  font-size: 14px;
-  color: #555;
-  text-align: center;
-  line-height: 1.5;
-  margin-bottom: 18px;
+  font-size: var(--ds-font-size-sm);
+  color: var(--ds-text-secondary);
+  line-height: var(--ds-line-height-normal);
+  margin: 0 0 var(--ds-space-6);
 }
 
 .logout-confirm-msg.unsaved {
-  color: var(--danger);
-  font-weight: 600;
+  color: var(--ds-critical);
+  font-weight: var(--ds-font-weight-semibold);
 }
 
 .logout-confirm-msg.syncing {
-  color: var(--primary);
-  font-weight: 600;
+  color: var(--ds-primary);
+  font-weight: var(--ds-font-weight-semibold);
 }
 
 .logout-buttons {
   display: flex;
-  gap: 10px;
+  gap: var(--ds-space-2);
 }
 
 .logout-btn-cancel,
-.logout-btn-confirm {
+.logout-btn-confirm,
+.logout-btn-sync {
   flex: 1;
-  padding: 12px;
-  font-size: 15px;
-  font-weight: 600;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--ds-radius-md);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--ds-transition);
+  min-height: 44px;
 }
 
 .logout-btn-cancel {
-  background: #ecf0f1;
-  color: var(--primary);
+  background: var(--ds-surface-secondary);
+  color: var(--ds-text-primary);
+  border: 1px solid var(--ds-border);
 }
-
-.logout-btn-cancel:hover {
-  background: #d5dbdb;
+.logout-btn-cancel:hover:not(:disabled) {
+  background: var(--ds-surface-tertiary);
+  border-color: var(--ds-border-hover);
 }
 
 .logout-btn-confirm {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  color: white;
+  background: var(--ds-critical);
+  color: var(--ds-text-inverse);
+}
+.logout-btn-confirm:hover:not(:disabled) {
+  background: #991b1b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(185, 28, 28, 0.35);
 }
 
-.logout-btn-confirm:hover {
+.logout-btn-sync {
+  background: var(--ds-primary);
+  color: var(--ds-text-inverse);
+}
+.logout-btn-sync:hover:not(:disabled) {
+  background: var(--ds-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(231, 76, 60, 0.4);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.35);
+}
+
+.logout-btn-cancel:disabled,
+.logout-btn-confirm:disabled,
+.logout-btn-sync:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .logout-goodbye-overlay {
