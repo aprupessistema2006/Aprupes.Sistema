@@ -52,6 +52,11 @@ confirm: function(opts) {
         </div>
       `;
       document.body.appendChild(overlay);
+      const card = overlay.querySelector('.logout-confirm-card');
+      card.style.position = 'fixed';
+      card.style.top = '12vh';
+      card.style.left = '50%';
+      card.style.transform = 'translateX(-50%)';
       let syncInProgress = false;
       overlay.addEventListener('click', async (e) => {
         const act = e.target.dataset && e.target.dataset.act;
