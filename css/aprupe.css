@@ -5,32 +5,32 @@
 }
 
 :root {
-  /* Pamattokēni — saskaņā ar css/design-system.css */
-  --primary: #1e3a8a;
-  --primary-dark: #1e40af;
-  --accent: #059669;
-  --accent-light: #bbf7d0;
-  --danger: #b91c1c;
-  --warning: #d97706;
-  --light: #f1f5f9;
-  --gray: #94a3b8;
-  --gray-light: #f1f5f9;
-  --gray-dark: #64748b;
-  --text: #0f172a;
-  --text-light: #64748b;
-  --border: #e2e8f0;
-  --shadow: 0 2px 8px rgba(0,0,0,0.1);
-  --shadow-lg: 0 4px 20px rgba(0,0,0,0.15);
-  --transition: all 0.15s ease;
-  --border-radius: 8px;
+  /* Pamattokēni — saistīti ar css/design-system.css (viena patiesa patiesība) */
+  --primary: var(--ds-primary);
+  --primary-dark: rgb(49 46 129 / 0.8);
+  --accent: var(--ds-ok);
+  --accent-light: var(--ds-ok-border);
+  --danger: var(--ds-critical);
+  --warning: var(--ds-warning);
+  --light: var(--ds-surface-tertiary);
+  --gray: var(--ds-neutral);
+  --gray-light: var(--ds-surface-tertiary);
+  --gray-dark: var(--ds-text-muted);
+  --text: var(--ds-text-primary);
+  --text-light: var(--ds-text-muted);
+  --border: var(--ds-border);
+  --shadow: var(--ds-shadow-md);
+  --shadow-lg: var(--ds-shadow-lg);
+  --transition: var(--ds-transition);
+  --border-radius: var(--ds-radius-md);
   --card-height: 120px;
   --compact-card-height: 76px;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f5f6fa;
-  color: var(--text);
+  font-family: var(--ds-font-sans);
+  background: var(--ds-background);
+  color: var(--ds-text-primary);
   overflow-x: hidden;
   padding-bottom: 60px;
 }
@@ -97,7 +97,7 @@ body {
   font-size: 13px;
   padding: 4px 12px;
   border-radius: 20px;
-  background: #e8f5e9;
+  background: var(--ds-ok-bg);
   color: var(--accent);
   font-weight: 500;
 }
@@ -129,7 +129,7 @@ body {
 
 .sync-badge.synced,
 .sync-badge.saglabāts {
-  background: #e8f5e9;
+  background: var(--ds-ok-bg);
   color: var(--accent);
 }
 
@@ -185,7 +185,7 @@ body {
 }
 
 .retry-btn:hover:not(:disabled) {
-  background: #e67e22;
+  background: var(--ds-warning);
   transform: translateY(-1px);
 }
 
@@ -1136,7 +1136,7 @@ body {
   max-width: 90%;
   min-width: 260px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #c0392b 0%, #e67e22 100%);
+  background: linear-gradient(135deg, #c0392b 0%, var(--ds-warning) 100%);
   box-shadow: 0 4px 16px rgba(192, 57, 43, 0.35);
   animation: newTaskPulse 1.6s ease-in-out infinite;
   display: flex;
@@ -1386,7 +1386,7 @@ body {
 
 .tasks-table tbody tr.task-completed {
   opacity: 0.6;
-  background: #e8f5e9;
+  background: var(--ds-ok-bg);
 }
 
 .tasks-table tbody tr.task-row-clickable {
@@ -1432,7 +1432,7 @@ body {
 }
 
 .tasks-table .task-priority.low {
-  background: #e8f5e9;
+  background: var(--ds-ok-bg);
   color: var(--accent);
 }
 
@@ -1611,7 +1611,7 @@ body {
 }
 
 .lang-btn:hover {
-  background: #e8f5e9;
+  background: var(--ds-ok-bg);
   color: #1b5e20;
 }
 

@@ -6,42 +6,42 @@
 }
 
 :root {
-  /* Pamattokēni — saskaņā ar css/design-system.css */
-  --primary: #1e3a8a;
-  --primary-dark: #1e40af;
-  --accent: #059669;
-  --accent-light: #bbf7d0;
-  --accent-bg: #eef2ff;
-  --danger: #b91c1c;
-  --danger-bg: #fef2f2;
-  --warning: #d97706;
-  --warning-bg: #fffbeb;
-  --info: #1e3a8a;
-  --info-bg: #eef2ff;
+  /* Pamattokēni — saistīti ar css/design-system.css (viena patiesa patiesība) */
+  --primary: var(--ds-primary);
+  --primary-dark: rgb(49 46 129 / 0.8);
+  --accent: var(--ds-ok);
+  --accent-light: var(--ds-ok-border);
+  --accent-bg: var(--ds-primary-light);
+  --danger: var(--ds-critical);
+  --danger-bg: var(--ds-critical-bg);
+  --warning: var(--ds-warning);
+  --warning-bg: var(--ds-warning-bg);
+  --info: var(--ds-primary);
+  --info-bg: var(--ds-primary-light);
   --purple: #9b59b6;
   --purple-bg: #f4ecf7;
   --teal: #16a085;
   --teal-bg: #e0f5f1;
-  --light: #f1f5f9;
-  --gray: #94a3b8;
-  --gray-light: #f5f6fa;
-  --gray-lighter: #fafbfc;
-  --gray-dark: #bdc3c7;
-  --text: #0f172a;
-  --text-light: #64748b;
-  --border: #e2e8f0;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
-  --shadow: 0 2px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 4px 20px rgba(0,0,0,0.12);
-  --transition: all 0.15s ease;
-  --radius: 8px;
-  --radius-sm: 6px;
+  --light: var(--ds-surface-tertiary);
+  --gray: var(--ds-neutral);
+  --gray-light: var(--ds-background);
+  --gray-lighter: var(--ds-surface-secondary);
+  --gray-dark: var(--ds-border-hover);
+  --text: var(--ds-text-primary);
+  --text-light: var(--ds-text-muted);
+  --border: var(--ds-border);
+  --shadow-sm: var(--ds-shadow-sm);
+  --shadow: var(--ds-shadow-md);
+  --shadow-lg: var(--ds-shadow-lg);
+  --transition: var(--ds-transition);
+  --radius: var(--ds-radius-md);
+  --radius-sm: var(--ds-radius-sm);
 }
 
 html, body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--gray-light);
-  color: var(--text);
+  font-family: var(--ds-font-sans);
+  background: var(--ds-background);
+  color: var(--ds-text-primary);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -783,7 +783,7 @@ body {
 }
 
 .retry-btn:hover:not(:disabled) {
-  background: #e67e22;
+  background: var(--ds-warning);
   transform: translateY(-1px);
 }
 
@@ -1695,7 +1695,7 @@ body {
   margin-top: 4px;
 }
 .task-badge-urgent { background: #ffebee; color: #c0392b; border: 1px solid #e74c3c; }
-.task-badge-today { background: #fff8e1; color: #e67e22; border: 1px solid #f39c12; }
+.task-badge-today { background: #fff8e1; color: var(--ds-warning); border: 1px solid #f39c12; }
 .task-badge-normal { background: #e3f2fd; color: #1976d2; border: 1px solid #2196f3; }
 .task-badge-arrow { font-size: 16px; line-height: 1; }
 .lang-switcher {

@@ -8,21 +8,21 @@
 /* ───────────────────────── PAMATTOKĒNI ───────────────────────── */
 
 :root {
-  /* ── Krāsas ── */
+  /* ── Krāsas — deep midnight navy, refined indigo, clean neutral ── */
   --ds-surface: #ffffff;
   --ds-surface-secondary: #f8fafc;
   --ds-surface-tertiary: #f1f5f9;
-  --ds-background: #f3f4f6;
+  --ds-background: #f1f5f9;
 
-  --ds-text-primary: #0f172a;
+  --ds-text-primary: #020617;
   --ds-text-secondary: #334155;
   --ds-text-muted: #64748b;
   --ds-text-inverse: #ffffff;
 
-  --ds-primary: #1e3a8a;
-  --ds-primary-hover: #1e40af;
+  --ds-primary: #312e81;
+  --ds-primary-hover: #364fc7;
   --ds-primary-light: #eef2ff;
-  --ds-primary-border: #d7dcf5;
+  --ds-primary-border: #c7c9f5;
 
   --ds-critical: #b91c1c;
   --ds-critical-bg: #fef2f2;
@@ -45,10 +45,12 @@
   --ds-radius-md: 8px;
   --ds-radius-lg: 10px;
   --ds-radius-xl: 12px;
+  --ds-radius-full: 9999px;
 
   --ds-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --ds-shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --ds-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --ds-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 
   /* ── Tipogrāfija ── */
   --ds-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -61,14 +63,16 @@
   --ds-font-size-lg: 1.25rem;
   --ds-font-size-xl: 1.5rem;
   --ds-font-size-2xl: 1.875rem;
+  --ds-font-size-3xl: 2.25rem;
 
   --ds-font-weight-regular: 400;
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;
   --ds-font-weight-bold: 700;
 
-  --ds-line-height-tight: 1.25;
+  --ds-line-height-tight: 1.2;
   --ds-line-height-normal: 1.5;
+  --ds-line-height-relaxed: 1.75;
 
   /* ── Atstarpes ── */
   --ds-space-1: 0.25rem;
@@ -77,13 +81,25 @@
   --ds-space-4: 1rem;
   --ds-space-5: 1.25rem;
   --ds-space-6: 1.5rem;
+  --ds-space-7: 1.75rem;
   --ds-space-8: 2rem;
+  --ds-space-10: 2.5rem;
+  --ds-space-12: 3rem;
 
   /* ── Layout ── */
   --ds-header-height: 64px;
   --ds-toolbar-height: 56px;
+  --ds-sidebar-width: 260px;
+  --ds-sidebar-width-collapsed: 72px;
 
-  --ds-transition: all 0.15s ease;
+  /* ── Motion — restrained 150–240ms ── */
+  --ds-duration-fast: 150ms;
+  --ds-duration-normal: 200ms;
+  --ds-duration-slow: 240ms;
+  --ds-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ds-transition: all var(--ds-duration-normal) var(--ds-ease-standard);
+  --ds-transition-fast: all var(--ds-duration-fast) var(--ds-ease-standard);
+  --ds-transition-slow: all var(--ds-duration-slow) var(--ds-ease-standard);
 }
 
 /* ───────────────────────── BAZE ───────────────────────── */
@@ -654,3 +670,257 @@ textarea.input { height: auto; min-height: 100px; padding: var(--ds-space-3); re
 .mh-header, .mh-main, .mh-filter-bar, .mh-view-btn, .mh-lang-btn, .mh-btn-sync, .mh-btn-logout, .mh-select, .mh-search, .mh-date, .mh-view-toggle, .mh-attention-section, .mh-data-section, .mh-detail-panel, .mh-detail-body, .mh-row {
   /* šīs klases ir definētas medicine.css — design system neatverts tās */
 }
+
+/* ───────────────────────── VIEWPORT BREAKPOINTS (9 classes) ───────────────────────── */
+/* Mobile S: 320–479px | Mobile M: 480–599px | Mobile L: 600–767px */
+/* Tablet S: 768–899px | Tablet M: 900–1023px | Tablet L: 1024–1279px */
+/* Desktop S: 1280–1439px | Desktop M: 1440–1799px | Desktop L: 1800px+ */
+
+@media (max-width: 479px) {
+  :root {
+    --ds-font-size-base: 0.9375rem;
+    --ds-space-4: 0.75rem;
+    --ds-space-5: 1rem;
+    --ds-space-6: 1.25rem;
+    --ds-header-height: 56px;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 599px) {
+  :root {
+    --ds-font-size-base: 0.9375rem;
+    --ds-space-4: 0.875rem;
+    --ds-header-height: 60px;
+  }
+}
+
+@media (min-width: 600px) and (max-width: 767px) {
+  :root {
+    --ds-font-size-base: 1rem;
+    --ds-space-4: 1rem;
+    --ds-header-height: 60px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 899px) {
+  :root {
+    --ds-font-size-base: 1rem;
+    --ds-space-4: 1rem;
+    --ds-space-5: 1.25rem;
+    --ds-header-height: 64px;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1023px) {
+  :root {
+    --ds-font-size-base: 1rem;
+    --ds-space-4: 1rem;
+    --ds-space-5: 1.25rem;
+    --ds-header-height: 64px;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  :root {
+    --ds-font-size-base: 1rem;
+    --ds-space-4: 1rem;
+    --ds-space-5: 1.25rem;
+    --ds-header-height: 64px;
+  }
+}
+
+@media (min-width: 1280px) and (max-width: 1439px) {
+  :root {
+    --ds-font-size-base: 1rem;
+    --ds-space-4: 1rem;
+    --ds-space-5: 1.25rem;
+    --ds-space-6: 1.5rem;
+    --ds-header-height: 64px;
+  }
+}
+
+@media (min-width: 1440px) and (max-width: 1799px) {
+  :root {
+    --ds-font-size-base: 1rem;
+    --ds-space-4: 1rem;
+    --ds-space-5: 1.25rem;
+    --ds-space-6: 1.5rem;
+    --ds-space-8: 2rem;
+    --ds-header-height: 64px;
+  }
+}
+
+@media (min-width: 1800px) {
+  :root {
+    --ds-font-size-base: 1rem;
+    --ds-space-4: 1rem;
+    --ds-space-5: 1.25rem;
+    --ds-space-6: 1.5rem;
+    --ds-space-8: 2rem;
+    --ds-header-height: 64px;
+  }
+}
+
+/* ───────────────────────── GLOBAL REDUCED MOTION ───────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .splash-screen.hidden,
+  .ds-toast,
+  .ds-modal-overlay,
+  .logout-modal-overlay,
+  .logout-modal-card,
+  .logout-goodbye-card {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ───────────────────────── PREMIUM COMPONENT REFINEMENTS ───────────────────────── */
+
+/* Refinied button hierarchy */
+.btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.4s ease;
+}
+
+.btn:hover:not(:disabled)::before {
+  transform: translateX(100%);
+}
+
+.btn-primary {
+  background: var(--ds-primary);
+  color: var(--ds-text-inverse);
+  border-color: var(--ds-primary);
+  box-shadow: 0 1px 3px 0 rgb(49 46 129 / 0.2);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--ds-primary-hover);
+  border-color: var(--ds-primary-hover);
+  box-shadow: 0 4px 6px -1px rgb(49 46 129 / 0.25);
+}
+.btn-primary:focus-visible {
+  outline: 2px solid var(--ds-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--ds-primary-light);
+}
+
+.btn-secondary {
+  background: var(--ds-surface);
+  color: var(--ds-text-primary);
+  border-color: var(--ds-border);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--ds-surface-tertiary);
+  border-color: var(--ds-border-hover);
+}
+.btn-secondary:focus-visible {
+  outline: 2px solid var(--ds-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--ds-primary-light);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--ds-primary);
+  border-color: var(--ds-primary);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--ds-primary-light);
+}
+
+.btn-danger {
+  background: var(--ds-critical);
+  color: var(--ds-text-inverse);
+  border-color: var(--ds-critical);
+}
+.btn-danger:hover:not(:disabled) {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+
+.btn-sm { font-size: var(--ds-font-size-xs); padding: var(--ds-space-1) var(--ds-space-3); min-height: 32px; }
+.btn-lg { font-size: var(--ds-font-size-base); padding: var(--ds-space-3) var(--ds-space-6); min-height: 48px; }
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-secondary);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text-secondary);
+}
+.btn-icon:hover:not(:disabled) {
+  background: var(--ds-surface-tertiary);
+  border-color: var(--ds-border-hover);
+  color: var(--ds-text-primary);
+}
+
+/* Refined input */
+.input {
+  position: relative;
+}
+
+.input:hover { border-color: var(--ds-border-hover); background: var(--ds-surface-tertiary); }
+.input:focus { border-color: var(--ds-primary); box-shadow: 0 0 0 3px var(--ds-primary-light); background: var(--ds-surface); }
+
+/* Refined card */
+.card {
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+}
+.card:hover {
+  border-color: var(--ds-border-hover);
+  box-shadow: var(--ds-shadow-md);
+}
+
+/* Section header refinements */
+.ds-section-header {
+  align-items: center;
+}
+
+.ds-section-title {
+  letter-spacing: -0.02em;
+}
+
+/* Empty state refinements */
+.ds-empty {
+  border-style: dashed;
+  border-color: var(--ds-border);
+}
+
+/* Toast refinements */
+.ds-toast {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Modal refinements */
+.ds-modal-card {
+  border: 1px solid var(--ds-border);
+}
+
+/* Utilitātes — text and color helpers */
+.ds-text-inverse { color: var(--ds-text-inverse); }
+.ds-bg-primary { background: var(--ds-primary); }
+.ds-bg-surface { background: var(--ds-surface); }
+.ds-bg-surface-secondary { background: var(--ds-surface-secondary); }
+.ds-ring-primary { box-shadow: 0 0 0 3px var(--ds-primary-light); }

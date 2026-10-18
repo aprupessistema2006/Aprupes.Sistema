@@ -5,37 +5,38 @@
 }
 
 :root {
-  --primary: #2c3e50;
-  --primary-dark: #1a252f;
-  --accent: #27ae60;
-  --accent-light: #2ecc71;
-  --danger: #e74c3c;
-  --warning: #f39c12;
-  --light: #ecf0f1;
-  --gray: #bdc3c7;
-  --dark: #2c3e50;
-  --border-radius: 12px;
-  --shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  --transition: all 0.2s ease;
+  /* Pamattokēni — saistīti ar css/design-system.css (viena patiesa patiesība) */
+  --primary: var(--ds-primary);
+  --primary-dark: rgb(49 46 129 / 0.8);
+  --accent: var(--ds-ok);
+  --accent-light: rgb(5 150 105 / 0.9);
+  --danger: var(--ds-critical);
+  --warning: var(--ds-warning);
+  --light: var(--ds-surface-secondary);
+  --gray: var(--ds-neutral);
+  --dark: var(--ds-text-secondary);
+  --border-radius: var(--ds-radius-lg);
+  --shadow: var(--ds-shadow-xl);
+  --transition: var(--ds-transition);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--ds-font-sans);
   background: url('../logo/logo_admin.png') center/cover no-repeat;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  color: var(--dark);
-  transition: background 0.3s ease;
+  color: var(--ds-text-primary);
+  transition: background var(--ds-duration-normal) var(--ds-ease-standard);
   overflow-x: hidden;
   padding-top: 24px;
 }
 
 @media (max-width: 1024px) {
   body {
-    background: #f5f6fa;
+    background: var(--ds-surface-secondary);
   }
 }
 
@@ -52,7 +53,7 @@ body.online {
 
 @media (max-width: 1024px) {
   body.online {
-    background: #f5f6fa;
+    background: var(--ds-surface-secondary);
   }
 }
 
@@ -101,7 +102,7 @@ body.online {
 }
 
 .login-card p {
-  color: #7f8c8d;
+  color: var(--ds-text-muted);
   font-size: 16px;
   margin-bottom: 24px;
   box-sizing: border-box;
@@ -124,7 +125,7 @@ body.online {
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #555;
+  color: var(--ds-text-muted);
   margin-bottom: 6px;
 }
 
@@ -133,11 +134,11 @@ body.online {
   width: 100%;
   padding: 12px 14px;
   font-size: 16px;
-  border: 2px solid #e0e6ed;
+  border: 2px solid var(--ds-border);
   border-radius: 10px;
   outline: none;
   transition: var(--transition);
-  background: #fafbfc;
+  background: var(--ds-surface-secondary);
   box-sizing: border-box;
 }
 
@@ -231,7 +232,7 @@ body.online {
 
 .error-message {
   color: var(--danger);
-  background: #fdecea;
+  background: var(--ds-critical-bg);
   padding: 12px;
   border-radius: var(--border-radius);
   margin-top: 16px;
@@ -240,7 +241,7 @@ body.online {
 }
 
 .status-message {
-  color: #7f8c8d;
+  color: var(--ds-text-muted);
   font-size: 13px;
   margin-top: 16px;
   min-height: 16px;
@@ -254,11 +255,11 @@ body.online {
   width: 100%;
   padding: 12px 14px;
   font-size: 15px;
-  border: 2px solid #e0e6ed;
+  border: 2px solid var(--ds-border);
   border-radius: 10px;
   outline: none;
   transition: var(--transition);
-  background: #fafbfc;
+  background: var(--ds-surface-secondary);
 }
 
 #employeeSearch:focus {
@@ -270,7 +271,7 @@ body.online {
 .employee-list-wrap {
   max-height: 320px;
   overflow-y: auto;
-  border: 1px solid #e0e6ed;
+  border: 1px solid var(--ds-border);
   border-radius: 14px;
   margin-bottom: 14px;
   background: #fff;
@@ -288,7 +289,7 @@ body.online {
   gap: 14px;
   padding: 14px 16px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f2f5;
+  border-bottom: 1px solid var(--ds-surface-tertiary);
   transition: all 0.15s ease;
   text-align: left;
   background: #fff;
@@ -300,12 +301,12 @@ body.online {
 }
 
 .employee-card:hover {
-  background: linear-gradient(90deg, #f8fff9 0%, #f0f7f0 100%);
+  background: linear-gradient(90deg, var(--ds-ok-bg) 0%, var(--ds-ok-bg) 100%);
   transform: translateX(2px);
 }
 
 .employee-card.selected {
-  background: linear-gradient(90deg, #e8f5e9 0%, #d4edda 100%);
+  background: linear-gradient(90deg, var(--ds-ok-bg) 0%, var(--ds-ok-border) 100%);
   border-left: 4px solid var(--accent);
   box-shadow: inset 4px 0 0 var(--accent);
 }
@@ -441,9 +442,9 @@ body.online {
   align-items: center;
   gap: 16px;
   padding: 18px 22px;
-  border: 2px solid #eef1f4;
+  border: 2px solid var(--ds-border);
   border-radius: 16px;
-  background: #fafbfc;
+  background: var(--ds-surface-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
@@ -451,7 +452,7 @@ body.online {
 
 .role-radio-option:hover {
   background: #fff;
-  border-color: #e0e6ed;
+  border-color: var(--ds-border);
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
@@ -465,7 +466,7 @@ body.online {
 .role-radio-custom {
   width: 24px;
   height: 24px;
-  border: 2px solid #d0d7de;
+  border: 2px solid var(--ds-border);
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
@@ -544,8 +545,8 @@ body.online {
   padding: 16px;
   border: none;
   border-radius: 12px;
-  background: #f0f2f5;
-  color: #7f8c8d;
+  background: var(--ds-surface-tertiary);
+  color: var(--ds-text-muted);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -553,7 +554,7 @@ body.online {
 }
 
 .role-select-cancel:hover {
-  background: #e0e6ed;
+  background: var(--ds-border);
   color: var(--primary);
 }
 
@@ -614,7 +615,7 @@ body.online {
   margin: 0 0 12px;
   font-size: 13px;
   font-weight: 600;
-  color: #475569;
+  color: var(--ds-text-secondary);
   text-align: center;
 }
 
@@ -639,7 +640,7 @@ body.online {
 
 .inline-role-option:hover {
   background: #f8fafc;
-  border-color: #cbd5e1;
+  border-color: var(--ds-border-hover);
   transform: translateX(2px);
 }
 
@@ -652,7 +653,7 @@ body.online {
 .inline-role-radio {
   width: 22px;
   height: 22px;
-  border: 2px solid #cbd5e1;
+  border: 2px solid var(--ds-border-hover);
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
@@ -819,7 +820,7 @@ body.online {
   height: 28px;
   border-radius: 50%;
   font-size: 14px;
-  color: #555;
+  color: var(--ds-text-muted);
   cursor: pointer;
   flex-shrink: 0;
   transition: var(--transition);
@@ -843,11 +844,11 @@ body.online {
     padding-top: 0;
     min-height: 100vh;
     background: none !important;
-    background-color: #f5f6fa !important;
+    background-color: var(--ds-surface-secondary) !important;
   }
   body.online {
     background: none !important;
-    background-color: #f5f6fa !important;
+    background-color: var(--ds-surface-secondary) !important;
   }
   .login-container {
     padding: 0;
@@ -1033,7 +1034,7 @@ body.online {
 
 .password-hint {
   font-size: 14px;
-  color: #7f8c8d;
+  color: var(--ds-text-muted);
   text-align: center;
   margin-bottom: 14px;
 }
@@ -1046,7 +1047,7 @@ body.online {
   width: 100%;
   font-size: 16px;
   padding: 14px 16px;
-  border: 2px solid #ddd;
+  border: 2px solid var(--ds-border);
   border-radius: var(--border-radius);
   background: #fff;
   color: var(--dark);
