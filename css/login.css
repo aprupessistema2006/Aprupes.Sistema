@@ -844,10 +844,6 @@ body.online {
   bottom: 0;
   background: rgba(0, 0, 0, 0.55);
   z-index: 9999;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 14vh;
   animation: fadeIn 0.2s ease;
 }
 
@@ -857,6 +853,10 @@ body.online {
 }
 
 .logout-confirm-card {
+  position: fixed;
+  top: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
   background: white;
   border-radius: 16px;
   padding: 26px 22px;

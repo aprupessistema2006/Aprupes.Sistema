@@ -1530,10 +1530,6 @@ body {
   bottom: 0;
   background: rgba(0, 0, 0, 0.55);
   z-index: 9999;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 14vh;
   animation: fadeIn 0.2s ease;
 }
 
@@ -1543,6 +1539,10 @@ body {
 }
 
 .logout-confirm-card {
+  position: fixed;
+  top: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
   background: white;
   border-radius: 16px;
   padding: 26px 22px;
@@ -1550,6 +1550,7 @@ body {
   width: 100%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   animation: scaleIn 0.2s ease;
+  box-sizing: border-box;
 }
 
 @keyframes scaleIn {
