@@ -692,46 +692,6 @@ body {
 .logout-btn { color: #e74c3c !important; background: rgba(231,76,60,0.08) !important; border-radius: 50% !important; }
 .logout-btn:hover { background: #e74c3c !important; color: white !important; transform: scale(1.08); }
 
-.logout-confirm-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 10000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 12vh;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.logout-confirm-card {
-  position: fixed;
-  top: 12vh !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  background: var(--ds-surface);
-  border: 2px solid var(--ds-border);
-  border-radius: var(--ds-radius-lg);
-  padding: var(--ds-space-6) var(--ds-space-5);
-  max-width: 420px;
-  width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-  animation: scaleIn 0.25s ease;
-  box-sizing: border-box;
-  text-align: center;
-  opacity: 1;
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
-}
-
 /* ===== Uzdevuma detaļu logs (atsevišķā logā pilna ainava) ===== */
 .task-detail-overlay {
   position: fixed;
@@ -1273,38 +1233,6 @@ body {
   }
 }
 
-.logout-confirm-icon {
-  font-size: 56px;
-  margin-bottom: var(--ds-space-3);
-  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
-  display: block;
-}
-
-.logout-confirm-title {
-  font-size: var(--ds-font-size-lg);
-  font-weight: var(--ds-font-weight-bold);
-  color: var(--ds-text-primary);
-  margin: 0 0 var(--ds-space-2);
-  line-height: var(--ds-line-height-tight);
-}
-
-.logout-confirm-msg {
-  font-size: var(--ds-font-size-sm);
-  color: var(--ds-text-secondary);
-  line-height: var(--ds-line-height-normal);
-  margin: 0 0 var(--ds-space-6);
-}
-
-.logout-confirm-msg.unsaved {
-  color: var(--ds-critical);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.logout-confirm-msg.syncing {
-  color: var(--ds-primary);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
 /* Paziņojumu logs (toast) — augšpusē, neaizsedz darba zonu */
 .toast {
   position: fixed;
@@ -1355,102 +1283,7 @@ body {
   min-height: 18px;
 }
 
-.logout-buttons {
-  display: flex;
-  gap: var(--ds-space-2);
-}
-
-.logout-btn-cancel,
-.logout-btn-confirm,
-.logout-btn-sync {
-  flex: 1;
-  padding: var(--ds-space-3) var(--ds-space-4);
-  font-size: var(--ds-font-size-sm);
-  font-weight: var(--ds-font-weight-semibold);
-  border: none;
-  border-radius: var(--ds-radius-md);
-  cursor: pointer;
-  transition: var(--ds-transition);
-  min-height: 44px;
-}
-
-.logout-btn-cancel {
-  background: var(--ds-surface-secondary);
-  color: var(--ds-text-primary);
-  border: 1px solid var(--ds-border);
-}
-.logout-btn-cancel:hover:not(:disabled) {
-  background: var(--ds-surface-tertiary);
-  border-color: var(--ds-border-hover);
-}
-
-.logout-btn-confirm {
-  background: var(--ds-critical);
-  color: var(--ds-text-inverse);
-}
-.logout-btn-confirm:hover:not(:disabled) {
-  background: #991b1b;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(185, 28, 28, 0.35);
-}
-
-.logout-btn-sync {
-  background: var(--ds-primary);
-  color: var(--ds-text-inverse);
-}
-.logout-btn-sync:hover:not(:disabled) {
-  background: var(--ds-primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.35);
-}
-
-.logout-btn-cancel:disabled,
-.logout-btn-confirm:disabled,
-.logout-btn-sync:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.logout-goodbye-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #27ae60, #16a085);
-  z-index: 99999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  color: white;
-  text-align: center;
-  padding: 30px;
-  animation: fadeIn 0.3s ease;
-}
-
-.logout-goodbye-emoji {
-  font-size: 90px;
-  margin-bottom: 14px;
-  animation: bounceIn 0.6s ease;
-}
-
-@keyframes bounceIn {
-  0% { transform: scale(0); }
-  60% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-.logout-goodbye-msg {
-  font-size: 26px;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.logout-goodbye-sub {
-  font-size: 16px;
-  opacity: 0.95;
-}
+/* Pārlādēšanas paziņojums */
 
 
 /* Tasks table styles */
