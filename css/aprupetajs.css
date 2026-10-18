@@ -1525,9 +1525,7 @@ body {
 .logout-confirm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.85);
   z-index: 10000;
   display: flex;
   align-items: flex-start;
@@ -1547,15 +1545,16 @@ body {
   left: 50% !important;
   transform: translateX(-50%) !important;
   background: var(--ds-surface);
-  border: 1px solid var(--ds-border);
+  border: 2px solid var(--ds-border);
   border-radius: var(--ds-radius-lg);
   padding: var(--ds-space-6) var(--ds-space-5);
   max-width: 420px;
   width: 100%;
-  box-shadow: var(--ds-shadow-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   animation: scaleIn 0.25s ease;
   box-sizing: border-box;
   text-align: center;
+  opacity: 1;
 }
 
 @keyframes scaleIn {
