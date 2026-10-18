@@ -1540,9 +1540,9 @@ body {
 
 .logout-confirm-card {
   position: fixed;
-  top: 12vh;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 12vh !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
   background: white;
   border-radius: 16px;
   padding: 26px 22px;
