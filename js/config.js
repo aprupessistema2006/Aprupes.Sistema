@@ -12,7 +12,7 @@ const CONFIG = {
   // Pēc jauna GAS izvietojuma (deploy) šeit JĀBŪT jaunai adresei:
   // nokopējiet "Izvietot kā tīmekļa lietotni" URL un ievietojiet
   // šeit. Ja adreses nesmaināt, lietotne nesazinās ar serveri.
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbxZRNRm0aQofelUfLhPVAZvjNIegkePH_dxK0bU8CDGkHiv-0KDQxHsUFdF4Ugp43o2VQ/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbyR97JVtavKGYAv3Ax2hTQzyouk-RhinAXBPqtIIgMBgMDdWOgVCoDgvlrv3hHwLe9w_g/exec',
 
   // ⚠️ Šis lauks klientā netiek lasīts — patieso nolasījumu dara
   // backend/gas_webhook.gs (SHEET_ID, 1. rinda). Šeit tas ir tikai
