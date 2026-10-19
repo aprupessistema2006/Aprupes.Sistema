@@ -95,14 +95,16 @@ class ControlPanel {
           } else if (result.cooled) {
             // Dati jau tika ielādēti dažas sekundes atpakaļ — serveris
             // nevarētu atdot neko jaunāku. Skaidrs paziņojums, nevis klusa nedarbošanās.
-            await this.loadData();
-            this.renderAll();
-            await this.renderTasksList();
+              await this.loadData();
+              this.renderAll();
+              await this.setupTasksUI();
+              await this.renderTasksList();
             this.toast && this.toast('ℹ️ Dati jau tikko atjaunināti — jauna sinhronizācija nav vajadzīga.', 4000);
           } else {
-            await this.loadData();
-            this.renderAll();
-            await this.renderTasksList();
+              await this.loadData();
+              this.renderAll();
+              await this.setupTasksUI();
+              await this.renderTasksList();
             this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
@@ -147,6 +149,7 @@ class ControlPanel {
           await this.sync.waitForMarks();
           await this.loadData();
           this.renderAll();
+          await this.setupTasksUI();
           await this.renderTasksList();
           this._refreshClientSearch();
           Perf.markUI('UI atjaunināts pēc servera datiem');
@@ -274,14 +277,16 @@ class ControlPanel {
           if (result.offline) {
             this.toast && this.toast('⚠️ ' + (result.error || 'Sinhronizācija neizdevās'), 4000);
           } else if (result.cooled) {
-            await this.loadData();
-            this.renderAll();
-            await this.renderTasksList();
+              await this.loadData();
+              this.renderAll();
+              await this.setupTasksUI();
+              await this.renderTasksList();
             this.toast && this.toast('ℹ️ Dati jau tikko atjaunināti — jauna sinhronizācija nav vajadzīga.', 4000);
           } else {
-            await this.loadData();
-            this.renderAll();
-            await this.renderTasksList();
+              await this.loadData();
+              this.renderAll();
+              await this.setupTasksUI();
+              await this.renderTasksList();
             this.toast && this.toast('✅ Sinhronizācija pabeigta. Visi dati atjaunoti no Google Sheets.');
           }
         } catch (err) {
@@ -859,7 +864,8 @@ class ControlPanel {
         }).join('');
     }
 
-    if (form) {
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = '1';
       const submitBtn = form.querySelector('button[type="submit"]');
       form.addEventListener('submit', async (e) => {
         e.preventDefault();

@@ -81,7 +81,7 @@ const I18N = {
     med_bowel_last_unit1: 'dienas',
 
     appName: 'Aprūpes sistēma',
-    splashSubtitle: 'Sistēma pieaugušo aprūpes ierakwiem',
+    splashSubtitle: 'Sistēma pieaugušo aprūpes ierakstiem',
     loginTitle: 'Aprūpes sistēma',
     loginSubtitle: 'Izvēlieties darbinieku un ievadiet PIN kodu',
     pinPlaceholder: 'PIN ____',
