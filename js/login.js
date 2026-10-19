@@ -43,10 +43,25 @@ class LoginController {
           this.redirectByRole(user.loma);
           return;
         }
-      } catch (e) {    const r = this._resolveRoleForRedirect(role);
-
-        // Sesija beigusies vai servers nepieejams — rādām pieteikšanos.
+      } catch (e) {
         console.warn('[login] sesijas pārbaude neizdevās:', e && e.message);
+      }
+    }
+
+    // ── Ierīces autorizācija (8 stundas) ──
+    // Ja ierīce jau ir autorizēta (kopējā parole ievadīta ≤8 stundām tagad),
+    // atcēlām kopējās paroles solī un tuvojamies darbinieka izvēlei + PIN.
+    // Ja nav autorizēta, rādām kopējās paroles solī (setupUI sākums).
+    if (typeof isDeviceAuthorized === 'function' && isDeviceAuthorized()) {
+      this.unlocked = true;
+      const passwordSection = document.getElementById('passwordSection');
+      const employeeArea = document.getElementById('employeeArea');
+      const statusMsg = document.getElementById('statusMessage');
+      if (passwordSection) passwordSection.style.display = 'none';
+      if (employeeArea) employeeArea.style.display = 'block';
+      if (statusMsg) {
+        statusMsg.textContent = 'Ierīce jau atvērta • Ievadi PIN kodu';
+        statusMsg.style.color = '#27ae60';
       }
     }
 
@@ -118,6 +133,7 @@ class LoginController {
             this.employees = this.groupEmployees(res.employees);
             this.filteredEmployees = [...this.employees];
             this.unlocked = true;
+            setDeviceAuthorizedUntil(Date.now() + 8 * 60 * 60 * 1000);
             const passwordSection = document.getElementById('passwordSection');
             const employeeArea = document.getElementById('employeeArea');
             if (passwordSection) passwordSection.style.display = 'none';

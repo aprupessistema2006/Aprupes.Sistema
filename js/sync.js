@@ -25,6 +25,8 @@ const SYNC_URL = typeof CONFIG !== 'undefined' ? CONFIG.GAS_URL : null;
 // pārbauda un neatļauj klienta norādīto identitāti.
 // ───────────────────────────────────────────────────────────────────
 const SESSION_TOKEN_KEY = 'aprupes_session_token';
+const DEVICE_AUTH_KEY = 'aprupes_device_authorized_until';
+const DEVICE_AUTH_HOURS = 8;
 
 function getSessionToken() {
   try { return localStorage.getItem(SESSION_TOKEN_KEY) || ''; }
@@ -41,6 +43,35 @@ function setSessionToken(token) {
 function clearSessionToken() {
   try { localStorage.removeItem(SESSION_TOKEN_KEY); }
   catch (e) { /* ignorējam */ }
+}
+
+function getDeviceAuthorizedUntil() {
+  try { return parseInt(localStorage.getItem(DEVICE_AUTH_KEY) || '0', 10); }
+  catch (e) { return 0; }
+}
+
+function setDeviceAuthorizedUntil(timestamp) {
+  try {
+    if (timestamp) localStorage.setItem(DEVICE_AUTH_KEY, String(timestamp));
+    else localStorage.removeItem(DEVICE_AUTH_KEY);
+  } catch (e) { /* privātais režīms — nekritisks */ }
+}
+
+function clearDeviceAuthorization() {
+  try { localStorage.removeItem(DEVICE_AUTH_KEY); }
+  catch (e) { /* ignorējam */ }
+}
+
+function isDeviceAuthorized() {
+  const until = getDeviceAuthorizedUntil();
+  return until > 0 && Date.now() < until;
+}
+
+function deviceAuthRemainingMs() {
+  const until = getDeviceAuthorizedUntil();
+  if (until <= 0) return 0;
+  const remaining = until - Date.now();
+  return remaining > 0 ? remaining : 0;
 }
 
 // Serveris atbildēja, ka sesija ir beigusies — tīrām visi
@@ -2396,4 +2427,9 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof globalThis !== 'undefined') {
   globalThis.normalizeRow = normalizeRow;
   globalThis.CareSync = CareSync;
+  globalThis.getDeviceAuthorizedUntil = getDeviceAuthorizedUntil;
+  globalThis.setDeviceAuthorizedUntil = setDeviceAuthorizedUntil;
+  globalThis.clearDeviceAuthorization = clearDeviceAuthorization;
+  globalThis.isDeviceAuthorized = isDeviceAuthorized;
+  globalThis.deviceAuthRemainingMs = deviceAuthRemainingMs;
 }
