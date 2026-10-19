@@ -273,7 +273,6 @@ const Logout = {
         console.warn('[logout] servera sesijas likvidācija neizdevās (ignorē):', e && e.message);
       }
       clearSessionToken();
-      clearDeviceAuthorization();
       sessionStorage.removeItem('careUser');
       sessionStorage.removeItem('careAdminMode');
       sessionStorage.removeItem('careAdminCaregiverId');
