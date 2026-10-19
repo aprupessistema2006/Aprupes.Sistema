@@ -820,7 +820,6 @@ function routeSecured(action, data, session, token) {
     case 'updateClient':
     case 'createEmployee':
     case 'updateEmployee':
-    case 'createTask':
     case 'updateTask':
     case 'backfill_keys':
     case 'repair_dates':
@@ -829,6 +828,10 @@ function routeSecured(action, data, session, token) {
       if (!admin) {
         return { error: 'Šī darbība ir atļauta tikai administratoram', forbidden: true };
       }
+      return routeActionData({ action: action, data: data });
+
+    // ── Uzdevumu izveide: Administrators un kontrole
+    case 'createTask':
       return routeActionData({ action: action, data: data });
 
     default:

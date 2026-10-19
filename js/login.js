@@ -59,8 +59,19 @@ class LoginController {
       const statusMsg = document.getElementById('statusMessage');
       if (passwordSection) passwordSection.style.display = 'none';
       if (employeeArea) employeeArea.style.display = 'block';
+      // Ielādējam darbiniekus no lokālā keša, ja nav iepriekš ieslēdzami serverī
+      try {
+        const cachedEmployees = localStorage.getItem('aprupes_employees');
+        if (cachedEmployees) {
+          this.employees = this.groupEmployees(JSON.parse(cachedEmployees));
+          this.filteredEmployees = [...this.employees];
+        }
+      } catch (e) { /* ignorējam keša kļūdu */ }
+      if (this.employees && this.employees.length > 0) {
+        this.renderEmployeeList();
+      }
       if (statusMsg) {
-        statusMsg.textContent = 'Ierīce jau atvērta • Ievadi PIN kodu';
+        statusMsg.textContent = 'Ierīce jau atvērta • ' + (this.employees ? this.employees.length : 0) + ' darbinieki';
         statusMsg.style.color = '#27ae60';
       }
     }
@@ -134,6 +145,7 @@ class LoginController {
             this.filteredEmployees = [...this.employees];
             this.unlocked = true;
             setDeviceAuthorizedUntil(Date.now() + 8 * 60 * 60 * 1000);
+            try { localStorage.setItem('aprupes_employees', JSON.stringify(res.employees)); } catch (e) {}
             const passwordSection = document.getElementById('passwordSection');
             const employeeArea = document.getElementById('employeeArea');
             if (passwordSection) passwordSection.style.display = 'none';
