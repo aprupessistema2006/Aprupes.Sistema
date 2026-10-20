@@ -1,4 +1,4 @@
-﻿// MedicineView — medicīniskais uzraudzība ar diena/nedēļa/mēneša skatiem
+// MedicineView — medicīniskais uzraudzība ar diena/nedēļa/mēneša skatiem
 'use strict';
 
 const MEDICINE_FIELDS = [
@@ -158,6 +158,7 @@ class MedicineView {
     const raw = m.date || m.datums || '';
     const s = String(raw);
     const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+    const ymd = s.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})/); if (ymd) { let dd = ymd[2], mm = ymd[3]; if (parseInt(dd,10) > 12 && parseInt(mm,10) <= 12) { const t = dd; dd = mm; mm = t; } return ymd[1] + '-' + String(mm).padStart(2,'0') + '-' + String(dd).padStart(2,'0'); }
     const lv = s.match(/^(\d{2})\.(\d{2})\.(\d{4})/); if (lv) return lv[3] + '-' + lv[2] + '-' + lv[1];
     const idTs = String(m.id || '').match(/^[a-z]+_(\d{10,13})/);
     if (idTs) { const d = new Date(parseInt(idTs[1], 10)); if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
