@@ -155,7 +155,9 @@ class MedicineView {
 
   _markDate(m) {
     if (!m) return '';
-    const raw = m.date || m.datums || '';
+    const nl = m.notikuma_laiks || m.notikumaLaiks || '';
+    const nlIso = String(nl).match(/^(\d{4})-(\d{2})-(\d{2})/); if (nlIso) return nlIso[1] + '-' + nlIso[2] + '-' + nlIso[3];
+    const raw = m.date || m.datums || m.lastModified || m.pedeja_laiks || '';
     const s = String(raw);
     const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
     const ymd = s.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})/); if (ymd) return ymd[1] + '-' + String(ymd[3]).padStart(2,'0') + '-' + String(ymd[2]).padStart(2,'0');
