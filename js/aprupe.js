@@ -859,7 +859,7 @@ class AprupeController {
         if (!eid || eid === currentUserId) return;
         const name = m.employeeName || m.darbinieks_vards || '';
         if (!byColleague.has(eid)) {
-          byColleague.set(eid, { name, count: 0, clients: new Set(), categories: new Set() });
+          byColleague.set(eid, { eid, name, count: 0, clients: new Set(), categories: new Set() });
         }
         const entry = byColleague.get(eid);
         entry.count++;
@@ -895,7 +895,7 @@ class AprupeController {
       employeeMap[String(id)] = name;
     });
     grid.innerHTML = this.colleagueActivity.map(entry => {
-      const empName = entry.name || employeeMap[String(entry.name)] || 'Nezināms darbinieks';
+      const empName = entry.name || employeeMap[String(entry.eid)] || 'Nezināms darbinieks';
       const clientList = Array.from(entry.clients).slice(0, 3).join(', ');
       const more = entry.clients.size > 3 ? ' +' + (entry.clients.size - 3) : '';
       return `
