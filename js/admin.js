@@ -122,19 +122,14 @@ class AdminPanel {
     // UI no lokālajiem datiem tūlīt, Google fonā. Skatīt sync.js bootstrapUI.
     try {
       await this.sync.bootstrapUI({
-        onLocalReady: async () => {
+        onLocalReady: async () => {},
+        onServerData: async () => {
           await this.loadData();
           this.renderDashboard();
           this.renderClientList();
           this.renderEmployeeList();
           await this.populateExportDropdowns();
           this.setExportDateDefaults();
-        },
-        onServerData: async () => {
-          await this.loadData();
-          this.renderDashboard();
-          this.renderClientList();
-          this.renderEmployeeList();
         },
         onProgress: (msg) => { if (loadingText) loadingText.textContent = msg; }
       });
