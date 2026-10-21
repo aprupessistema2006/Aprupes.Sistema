@@ -687,6 +687,20 @@ class MedicineView {
     this._wireUi();
   }
 
+  setupLanguageSwitcher() {
+    document.querySelectorAll('.mh-lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        if (lang && typeof setLang === 'function') {
+          setLang(lang);
+          document.querySelectorAll('.mh-lang-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+    if (typeof applyLanguage === 'function') applyLanguage();
+  }
+
   _startAutoSync() {
     if (this._autoSyncTimer) {
       try { clearInterval(this._autoSyncTimer); } catch (e) {}
