@@ -86,10 +86,7 @@ class MedicineView {
     this.setupLanguageSwitcher();
     try {
       await this.sync.bootstrapUI({
-        onLocalReady: async () => {
-          try { await this.loadData(); } catch (e) { console.warn('[medicine] loadData kļūda, vizualizācija tāpat tiks rādīta:', e); }
-          this.renderAll();
-        },
+        onLocalReady: async () => {},
         onServerData: async () => {
           try { await this.loadData(); } catch (e) { console.warn('[medicine] loadData (server) kļūda, vizualizācija tāpat tiks rādīta:', e); }
           this.renderAll();
