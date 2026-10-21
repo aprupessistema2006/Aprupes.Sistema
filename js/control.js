@@ -138,13 +138,7 @@ class ControlPanel {
     // ─────────────────────────────────────────────────────────────────────
     try {
       await this.sync.bootstrapUI({
-        onLocalReady: async () => {
-          await this.loadData();
-          this.renderAll();
-          await this.setupTasksUI();
-          await this.renderTasksList();
-          this._refreshClientSearch();
-        },
+        onLocalReady: async () => {},
         onServerData: async () => {
           await this.sync.waitForMarks();
           await this.loadData();
