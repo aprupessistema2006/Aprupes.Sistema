@@ -44,6 +44,8 @@ class MedicineView {
     this.selectedClientId = null;
     this.filteredClientIds = [];
     this.view = 'day';
+    this._autoSyncTimer = null;
+    this._autoSyncRunning = false;
     this.init();
   }
 
@@ -103,6 +105,29 @@ class MedicineView {
         splash.style.display = 'none';
       }
     }
+    // Piespiedu sinhronizācija uzreiz pēc ielādes, lai iegūtu visjaunākos datus no Google Sheets
+    if (navigator.onLine && this.sync) {
+      setTimeout(async () => {
+        try {
+          let res = null;
+          if (typeof this.sync.forceFullSync === 'function') {
+            res = await this.sync.forceFullSync(() => {});
+          } else if (typeof this.sync.reloadFromSheets === 'function') {
+            res = await this.sync.reloadFromSheets(() => {});
+          } else if (typeof this.sync.loadInitialData === 'function') {
+            res = await this.sync.loadInitialData(() => {}, {}, { force: true });
+          }
+          if (res && !res.offline) {
+            try { if (typeof this.sync.waitForMarks === 'function') await this.sync.waitForMarks(); } catch (e) {}
+            await this.loadData();
+            this.renderView();
+          }
+        } catch (e) {
+          console.warn('[medicine] uzreizējā sinhronizācija kļūda:', e);
+        }
+      }, 300);
+    }
+    this._startAutoSync();
   }
 
   async loadData() {
@@ -598,14 +623,21 @@ class MedicineView {
     const refresh = document.getElementById('mhRefreshBtn');
     if (refresh) {
       refresh.onclick = async () => {
-        if (!navigator.onLine) { this._setStatus('Nav savienojuma'); return; }
-        refresh.disabled = true; this._setStatus('Sinhronizē...');
-        try {
-          const result = await this.sync.forceFullSync((msg) => this._setStatus(msg));
-          if (result.offline) { this._setStatus('Sinhronizācija neizdevās'); }
-          else { await this.loadData(); this.renderView(); this._setStatus(null); }
-        } catch (err) { this._setStatus('Kļūda: ' + err.message); }
-        finally { refresh.disabled = false; }
+      if (!navigator.onLine) { this._setStatus('Nav savienojuma'); return; }
+      refresh.disabled = true; this._setStatus('Sinhronizē...');
+      try {
+        let result = null;
+        if (typeof this.sync.forceFullSync === 'function') {
+          result = await this.sync.forceFullSync((msg) => this._setStatus(msg));
+        } else if (typeof this.sync.reloadFromSheets === 'function') {
+          result = await this.sync.reloadFromSheets((msg) => this._setStatus(msg));
+        } else if (typeof this.sync.loadInitialData === 'function') {
+          result = await this.sync.loadInitialData((msg) => this._setStatus(msg), {}, { force: true });
+        }
+        if (result && result.offline) { this._setStatus('Sinhronizācija neizdevās'); }
+        else { try { if (typeof this.sync.waitForMarks === 'function') await this.sync.waitForMarks(); } catch (e) {} await this.loadData(); this.renderView(); this._setStatus(null); }
+      } catch (err) { this._setStatus('Kļūda: ' + err.message); }
+      finally { refresh.disabled = false; }
       };
     }
     const back = document.getElementById('btnBack');
@@ -636,26 +668,66 @@ class MedicineView {
       window.addEventListener('offline', () => { syncBtn.style.display = 'none'; });
       syncBtn.addEventListener('click', async () => {
         if (!navigator.onLine) { this._setStatus('Nav savienojuma'); return; }
-        syncBtn.disabled = true; this._setStatus('Sinhronizē...');
-        try {
-          const result = await this.sync.forceFullSync((msg) => this._setStatus(msg));
-          if (result.offline) { this._setStatus('Sinhronizācija neizdevās'); }
-          else { await this.loadData(); this.renderView(); this._setStatus(null); }
-        } catch (err) { this._setStatus('Kļūda'); }
+      syncBtn.disabled = true; this._setStatus('Sinhronizē...');
+      try {
+        let result = null;
+        if (typeof this.sync.forceFullSync === 'function') {
+          result = await this.sync.forceFullSync((msg) => this._setStatus(msg));
+        } else if (typeof this.sync.reloadFromSheets === 'function') {
+          result = await this.sync.reloadFromSheets((msg) => this._setStatus(msg));
+        } else if (typeof this.sync.loadInitialData === 'function') {
+          result = await this.sync.loadInitialData((msg) => this._setStatus(msg), {}, { force: true });
+        }
+        if (result && result.offline) { this._setStatus('Sinhronizācija neizdevās'); }
+        else { try { if (typeof this.sync.waitForMarks === 'function') await this.sync.waitForMarks(); } catch (e) {} await this.loadData(); this.renderView(); this._setStatus(null); }
+      } catch (err) { this._setStatus('Kļūda'); }
         finally { syncBtn.disabled = false; }
       });
     }
     this._wireUi();
   }
 
-  setupLanguageSwitcher() {
-    document.querySelectorAll('.mh-lang-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const lang = btn.dataset.lang;
-        if (lang && typeof setLang === 'function') { setLang(lang); document.querySelectorAll('.mh-lang-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
-      });
+  _startAutoSync() {
+    if (this._autoSyncTimer) {
+      try { clearInterval(this._autoSyncTimer); } catch (e) {}
+      this._autoSyncTimer = null;
+    }
+    const run = async () => {
+      if (this._autoSyncRunning) return;
+      if (document.hidden) return;
+      if (!navigator.onLine) return;
+      if (!this.sync) return;
+      this._autoSyncRunning = true;
+      try {
+        let result = null;
+        if (typeof this.sync.forceFullSync === 'function') {
+          result = await this.sync.forceFullSync(() => {});
+        } else if (typeof this.sync.reloadFromSheets === 'function') {
+          result = await this.sync.reloadFromSheets(() => {});
+        } else if (typeof this.sync.loadInitialData === 'function') {
+          result = await this.sync.loadInitialData(() => {}, {}, { force: true });
+        }
+        if (!result || result.offline) return;
+        try { if (typeof this.sync.waitForMarks === 'function') await this.sync.waitForMarks(); } catch (e) {}
+        await this.loadData();
+        this.renderView();
+      } catch (e) {
+        // Klusi ignorēt, lai neapgrūtinātu UI
+        console.warn('[medicine] autoSync kļūda:', e);
+      } finally {
+        this._autoSyncRunning = false;
+      }
+    };
+    run();
+    this._autoSyncTimer = setInterval(run, 30 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && navigator.onLine) {
+        run();
+      }
     });
-    if (typeof applyLanguage === 'function') applyLanguage();
+    window.addEventListener('online', () => {
+      if (!document.hidden) run();
+    });
   }
 
   _setStatus(msg) {
