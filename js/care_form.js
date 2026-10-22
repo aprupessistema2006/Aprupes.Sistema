@@ -660,17 +660,15 @@ this.renderForm();
     this.client['Slimnīcā'] = newStatus;
     this.client.statuss = newStatus ? 'SLIMNĪCĀ' : 'SAC';
     await this.db.put('klienti', this.client);
-    this.sync.enqueueChange({
-      action: 'updateClient',
-      table: 'klienti',
-      data: {
-        id: this.client.id,
-        slimnica: newStatus,
-        statuss: newStatus ? 'SLIMNĪCĀ' : 'SAC',
-        statusa_laiks: nowUTC,
-        statusa_darbinieks_id: this.currentUser.id
-      }
-    });
+    // ⚠️ NEVADĪT `updateClient` rindā — tā ir tikai administratoru darbība
+    // (routeSecured atļauj to tikai ar lomu 'admins'). Aprūpētājs to
+    // nevar nosūtīt, tāpēc ieraksts palika rindā mūžmūžīgi un katrs
+    // mēģinājums atbildēja ar "Šī darbība ir atļauta tikai administratoram".
+    //
+    // Vietā serveris pats atjauno klienta statusu `klienti` lapā, kad
+    // apstrādā `mark` ar category=slimnica, field=statuss
+    // (handleMark → updateClientStatus). Tāpēc šis papildu rakstīšanas
+    // pieprasījums nav vajadzīgs un tikai bloķē rindu.
     
     // Log to atzimes_log with NEW text values
     // NEW VALUES: "hospitalizēts slimnīcā" / "atgriezies SAC"

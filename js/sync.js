@@ -2103,6 +2103,15 @@ _loadRecentMarksBackground(onProgress) {
                 await this._archiveItem(item, 'error');
               } else if (result && result.blocked === true) {
                 item.status = 'BLOKKĒTS';
+              } else if (result && result.forbidden === true) {
+                // ⚠️ Darbība atļauta tikai administratoram. Šis ieraksts
+                // nevar tikt nosūtīts ar šo sesiju — atkārtošana bezgalzīgi
+                // rādīs "1 ieraksts vēl nav nosūtīts". Padaram to galīgu
+                // (BLOKKĒTS), lai arhīvs noņemtu to no rindas. Lietotājam
+                // vajadzētu atkārtoti pieteikties kā administratoram, lai
+                // veiktu šo darbību.
+                item.status = 'BLOKKĒTS';
+                item.lastError = result.error || 'Darbība nav atļauta ar šo lomu';
               } else if (result && result.conflict === true) {
                 item.status = 'KONFLIKTS';
                 item.conflictInfo = {
