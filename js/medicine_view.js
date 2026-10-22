@@ -231,7 +231,11 @@ class MedicineView {
 
   _clientAttentionOnDate(cid, day) {
     const items = this._getItemsOnDate(cid, day);
-    return items.some(i => String(i.category || i.kategorija || '').toLowerCase() === 'pievienot' || String(i.field || i.lauka_nosaukums || '').toLowerCase() === 'uzmaniba');
+    return items.some(i => {
+      const cat = String(i.category || i.kategorija || (i.raw && (i.raw.category || i.raw.kategorija)) || '').toLowerCase();
+      const field = String(i.field || i.lauka_nosaukums || (i.raw && (i.raw.field || i.raw.lauka_nosaukums)) || '').toLowerCase();
+      return cat === 'pievienot' || field === 'uzmaniba';
+    });
   }
 
   renderAll() {
@@ -275,14 +279,21 @@ class MedicineView {
       const attn = this._clientAttentionOnDate(cid, day);
       if (crit || attn) items.push({ cid, name: this._clientName(c), crit, attn });
     });
-    items.sort((a, b) => a.name.localeCompare(b.name));
-    if (countEl) countEl.textContent = items.length;
-    if (!items.length) {
+    // Noņemt dublikātus pēc klienta ID
+    const seen = new Set();
+    const unique = items.filter(it => {
+      if (seen.has(it.cid)) return false;
+      seen.add(it.cid);
+      return true;
+    });
+    unique.sort((a, b) => a.name.localeCompare(b.name));
+    if (countEl) countEl.textContent = unique.length;
+    if (!unique.length) {
       box.innerHTML = '<div class="mh-empty">Nav klientu, kam šodien nepieciešama uzmanība.</div>';
       return;
     }
     let html = '';
-    items.forEach(it => {
+    unique.forEach(it => {
       html += '<div class="mh-attn-item ' + (it.crit ? 'mh-attn-crit' : 'mh-attn-warn') + '" onclick="medicineView.openClientDetail(\'' + it.cid.replace(/'/g, "\\'") + '\', \'' + day + '\');" style="cursor:pointer;">';
       html += '<span class="mh-attn-dot">' + (it.crit ? '🔴' : '🟡') + '</span>';
       html += '<span class="mh-attn-name">' + this.escapeHtml(it.name) + '</span>';
