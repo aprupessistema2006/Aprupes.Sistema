@@ -510,6 +510,23 @@ function publicEmployeeList() {
   return out;
 }
 
+// Vai sarakstā ir vismaz viens administrators.
+//
+// ⚠️ ŠO PĀRBAUDI UZDAVIS VIEGLAK TA, KA PARADĀJA "0 darbinieki".
+// Ja kopīgā parole jau bija iestatīta, bet darbinieku lapā nebija ne
+// administratora, neviens nevarēja pieteikties — un ekrāns parādīja
+// tukšu sarakstu ("Nav darbinieku, kas atbilst meklēšanai") BEZ
+// iespējas kaut ko izdarīt. Tagad šis stāvlis atgriež
+// `setup_required`, un klients parāda pirmā administratora izveides
+// ekrānu.
+function hasAdminEmployee(employees) {
+  if (!employees || !employees.length) return false;
+  for (const e of employees) {
+    if (isAdminRole(e.loma)) return true;
+  }
+  return false;
+}
+
 // Noņem jūtīgos laukus no darbinieka ieraksta pirms nosūtīšanas.
 function sanitizeEmployee(row) {
   if (!row) return row;
@@ -563,7 +580,22 @@ function handleLoginStart(data) {
   }
 
   recordAuthSuccess();
-  return { success: true, employees: publicEmployeeList() };
+  const employees = publicEmployeeList();
+
+  // ⚠️ Pārbaudām, vai sistēmā IR administrators. Bez šī pārbaudes
+  // klients rādīja tukšu darbinieku sarakstu ("0 darbinieki"), ja lapā
+  // nebija neviena — lietotājs iestrēgstas un nevar neko izdarīt.
+  // Tagad šis stāvlis atgriež `setup_required`, un klients atver
+  // pirmā administratora izveides ekrānu.
+  if (!hasAdminEmployee(employees)) {
+    return {
+      setup_required: true,
+      need_admin: true,
+      error: 'Sistēma nav konfigurēta — jāizveido administrators',
+      employees: employees
+    };
+  }
+  return { success: true, employees: employees };
 }
 
 // ── PIETEIKŠANĀS, 2. SOLIS: individuālais PIN ──────────────────────
@@ -627,13 +659,6 @@ function handleLoginPin(data) {
 
 // ── PIRMĀ KONFIGURĀCIJA: kopīgā parole + pirmais administrators ────
 function handleSetup(data) {
-  if (getSharedPassword()) {
-    return { error: 'Sistēma jau ir konfigurēta', setup: false };
-  }
-  const password = String((data && data.password) || '');
-  if (password.length < 4) {
-    return { error: 'Kopīgajai parolei jābūt vismaz 4 zīmēm' };
-  }
   const e = (data && data.employee) || {};
   const vards = String(e.vards || '').trim();
   const uzvards = String(e.uzvards || '').trim();
@@ -642,7 +667,31 @@ function handleSetup(data) {
     return { error: 'Nepieciešams vārds, uzvārds un PIN (vismaz 4 cipari)' };
   }
 
-  setSharedPassword(password);
+  // Kopīgā parole:
+  //   • ja tā JAU ir iestatīta — to pārbaudām (lai tikai tas, kas zina
+  //     paroli, var izveidot administratoru);
+  //   • ja tā NAV iestatīta — to iestājam no ievades.
+  //
+  // ⚠️ Paroles pārbaude notiek PIRMS administratora esamības pārbaudes,
+  // lai nepamestu citiem ar izteiktu, vai sistēma jau konfigurēta.
+  const existingPw = getSharedPassword();
+  const password = String((data && data.password) || '');
+  if (existingPw) {
+    if (!constantTimeEqual(password, existingPw)) {
+      recordAuthFailure();
+      return { error: 'Nepareiza kopīgā parole', auth: 'password' };
+    }
+  } else {
+    if (password.length < 4) {
+      return { error: 'Kopīgajai parolei jābūt vismaz 4 zīmēm' };
+    }
+    setSharedPassword(password);
+  }
+
+  // Ja administrators jau eksistē, setup vairs nav vajadzīgs.
+  if (hasAdminEmployee(publicEmployeeList())) {
+    return { error: 'Sistēma jau ir konfigurēta', setup: false };
+  }
 
   const sheet = getSheet('darbinieki');
   ensureColumns(sheet, ['version']);
@@ -657,7 +706,7 @@ function handleSetup(data) {
     maina_tips: 'diennakts',
     version: 1
   });
-  return { success: true, message: 'Sistēma konfigurēta' };
+  return { success: true, message: 'Sistēma konfigurēta', employeeId: id };
 }
 
 function handleSessionCheck(session) {

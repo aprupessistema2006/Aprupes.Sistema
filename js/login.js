@@ -57,8 +57,6 @@ class LoginController {
       const passwordSection = document.getElementById('passwordSection');
       const employeeArea = document.getElementById('employeeArea');
       const statusMsg = document.getElementById('statusMessage');
-      if (passwordSection) passwordSection.style.display = 'none';
-      if (employeeArea) employeeArea.style.display = 'block';
       // Ielādējam darbiniekus no lokālā keša, ja nav iepriekš ieslēdzami serverī
       try {
         const cachedEmployees = localStorage.getItem('aprupes_employees');
@@ -67,12 +65,22 @@ class LoginController {
           this.filteredEmployees = [...this.employees];
         }
       } catch (e) { /* ignorējam keša kļūdu */ }
-      if (this.employees && this.employees.length > 0) {
+      // ⚠️ Kešā var būt tukšs saraksts (piem., serverī vēl nav neviena
+      // darbinieka). Tad paroles soli NEDRĪKST slēpt — lietotājam ir
+      // jāievada kopīgā parole, lai iegūtu svašu sarakstu vai izveidotu
+      // pirmo administratoru. Citādi ekrāns paliek tukšs ("0 darbinieki").
+      const hasCachedEmployees = !!(this.employees && this.employees.length);
+      if (passwordSection) passwordSection.style.display = hasCachedEmployees ? 'none' : 'block';
+      if (employeeArea) employeeArea.style.display = hasCachedEmployees ? 'block' : 'none';
+      if (hasCachedEmployees) {
         this.renderEmployeeList();
-      }
-      if (statusMsg) {
-        statusMsg.textContent = 'Ierīce jau atvērta • ' + (this.employees ? this.employees.length : 0) + ' darbinieki';
-        statusMsg.style.color = '#27ae60';
+        if (statusMsg) {
+          statusMsg.textContent = 'Ierīce jau atvērta • ' + this.employees.length + ' darbinieki';
+          statusMsg.style.color = '#27ae60';
+        }
+      } else if (statusMsg) {
+        statusMsg.textContent = 'Ierīce jau atvērta, bet darbinieku saraksts ir tukšs — ievadi kopīgo paroli';
+        statusMsg.style.color = '#e67e22';
       }
     }
 
@@ -83,7 +91,7 @@ class LoginController {
     // saraksts nāk no servera pēc atbildes (login.start).
   }
 
-  enterSetupMode() {
+  enterSetupMode(message) {
     this.setupMode = true;
     const loginSection = document.getElementById('loginSection');
     const setupSection = document.getElementById('setupSection');
@@ -94,7 +102,17 @@ class LoginController {
     if (employeeArea) employeeArea.style.display = 'none';
     if (loginSection) loginSection.style.display = 'none';
     if (setupSection) setupSection.style.display = 'block';
-    if (statusMsg) statusMsg.textContent = 'Sistēma nav konfigurēta — izveido pirmo administratoru.';
+    if (statusMsg) {
+      statusMsg.textContent = message || 'Sistēma nav konfigurēta — izveido pirmo administratoru.';
+      statusMsg.style.color = '#e67e22';
+    }
+    // Kopīgo paroli pārnesam uz setup formu, lai lietotājs to neievadīt
+    // vēlreiz. Serveris to pārbauda pret savu saglabāto paroli.
+    try {
+      const shared = document.getElementById('sharedPassword');
+      const setupPw = document.getElementById('setupPassword');
+      if (shared && setupPw && shared.value && !setupPw.value) setupPw.value = shared.value;
+    } catch (e) { /* ignorējam */ }
   }
 
   async exitSetupMode() {
@@ -137,10 +155,20 @@ class LoginController {
         try {
           const res = await callBackend('login.start', { password: password }, 30000);
           if (res && res.setup_required) {
-            this.enterSetupMode();
+            this.enterSetupMode(res.need_admin
+              ? 'Sistēmā nav administratora — izveido pirmo administratoru.'
+              : 'Sistēma nav konfigurēta — izveido pirmo administratoru.');
             return;
           }
           if (res && res.success === true && Array.isArray(res.employees)) {
+            // ⚠️ Serveris var būt vecāks (vēl nav setup_required) — tāpēc
+            // pārbaudām arī klienta pusē: ja saraksts tukšs, administratora
+            // nav un lietotājs nevar pieteikties. Tā vietā, lai rādītu
+            // tukšu sarakstu ("0 darbinieki"), atveram setup ekrānu.
+            if (!res.employees.length) {
+              this.enterSetupMode('Sistēmā nav neviena darbinieka — izveido pirmo administratoru.');
+              return;
+            }
             this.employees = this.groupEmployees(res.employees);
             this.filteredEmployees = [...this.employees];
             this.unlocked = true;
