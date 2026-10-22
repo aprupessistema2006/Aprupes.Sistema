@@ -160,6 +160,54 @@ class ControlPanel {
       if (overlay) overlay.style.display = 'none';
       this._setBackgroundSyncNote(null);
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // AUTOMĀTISKĀ ATJAUNOŠANA IK 30 MINŪTĒS
+    //
+    // Tas pats loģiski, kas medicīnas lapā: dati atjauninās no Google
+    // Sheets, KAD lapa ir atvērta (document.hidden === false) un ir
+    // internets. Lappi aizvērt — tā nesinhronizējas (servera kvota un
+    // ātrums), un dati atjauninās nākamajā atvēršanā.
+    // ─────────────────────────────────────────────────────────────────────
+    this._startAutoSync();
+  }
+
+  // Ik 30 minūtēs (un pēc atgriešanās uz lapu / interneta atgriešanās)
+  // atjaunina datus no Google Sheets — bez paziņošanas traucējumiem.
+  _startAutoSync() {
+    if (this._autoSyncTimer) {
+      try { clearInterval(this._autoSyncTimer); } catch (e) {}
+      this._autoSyncTimer = null;
+    }
+    const run = async () => {
+      if (this._autoSyncRunning) return;
+      if (document.hidden) return;
+      if (!navigator.onLine) return;
+      if (!this.sync) return;
+      this._autoSyncRunning = true;
+      try {
+        const result = await this.sync.forceFullSync(() => {});
+        await this.sync.waitForMarks();
+        if (result && result.offline) return;
+        await this.loadData();
+        this.renderAll();
+        await this.setupTasksUI();
+        await this.renderTasksList();
+        console.log('[control] Auto-sync pabeigts');
+      } catch (e) {
+        // Klusi ignorēt — lai neapgrūtinātu UI
+        console.warn('[control] autoSync kļūda:', e);
+      } finally {
+        this._autoSyncRunning = false;
+      }
+    };
+    this._autoSyncTimer = setInterval(run, 30 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && navigator.onLine) run();
+    });
+    window.addEventListener('online', () => {
+      if (!document.hidden) run();
+    });
   }
 
   // Neliela josla, kas parāda fonā notiekošo sinhronizāciju, nevis aizsegot
