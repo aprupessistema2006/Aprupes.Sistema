@@ -30,7 +30,7 @@ body {
   justify-content: flex-start;
   color: var(--ds-text-primary);
   transition: background var(--ds-duration-normal) var(--ds-ease-standard);
-  overflow-x: hidden;
+  overflow-x: auto;
   padding-top: 24px;
 }
 
@@ -1085,3 +1085,4 @@ body.online {
     padding: 10px 14px;
   }
 }
+

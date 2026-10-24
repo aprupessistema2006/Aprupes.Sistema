@@ -42,7 +42,7 @@ html, body {
   font-family: var(--ds-font-sans);
   background: var(--ds-background);
   color: var(--ds-text-primary);
-  overflow-x: hidden;
+  overflow-x: auto;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -2162,5 +2162,6 @@ body {
   color: var(--accent);
   font-weight: 700;
 }
+
 
 

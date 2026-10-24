@@ -117,7 +117,7 @@ body {
   background-color: var(--ds-background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 a { color: var(--ds-primary); text-decoration: none; }
@@ -921,3 +921,4 @@ textarea.input { height: auto; min-height: 100px; padding: var(--ds-space-3); re
 .ds-bg-surface { background: var(--ds-surface); }
 .ds-bg-surface-secondary { background: var(--ds-surface-secondary); }
 .ds-ring-primary { box-shadow: 0 0 0 3px var(--ds-primary-light); }
+

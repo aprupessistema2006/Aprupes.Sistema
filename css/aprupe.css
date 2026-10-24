@@ -31,7 +31,7 @@ body {
   font-family: var(--ds-font-sans);
   background: var(--ds-background);
   color: var(--ds-text-primary);
-  overflow-x: hidden;
+  overflow-x: auto;
   padding-bottom: 60px;
 }
 
@@ -2040,3 +2040,4 @@ body {
   margin-left: 10px;
   border: 1px solid #ffeeba;
 }
+
