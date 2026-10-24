@@ -16,7 +16,7 @@ const CONFIG = {
   // setup-fixu). Vecais URL (AKfycbyR97...) vairs netiek izmantots —
   // tajā vēl ir vecais `handleSetup`, kas atsaka "Sistēma jau ir
   // konfigurēta", kad kopīgā parole jau iestatīta.
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbzIXkxiUV7RJ0KswyH9EGlvD9jQTyu0HVr2cpBLc1RZRXKUTQKocbwgPh028kotI7lnMw/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbzKG7dF19AZ5mWybyz0TrIJB3PI1DtlhoplpdC73c2pTk9D2IqjwpB64eAx7r_Sk4Fbzw/exec',
 
   // ⚠️ Šis lauks klientā netiek lasīts — patieso nolasījumu dara
   // backend/gas_webhook.gs (SHEET_ID, 1. rinda). Šeit tas ir tikai
