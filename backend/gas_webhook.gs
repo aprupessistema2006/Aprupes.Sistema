@@ -840,7 +840,19 @@ function routeSecured(action, data, session, token) {
     // ── Lasīšana: visiem autentificētiem; aprūpētājam — tikai savi dati
     case 'load':
       if (!admin && !controller) {
-        data.employeeId = session.emp;
+        // Ja ir datuma diapazona ielāde bez klienta filtra (mode='range',
+        // piem. _loadRecentMarks), nepieņemam sesijas darbinieka filtra —
+        // skenē tikai pēc datuma (reverseScan), lai atrastu visus
+        // pēdējajām dienām ierakstus, nevis tikai vienu darbinieka.
+        // Ja klients ir norādījis klienta filtra (piem. loadClientRange),
+        // darbinieka filtra tiek lietots kā additīvais filtra.
+        if (data.mode === 'range' && !data.clientId) {
+          data.employeeId = '';
+          data.employeeID = '';
+          data.darbinieksId = '';
+        } else {
+          data.employeeId = session.emp;
+        }
       } else {
         // Administrators un kontrole redz visu — nav darbinieka filtra.
         // Ja atstāt session.emp, TextFinder meklē to darbinieks_id kolonnā

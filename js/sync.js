@@ -817,10 +817,7 @@ class CareSync {
     // logs aptur secīgus atkārtojumus (3 ielādes pēc kārtas = 80+ sekundes).
     // Lietotāja apzināta "Sinhronizēt" (force) to ignorē.
     this.REPEAT_COOLDOWN_MS = 20000;
-    // Cik dienu aprūpes ierakstus ielādēt sākuma ekrānam. Tas ir
-    // vienīgais papildus datu ielādes ceļš; pārējo vēsturi ielādē tikai
-    // konkrēta klienta atvēršanai.
-    this.RECENT_DAYS = 7;
+    this.RECENT_DAYS = 2;   // tikai vakardiena un šodiena — aprūpētājiem ir kritiski svarīgi, lai ielāde būt ātra
     // ⚠️ ŠIS Limits vairs NEDARBOJAS un to nedrīkst atjaunot.
     //
     // Vecajā uzvedībā pēc 5 neizdevušiem mēģinājumiem ieraksts tika
