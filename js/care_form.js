@@ -33,19 +33,6 @@ class CareFormController {
     return this.currentShift; // Use selected tab (R or V)
   }
 
-  // Check if a shift is already signed for today (immutable for non-admins)
-  isShiftSigned(shift) {
-    if (this.adminMode) return false; // Admins can always edit
-    const today = this.getToday();
-    const sectionField = 'aprupetaja_paraksts';
-    return this.history.some(h => 
-      h.category === 'paraksts' && 
-      h.field === sectionField && 
-      h.shift === shift && 
-      this.extractDateFromAnyField(h) === today
-    );
-  }
-
   setupShiftAutoUpdate() {
     const applyShift = () => {
       const detected = this.detectCurrentShift();

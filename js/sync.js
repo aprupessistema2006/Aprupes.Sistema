@@ -2297,17 +2297,9 @@ _loadRecentMarksBackground(onProgress) {
        return result;
      } catch (e) {
        // Ja nav savienojuma — atkārtošana ir vienīgais variants
-       return { can_retry: true, reason: 'network_error' };
-     }
-   }
-
-  async sync() {
-    const summary = await this.processQueue();
-    // Fire queueComplete (not syncComplete) to avoid triggering re-renders
-    try {
-      window.dispatchEvent(new CustomEvent('queueComplete', { detail: { queue: summary } }));
-    } catch (e) {}
-  }
+      return { can_retry: true, reason: 'network_error' };
+      }
+    }
 
   async hasLocalData() {
     try {

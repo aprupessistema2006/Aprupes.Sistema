@@ -383,7 +383,7 @@ class ControlPanel {
       }
       listEl.innerHTML = currentResults.map((c, i) => {
         const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
-        return `<div class="client-autocomplete-item ${i === activeIndex ? 'active' : ''}" data-id="${c.id || c.ID}" data-name="${this.escapeHtml(name.trim())}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</div>`;
+        return `<div class="client-autocomplete-item ${i === activeIndex ? 'active' : ''}" data-id="${c.id || c.ID}" data-name="${window.Utils.escapeHtml(name.trim())}">${window.Utils.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</div>`;
       }).join('');
       listEl.style.display = 'block';
     };
@@ -520,7 +520,7 @@ class ControlPanel {
       clientFilter.innerHTML = '<option value="">Visi klienti (' + this.allClients.length + ')</option>' +
         this.allClients.map(c => {
           const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
-          return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
+          return `<option value="${c.id || c.ID}">${window.Utils.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
         }).join('');
     }
 
@@ -529,7 +529,7 @@ class ControlPanel {
       exportClient.innerHTML = '<option value="">— izvēlies klientu —</option>' +
         this.allClients.map(c => {
           const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
-          return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
+          return `<option value="${c.id || c.ID}">${window.Utils.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
         }).join('');
     }
 
@@ -538,7 +538,7 @@ class ControlPanel {
       monthViewClient.innerHTML = '<option value="">— izvēlies klientu —</option>' +
         this.allClients.map(c => {
           const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
-          return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
+          return `<option value="${c.id || c.ID}">${window.Utils.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
         }).join('');
     }
 
@@ -559,7 +559,7 @@ class ControlPanel {
       empFilter.innerHTML = '<option value="">Visi (' + this.allEmployees.length + ')</option>' +
         this.allEmployees.map(e => {
           const name = (e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '');
-          return `<option value="${e.id || e.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (e.id || e.ID)))}</option>`;
+          return `<option value="${e.id || e.ID}">${window.Utils.escapeHtml(name.trim() || ('ID: ' + (e.id || e.ID)))}</option>`;
         }).join('');
     }
   }
@@ -857,17 +857,17 @@ class ControlPanel {
       if (typeof displayValue === 'string') {
         displayValue = displayValue.replace(/\s*\[ADMIN:[^\]]*\]\s*/g, '').trim();
       }
-      const value = displayValue === '' || displayValue === undefined ? '<em style="color:#999">(tukšs)</em>' : this.escapeHtml(String(displayValue));
+      const value = displayValue === '' || displayValue === undefined ? '<em style="color:#999">(tukšs)</em>' : window.Utils.escapeHtml(String(displayValue));
       return `
         <tr>
-          <td><strong>${this.escapeHtml(date)}</strong></td>
-          <td><strong>${this.escapeHtml(time)}</strong></td>
-          <td>${this.escapeHtml(clientName.trim())}</td>
-          <td>${this.escapeHtml(empName.trim())}</td>
-          <td>${this.escapeHtml(this.formatCategoryLabel(l.category))}</td>
-          <td>${this.escapeHtml(this.formatFieldLabel(l.category, l.field))}</td>
+          <td><strong>${window.Utils.escapeHtml(date)}</strong></td>
+          <td><strong>${window.Utils.escapeHtml(time)}</strong></td>
+          <td>${window.Utils.escapeHtml(clientName.trim())}</td>
+          <td>${window.Utils.escapeHtml(empName.trim())}</td>
+          <td>${window.Utils.escapeHtml(this.formatCategoryLabel(l.category))}</td>
+          <td>${window.Utils.escapeHtml(this.formatFieldLabel(l.category, l.field))}</td>
           <td>${value}</td>
-          <td>${l.prevValue ? this.escapeHtml(String(l.prevValue)) : '-'}</td>
+          <td>${l.prevValue ? window.Utils.escapeHtml(String(l.prevValue)) : '-'}</td>
           <td>${isEdit ? '<span class="edit-tag">Labots</span>' : '<span class="new-tag">Jauns</span>'}</td>
         </tr>
       `;
@@ -892,7 +892,7 @@ class ControlPanel {
           const v = e.vards || e.Vārds || '';
           const u = e.uzvards || e.Uzvārds || '';
           const l = e.loma || e.Loma || '';
-          return `<option value="${id}">${this.escapeHtml((v + ' ' + u).trim())} (${this.escapeHtml(l)})</option>`;
+          return `<option value="${id}">${window.Utils.escapeHtml((v + ' ' + u).trim())} (${window.Utils.escapeHtml(l)})</option>`;
         }).join('');
     }
 
@@ -902,7 +902,7 @@ class ControlPanel {
           const id = c.id || c.ID;
           const v = c.vards || c.Vārds || '';
           const u = c.uzvards || c.Uzvārds || '';
-          return `<option value="${id}">${this.escapeHtml((v + ' ' + u).trim())}</option>`;
+          return `<option value="${id}">${window.Utils.escapeHtml((v + ' ' + u).trim())}</option>`;
         }).join('');
     }
 
@@ -997,15 +997,15 @@ class ControlPanel {
           <div class="task-row-left">
             <div class="task-row-header">
               <span class="task-row-priority">${prLabel}</span>
-              <span class="task-row-deadline">${overdue ? '⏰ ' : ''}${today ? '📅 ' : ''}${this.escapeHtml(t.termins || '')}</span>
+              <span class="task-row-deadline">${overdue ? '⏰ ' : ''}${today ? '📅 ' : ''}${window.Utils.escapeHtml(t.termins || '')}</span>
               <span class="task-row-status">${taskStatus}</span>
             </div>
-            <div class="task-row-text">${this.escapeHtml(t.teksts || '')}</div>
+            <div class="task-row-text">${window.Utils.escapeHtml(t.teksts || '')}</div>
             <div class="task-row-meta">
-              <span>👤 ${this.escapeHtml(assignee.trim())}</span>
-              <span>🏥 ${this.escapeHtml(client.trim())}</span>
-              ${doneBy ? '<span>✓ Izpildīja: ' + this.escapeHtml(doneBy.trim()) + '</span>' : ''}
-              ${doneTime ? '<span>🕒 Pabeigts: ' + this.escapeHtml(doneTime) + '</span>' : ''}
+              <span>👤 ${window.Utils.escapeHtml(assignee.trim())}</span>
+              <span>🏥 ${window.Utils.escapeHtml(client.trim())}</span>
+              ${doneBy ? '<span>✓ Izpildīja: ' + window.Utils.escapeHtml(doneBy.trim()) + '</span>' : ''}
+              ${doneTime ? '<span>🕒 Pabeigts: ' + window.Utils.escapeHtml(doneTime) + '</span>' : ''}
             </div>
           </div>
           <div class="task-row-actions">
@@ -1035,12 +1035,6 @@ class ControlPanel {
         await this.renderTasksList();
       });
     });
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
   }
 
   async exportExcel() {
@@ -1314,7 +1308,7 @@ class ControlPanel {
       html += '</tr></thead><tbody>';
 
       fieldMap.forEach(f => {
-        html += `<tr><td>${this.escapeHtml(f.label)}</td>`;
+        html += `<tr><td>${window.Utils.escapeHtml(f.label)}</td>`;
         for (let day = 1; day <= daysInMonth; day++) {
           const dayData = dataByDay[day] || {};
           let valR = dayData['R|' + f.category + '|' + f.field];
@@ -1348,8 +1342,8 @@ class ControlPanel {
           const vFever = (f.category === 'temp' && valV && parseFloat(valV) >= 37) ? ' fever' : '';
           const rSig = f.category === 'paraksts' ? ' signature' : '';
           const vSig = f.category === 'paraksts' ? ' signature' : '';
-          html += `<td class="${rClass}${rFever}${rSig}">${this.escapeHtml(valR || '')}</td>`;
-          html += `<td class="${vClass}${vFever}${vSig}">${this.escapeHtml(valV || '')}</td>`;
+          html += `<td class="${rClass}${rFever}${rSig}">${window.Utils.escapeHtml(valR || '')}</td>`;
+          html += `<td class="${vClass}${vFever}${vSig}">${window.Utils.escapeHtml(valV || '')}</td>`;
         }
         html += '</tr>';
       });
@@ -1370,7 +1364,7 @@ class ControlPanel {
           if (valR !== undefined && !isNaN(parseFloat(valR))) sumR += parseFloat(valR);
           if (valV !== undefined && !isNaN(parseFloat(valV))) sumV += parseFloat(valV);
         }
-        html += `<tr class="summary-row"><td><strong>${this.escapeHtml(sf.label)}</strong></td>`;
+        html += `<tr class="summary-row"><td><strong>${window.Utils.escapeHtml(sf.label)}</strong></td>`;
         for (let day = 1; day <= daysInMonth; day++) {
           html += '<td class="empty"></td><td class="empty"></td>';
         }

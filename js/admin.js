@@ -319,7 +319,7 @@ class AdminPanel {
       exportClient.innerHTML = '<option value="" data-i18n="selectClientPrompt">— izvēlies klientu —</option>' +
         this.clients.map(c => {
           const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
-          return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
+          return `<option value="${c.id || c.ID}">${window.Utils.escapeHtml(name.trim() || ('ID: ' + (c.id || c.ID)))}</option>`;
         }).join('');
     }
 
@@ -333,7 +333,7 @@ class AdminPanel {
       });
       exportMultiClients.innerHTML = activeClients.map(c => {
         const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
-        return `<option value="${c.id || c.ID}">${this.escapeHtml(name.trim())}</option>`;
+        return `<option value="${c.id || c.ID}">${window.Utils.escapeHtml(name.trim())}</option>`;
       }).join('');
     }
   }
@@ -591,7 +591,7 @@ class AdminPanel {
       return `
         <div class="item-card">
           <div class="item-info">
-            <div class="item-name">${this.escapeHtml(name)}</div>
+            <div class="item-name">${window.Utils.escapeHtml(name)}</div>
             <div class="item-meta">${dob ? 'Dzimis: ' + dob : ''} ${c.dieta || c.Diēta ? '· Diēta: ' + (c.dieta || c.Diēta) : ''} ${active ? '' : '· Neaktīvs'}</div>
           </div>
           <div class="item-actions">
@@ -636,7 +636,7 @@ class AdminPanel {
       return `
         <div class="item-card">
           <div class="item-info">
-            <div class="item-name">${this.escapeHtml(name)}</div>
+            <div class="item-name">${window.Utils.escapeHtml(name)}</div>
             <div class="item-meta">${loma} · PIN: ${pin} ${active ? '' : '· Neaktīvs'}</div>
           </div>
           <div class="item-actions">
@@ -658,7 +658,7 @@ class AdminPanel {
     (this.clients || []).forEach(c => {
       const name = (c.vards || c.Vārds || '') + ' ' + (c.uzvards || c.Uzvārds || '');
       const id = c.id || c.ID;
-      clientSelect.innerHTML += `<option value="${this.escapeHtml(id)}">${this.escapeHtml(name)}</option>`;
+      clientSelect.innerHTML += `<option value="${window.Utils.escapeHtml(id)}">${window.Utils.escapeHtml(name)}</option>`;
     });
 
     employeeSelect.innerHTML = '<option value="">— Izvēlies aprūpētāju —</option>';
@@ -667,7 +667,7 @@ class AdminPanel {
       if (!loma.includes('aprūpētājs') && !loma.includes('aprupetas') && !loma.includes('aprūpe')) return;
       const name = (e.vards || e.Vārds || '') + ' ' + (e.uzvards || e.Uzvārds || '');
       const id = e.id || e.ID;
-      employeeSelect.innerHTML += `<option value="${this.escapeHtml(id)}">${this.escapeHtml(name)}</option>`;
+      employeeSelect.innerHTML += `<option value="${window.Utils.escapeHtml(id)}">${window.Utils.escapeHtml(name)}</option>`;
     });
 
     modal.style.display = 'flex';
@@ -710,11 +710,11 @@ class AdminPanel {
       <form id="clientForm">
         <div class="form-group">
           <label>Vārds *</label>
-          <input type="text" name="vards" value="${this.escapeHtml(vards)}" required>
+          <input type="text" name="vards" value="${window.Utils.escapeHtml(vards)}" required>
         </div>
         <div class="form-group">
           <label>Uzvārds *</label>
-          <input type="text" name="uzvards" value="${this.escapeHtml(uzvards)}" required>
+          <input type="text" name="uzvards" value="${window.Utils.escapeHtml(uzvards)}" required>
         </div>
         <div class="form-group">
           <label>Dzimšanas datums</label>
@@ -722,11 +722,11 @@ class AdminPanel {
         </div>
         <div class="form-group">
           <label>Diēta</label>
-          <input type="text" name="dieta" value="${this.escapeHtml(dieta)}">
+          <input type="text" name="dieta" value="${window.Utils.escapeHtml(dieta)}">
         </div>
         <div class="form-group">
           <label>Saskarsmes īpatnības</label>
-          <textarea name="saskarsmes" rows="2">${this.escapeHtml(saskarsmes)}</textarea>
+          <textarea name="saskarsmes" rows="2">${window.Utils.escapeHtml(saskarsmes)}</textarea>
         </div>
         <div class="form-group form-checkbox">
           <label class="checkbox-label">
@@ -774,11 +774,11 @@ class AdminPanel {
       <form id="employeeForm">
         <div class="form-group">
           <label>Vārds *</label>
-          <input type="text" name="vards" value="${this.escapeHtml(vards)}" required>
+          <input type="text" name="vards" value="${window.Utils.escapeHtml(vards)}" required>
         </div>
         <div class="form-group">
           <label>Uzvārds *</label>
-          <input type="text" name="uzvards" value="${this.escapeHtml(uzvards)}" required>
+          <input type="text" name="uzvards" value="${window.Utils.escapeHtml(uzvards)}" required>
         </div>
         <div class="form-group">
           <label>Loma *</label>
@@ -791,7 +791,7 @@ class AdminPanel {
         </div>
         <div class="form-group">
           <label>PIN kods ${isEdit ? '(atstājiet tukšu, lai nemainītu)' : '*'}</label>
-          <input type="text" name="pin" value="${this.escapeHtml(pin)}" pattern="[0-9]{4,6}" maxlength="6" ${isEdit ? '' : 'required'}>
+          <input type="text" name="pin" value="${window.Utils.escapeHtml(pin)}" pattern="[0-9]{4,6}" maxlength="6" ${isEdit ? '' : 'required'}>
           <small>4-6 cipari</small>
         </div>
         <button type="submit" class="btn-primary">${isEdit ? 'Saglabāt' : 'Pievienot'}</button>
@@ -1120,12 +1120,6 @@ class AdminPanel {
     toast.textContent = message;
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
   }
 }
 

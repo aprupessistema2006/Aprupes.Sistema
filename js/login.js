@@ -493,12 +493,6 @@ applyFilters(searchTerm) {
       const u = (e.uzvards || '').trim();
       return ((v[0] || '?') + (u[0] || '')).toUpperCase();
     };
-    const roleColor = (l) => {
-      const r = (l || '').toLowerCase();
-      if (r === 'administrators' || r === 'admins' || r === 'admin') return 'var(--danger)';
-      if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
-      return 'var(--accent)';
-    };
 
     list.innerHTML = this.filteredEmployees.map(e => {
       const id = e.id;
@@ -506,12 +500,12 @@ applyFilters(searchTerm) {
       const u = e.uzvards || '';
       const roles = e.lomas || [];
       const sel = this.selectedEmployee && String(this.selectedEmployee.id) === String(id) ? 'selected' : '';
-      const roleBadges = roles.map(r => `<span class="role-badge" style="background:${roleColor(r)}20;color:${roleColor(r)};border-color:${roleColor(r)}">${roleLabel(r)}</span>`).join('');
+      const roleBadges = roles.map(r => `<span class="role-badge" style="background:${window.Utils.roleColor(r)}20;color:${window.Utils.roleColor(r)};border-color:${window.Utils.roleColor(r)}">${roleLabel(r)}</span>`).join('');
       return `
         <div class="employee-card ${sel}" data-id="${id}">
-          <div class="emp-avatar" style="background:${roleColor(roles[0])};color:#fff">${initials(e)}</div>
+          <div class="emp-avatar" style="background:${window.Utils.roleColor(roles[0])};color:#fff">${initials(e)}</div>
           <div class="emp-info">
-            <div class="emp-name">${this.escapeHtml(v)} ${this.escapeHtml(u)}</div>
+            <div class="emp-name">${window.Utils.escapeHtml(v)} ${window.Utils.escapeHtml(u)}</div>
             <div class="emp-roles">${roleBadges}</div>
           </div>
         </div>
@@ -547,19 +541,13 @@ applyFilters(searchTerm) {
       const m = { 'administrators': '👑 Admin', 'kontroliere': '📊 Kontrole', 'aprūpētājs': '🤝 Aprūpe' };
       return m[(l || '').toLowerCase()] || l;
     };
-    const roleColor = (l) => {
-      const r = (l || '').toLowerCase();
-      if (r === 'administrators' || r === 'admins' || r === 'admin') return 'var(--danger)';
-      if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
-      return 'var(--accent)';
-    };
     const roles = emp.lomas || [];
     if (role) {
       if (roles.length === 1) {
         role.textContent = roleLabel(roles[0]);
-        role.style.color = roleColor(roles[0]);
+        role.style.color = window.Utils.roleColor(roles[0]);
       } else {
-        role.innerHTML = roles.map(r => `<span class="role-badge" style="background:${roleColor(r)}20;color:${roleColor(r)};border:1px solid ${roleColor(r)}">${roleLabel(r)}</span>`).join(' ');
+        role.innerHTML = roles.map(r => `<span class="role-badge" style="background:${window.Utils.roleColor(r)}20;color:${window.Utils.roleColor(r)};border:1px solid ${window.Utils.roleColor(r)}">${roleLabel(r)}</span>`).join(' ');
       }
     }
     if (shiftSelector) shiftSelector.style.display = 'block';
@@ -605,18 +593,6 @@ applyFilters(searchTerm) {
       const m = { 'administrators': 'Administrators', 'kontroliere': 'Kontrolieris', 'aprūpētājs': 'Aprūpētājs' };
       return m[(l || '').toLowerCase()] || l;
     };
-    const roleColor = (l) => {
-      const r = (l || '').toLowerCase();
-      if (r === 'administrators' || r === 'admins' || r === 'admin') return 'var(--danger)';
-      if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'var(--primary-light)';
-      return 'var(--accent)';
-    };
-    const roleColorAlpha = (l) => {
-      const r = (l || '').toLowerCase();
-      if (r === 'administrators' || r === 'admins' || r === 'admin') return 'rgba(231,76,60,0.25)';
-      if (r === 'kontroliere' || r === 'kontrolieris' || r === 'controller') return 'rgba(52,152,219,0.25)';
-      return 'rgba(39,174,96,0.25)';
-    };
     const pinInput = document.getElementById('pinInput');
     const loginBtn = document.getElementById('loginBtn');
     if (pinInput) pinInput.disabled = true;
@@ -635,7 +611,7 @@ applyFilters(searchTerm) {
         <p class="inline-role-prompt">Izvēlies lomu:</p>
         <div class="inline-role-options">
           ${roles.map(r => `
-            <label class="inline-role-option" style="--role-color:${roleColor(r)};--role-color-alpha:${roleColorAlpha(r)}">
+            <label class="inline-role-option" style="--role-color:${window.Utils.roleColor(r)};--role-color-alpha:${window.Utils.roleColorAlpha(r)}">
               <input type="radio" name="inlineRoleChoice" value="${r}" ${r === preSelected ? 'checked' : ''}>
               <span class="inline-role-radio"></span>
               <span class="inline-role-label">${roleLabel(r)}</span>
@@ -670,7 +646,7 @@ applyFilters(searchTerm) {
       const checked = roleEl.querySelector('input[name="inlineRoleChoice"]:checked');
       if (!checked) return;
       this.selectedEmployee.chosenRole = checked.value;
-      roleEl.innerHTML = `<span class="role-badge" style="background:${roleColor(checked.value)}20;color:${roleColor(checked.value)};border:1px solid ${roleColor(checked.value)}">${roleLabel(checked.value)}</span>`;
+      roleEl.innerHTML = `<span class="role-badge" style="background:${window.Utils.roleColor(checked.value)}20;color:${window.Utils.roleColor(checked.value)};border:1px solid ${window.Utils.roleColor(checked.value)}">${roleLabel(checked.value)}</span>`;
       const pinInput = document.getElementById('pinInput');
       const loginBtn = document.getElementById('loginBtn');
       if (pinInput) {
@@ -831,7 +807,7 @@ applyFilters(searchTerm) {
     card.innerHTML = `
       <img src="logo/logoDS.png" alt="Aprūpes sistēma" class="login-logo">
       <div style="font-size:64px;line-height:1;margin:6px 0;">🎉</div>
-      <h1 style="color:#27ae60;margin-bottom:6px;">Laipni lūdzam, ${this.escapeHtml(fname)}!</h1>
+      <h1 style="color:#27ae60;margin-bottom:6px;">Laipni lūdzam, ${window.Utils.escapeHtml(fname)}!</h1>
       <p style="font-size:16px;color:#2c3e50;font-weight:600;margin-bottom:14px;">${role}</p>
       <div style="background:linear-gradient(135deg,#e8f5e9 0%,#c8e6c9 100%);padding:18px;border-radius:14px;margin-top:10px;border-left:4px solid #27ae60;">
         <div style="font-size:17px;color:#1b5e20;font-weight:600;line-height:1.4;">${greeting}</div>
@@ -875,12 +851,6 @@ applyFilters(searchTerm) {
       }
       window.location.href = 'aprupe.html';
     }
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
   }
 
   hideSplash() {
