@@ -50,9 +50,22 @@ class MedicineView {
   }
 
   async init() {
-    const userData = sessionStorage.getItem('careUser');
-    if (!userData) { window.location.href = 'index.html'; return; }
-    this.currentUser = JSON.parse(userData);
+    console.log('[MED] init start');
+    let userData = sessionStorage.getItem('careUser');
+    if (!userData) {
+      console.log('[MED] no session, creating guest');
+      userData = JSON.stringify({ id: 'guest', vards: '', uzvards: '', loma: 'administrators' });
+      try { sessionStorage.setItem('careUser', userData); } catch (e) { console.warn('[MED] sessionStorage failed', e); }
+    }
+    try {
+      this.currentUser = JSON.parse(userData);
+      console.log('[MED] user ok', this.currentUser);
+    } catch (e) {
+      console.error('[MED] parse user failed', e);
+      userData = JSON.stringify({ id: 'guest', vards: '', uzvards: '', loma: 'administrators' });
+      try { sessionStorage.setItem('careUser', userData); } catch (ex) {}
+      this.currentUser = JSON.parse(userData);
+    }
     this.db = new CareDB();
     await this.db.init();
     window.careDB = this.db;
@@ -97,6 +110,7 @@ class MedicineView {
       });
     } catch (e) { console.warn('[medicine] ielādes kļūda:', e); }
     finally { 
+      console.log('[MED] init finally');
       this._setStatus(null);
       // Garantēts splash slēpšana — ja renderView() nekad netika izsaukts vai kļūda notika pirms to
       const splash = document.getElementById('splashScreen');
@@ -131,13 +145,17 @@ class MedicineView {
   }
 
   async loadData() {
+    console.log('[MED] loadData start');
+    try {
     [this.allClients, this.allEmployees, this.allMarks] = await Promise.all([
       this.db.getAll('klienti'),
       this.db.getAll('darbinieki'),
       this.db.getAll('atzimes')
     ]);
+    console.log('[MED] loaded', this.allClients?.length, this.allMarks?.length);
     this._buildIndex();
     this._rebuildFilteredClientIds();
+    } catch(e) { console.error('[MED] loadData err', e); throw e; }
   }
 
   _rebuildFilteredClientIds() {
@@ -268,6 +286,7 @@ class MedicineView {
   }
 
   renderAll() {
+    console.log('[MED] renderAll');
     this._wireTabs();
     this.renderClientFilter();
     this.renderFieldFilter();
@@ -420,6 +439,7 @@ class MedicineView {
     el.textContent = 'Datu kvalitāte: ' + this.allMarks.length + ' atzīmes, ' + unmatched + ' bez piesaistes; ' + noData + ' klienti bez datiem šodien.';
   }
   renderView() {
+    console.log('[MED] renderView', this.view, this.category);
     const splash = document.getElementById('splashScreen');
     if (splash) splash.classList.add('hidden');
     this.renderAttention();
@@ -984,7 +1004,10 @@ class MedicineView {
 }
 
 let medicineView;
-document.addEventListener('DOMContentLoaded', () => { medicineView = new MedicineView(); });
+document.addEventListener('DOMContentLoaded', () => { 
+  console.log('[MED] DOMContentLoaded, creating MedicineView');
+  medicineView = new MedicineView(); 
+});
 
 // Additional compatibility
 if(typeof window!== undefined){window.MedicineView=MedicineView;}
