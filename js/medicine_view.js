@@ -911,43 +911,8 @@ class MedicineView {
       try { clearInterval(this._autoSyncTimer); } catch (e) {}
       this._autoSyncTimer = null;
     }
-    const run = async () => {
-      if (this._autoSyncRunning) return;
-      if (document.hidden) return;
-      if (!navigator.onLine) return;
-      if (!this.sync) return;
-      this._autoSyncRunning = true;
-      try {
-        let result = null;
-        if (typeof this.sync.forceFullSync === 'function') {
-          result = await this.sync.forceFullSync(() => {});
-        } else if (typeof this.sync.reloadFromSheets === 'function') {
-          result = await this.sync.reloadFromSheets(() => {});
-        } else if (typeof this.sync.loadInitialData === 'function') {
-          result = await this.sync.loadInitialData(() => {}, {}, { force: true });
-        }
-        if (!result || result.offline) return;
-        try { if (typeof this.sync.waitForMarks === 'function') await this.sync.waitForMarks(); } catch (e) {}
-        await this.loadData();
-        this.renderView();
-      } catch (e) {
-        // Klusi ignorēt, lai neapgrūtinātu UI
-        console.warn('[medicine] autoSync kļūda:', e);
-      } finally {
-        this._autoSyncRunning = false;
-      }
-    };
-    run();
-    this._autoSyncTimer = setInterval(run, 30 * 60 * 1000);
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && navigator.onLine) {
-        run();
-      }
-    });
-    window.addEventListener('online', () => {
-      if (!document.hidden) run();
-    });
-  }
+    // Disable auto-sync to prevent duplicate loads
+    return;
 
   _setStatus(msg) {
     const el = document.getElementById('mhStatus');
