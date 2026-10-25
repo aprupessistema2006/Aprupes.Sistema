@@ -177,16 +177,32 @@ class MedicineView {
 
   _markDate(m) {
     if (!m) return '';
+    // Prefer explicit ISO date fields
     const nl = m.notikuma_laiks || m.notikumaLaiks || '';
-    const nlIso = String(nl).match(/^(\d{4})-(\d{2})-(\d{2})/); if (nlIso) return nlIso[1] + '-' + nlIso[2] + '-' + nlIso[3];
+    const nlIso = String(nl).match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+    if (nlIso) return nlIso[1] + '-' + nlIso[2] + '-' + nlIso[3];
     const raw = m.date || m.datums || m.lastModified || m.pedeja_laiks || '';
     const s = String(raw);
-    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
-    const ymd = s.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})/); if (ymd) return ymd[1] + '-' + String(ymd[3]).padStart(2,'0') + '-' + String(ymd[2]).padStart(2,'0');
-    const lv = s.match(/^(\d{2})\.(\d{2})\.(\d{4})/); if (lv) return lv[3] + '-' + lv[2] + '-' + lv[1];
-    const idTs = String(m.id || '').match(/^[a-z]+_(\d{10,13})/);
-    if (idTs) { const d = new Date(parseInt(idTs[1], 10)); if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-    const d2 = new Date(s); if (!isNaN(d2.getTime())) return d2.getFullYear() + '-' + String(d2.getMonth() + 1).padStart(2, '0') + '-' + String(d2.getDate()).padStart(2, '0');
+    const iso = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+    if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+    const ymd = s.match(/^(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})/);
+    if (ymd) return ymd[1] + '-' + String(ymd[3]).padStart(2,'0') + '-' + String(ymd[2]).padStart(2,'0');
+    const lv = s.match(/^(\\d{2})\\.(\\d{2})\\.(\\d{4})/);
+    if (lv) return lv[3] + '-' + lv[2] + '-' + lv[1];
+    // Timezone-aware conversion for timestamps (Riga)
+    if (typeof TimezoneUtils !== 'undefined' && TimezoneUtils.formatDateRiga) {
+      const tz = TimezoneUtils.formatDateRiga(s);
+      if (tz) return tz;
+    }
+    const idTs = String(m.id || '').match(/^[a-z]+_(\\d{10,13})/);
+    if (idTs) {
+      const d = new Date(parseInt(idTs[1], 10));
+      if (!isNaN(d.getTime()) && typeof TimezoneUtils !== 'undefined' && TimezoneUtils.formatDateRiga) {
+        const tz = TimezoneUtils.formatDateRiga(d);
+        if (tz) return tz;
+      }
+      if (!isNaN(d.getTime())) return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+    }
     return '';
   }
 
@@ -208,6 +224,19 @@ class MedicineView {
       }
     });
     return out;
+  }
+
+  _latestKnownValue(cid, day, fieldKey) {
+    const target = new Date(day + 'T00:00:00');
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(target);
+      d.setDate(d.getDate() - i);
+      const iso = this._iso(d);
+      const latest = this._getLatestByClient(cid, iso);
+      const it = latest[fieldKey];
+      if (it && it.value !== '' && it.value !== null && it.value !== undefined) return { it, sourceDay: iso };
+    }
+    return null;
   }
 
   _getItemsOnDate(clientId, date) {
@@ -241,6 +270,7 @@ class MedicineView {
   renderAll() {
     this._wireTabs();
     this.renderClientFilter();
+    this.renderFieldFilter();
     this.renderDateDefault();
     this.renderView();
   }
@@ -261,6 +291,23 @@ class MedicineView {
     if (current && Array.from(sel.options).some(o => o.value === current)) sel.value = current;
   }
 
+  renderFieldFilter() {
+    const sel = document.getElementById('mhFieldFilter');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Visi lauki</option>';
+    MEDICINE_FIELDS.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.key;
+      opt.textContent = f.label + ' ' + (f.unit || '');
+      sel.appendChild(opt);
+    });
+    if (current && Array.from(sel.options).some(o => o.value === current)) sel.value = current;
+    if (!this._fieldWired) {
+      sel.onchange = () => { this.selectedField = sel.value || ''; this.renderView(); };
+      this._fieldWired = true;
+    }
+  }
   renderDateDefault() {
     const el = document.getElementById('mhDateFilter');
     if (el && !el.value) el.value = this._today();
@@ -303,10 +350,28 @@ class MedicineView {
     box.innerHTML = html;
   }
 
+  renderDataQuality() {
+    const el = document.getElementById('mhDataQuality');
+    if (!el) return;
+    const day = document.getElementById('mhDateFilter').value || this._today();
+    let unmatched = 0;
+    this.allMarks.forEach(m => {
+      const cid = String(m.clientId || m.klients_id || m.klienti_id || '').trim();
+      const d = this._markDate(m);
+      if (!cid || !d) unmatched++;
+    });
+    let noData = 0;
+    this.filteredClientIds.forEach(cid => {
+      const latest = this._getLatestByClient(cid, day);
+      if (!Object.keys(latest).length) noData++;
+    });
+    el.textContent = 'Datu kvalitāte: ' + this.allMarks.length + ' atzīmes, ' + unmatched + ' bez piesaistes; ' + noData + ' klienti bez datiem šodien.';
+  }
   renderView() {
     const splash = document.getElementById('splashScreen');
     if (splash) splash.classList.add('hidden');
     this.renderAttention();
+    this.renderDataQuality();
     ['mhViewDay', 'mhViewWeek', 'mhViewMonth'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
@@ -417,9 +482,29 @@ class MedicineView {
         days.forEach(day => {
           const worst = this._clientStatusOnDate(cid, day);
           const attn = this._clientAttentionOnDate(cid, day);
+          const latest = this._getLatestByClient(cid, day);
+          const parts = [];
+          MEDICINE_FIELDS.forEach(f => {
+            const it = latest[f.key];
+            if (it && it.value !== '' && it.value !== null && it.value !== undefined) {
+              parts.push(f.label + this._val(it.value) + (f.unit ? f.unit : ''));
+            }
+          });
+          const tip = parts.length ? (name + ' — ' + day + ' — ' + parts.join(', ')) : (name + ' — ' + day + ' — nav datu');
           let cellClass = 'mh-week-cell ' + (worst === 'crit' ? 'mh-cell-crit' : worst === 'ok' ? 'mh-cell-ok' : 'mh-cell-none');
           if (attn) cellClass += ' mh-cell-attn';
-          html += '<td class="' + cellClass + '" title="' + this.escapeHtml(name) + ' — ' + day + ' — ' + worst + '">' + (worst === 'none' ? '–' : '') + '</td>';
+          let show = '';
+          if (this.selectedField && latest[this.selectedField]) {
+            show = MEDICINE_FIELDS.find(x=>x.key===this.selectedField).label + this._val(latest[this.selectedField].value);
+          } else if (parts.length) {
+            show = parts[0];
+          } else {
+            const fk = MEDICINE_FIELDS[0].key;
+            const known = this._latestKnownValue(cid, day, fk);
+            if (known) show = '~' + MEDICINE_FIELDS[0].label + this._val(known.it.value);
+            else show = (worst === 'none' ? '–' : '');
+          }
+          html += '<td class="' + cellClass + '" title="' + this.escapeHtml(tip) + '">' + this.escapeHtml(show) + '</td>';
         });
         html += '</tr>';
       });
@@ -471,9 +556,26 @@ class MedicineView {
           const dayStr = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
           const worst = this._clientStatusOnDate(cid, dayStr);
           const attn = this._clientAttentionOnDate(cid, dayStr);
+          const latest = this._getLatestByClient(cid, dayStr);
           let cellClass = 'mh-month-cell ' + (worst === 'crit' ? 'mh-cell-crit' : worst === 'ok' ? 'mh-cell-ok' : 'mh-cell-none');
           if (attn) cellClass += ' mh-cell-attn';
-          html += '<td class="' + cellClass + '" title="' + this.escapeHtml(name) + ' — ' + dayStr + ' — ' + worst + '"></td>';
+          const parts = [];
+          MEDICINE_FIELDS.forEach(f => {
+            const it = latest[f.key];
+            if (it && it.value !== '' && it.value !== null && it.value !== undefined) parts.push(f.label + this._val(it.value));
+          });
+          const tip = parts.length ? (name + ' — ' + dayStr + ' — ' + parts.join(', ')) : (name + ' — ' + dayStr + ' — nav datu');
+          let show = '';
+          if (this.selectedField && latest[this.selectedField]) {
+            show = MEDICINE_FIELDS.find(x=>x.key===this.selectedField).label + this._val(latest[this.selectedField].value);
+          } else if (parts.length) {
+            show = parts[0];
+          } else {
+            const fk = MEDICINE_FIELDS[0].key;
+            const known = this._latestKnownValue(cid, dayStr, fk);
+            if (known) show = '~' + MEDICINE_FIELDS[0].label + this._val(known.it.value);
+          }
+          html += '<td class="' + cellClass + '" title="' + this.escapeHtml(tip) + '">' + this.escapeHtml(show) + '</td>';
         }
         html += '</tr>';
       });
