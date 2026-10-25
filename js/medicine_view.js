@@ -350,6 +350,58 @@ class MedicineView {
     box.innerHTML = html;
   }
 
+  _toggleCategoryView() {
+    const main = document.querySelector('.mh-data-section');
+    const cat = document.getElementById('mhCatSection');
+    if (this.category === 'all') {
+      if (main) main.style.display = '';
+      if (cat) cat.style.display = 'none';
+    } else {
+      if (main) main.style.display = 'none';
+      if (cat) cat.style.display = '';
+      this.renderCategoryTable();
+    }
+  }
+
+  renderCategoryTable() {
+    const head = document.getElementById('mhCatHead');
+    const body = document.getElementById('mhCatBody');
+    const title = document.getElementById('mhCatTitle');
+    const count = document.getElementById('mhCatCount');
+    if (!head || !body) return;
+    const day = document.getElementById('mhDateFilter').value || this._today();
+    const fields = MEDICINE_FIELDS.filter(f => f.cat === this.category);
+    if (title) title.textContent = '📋 ' + (this.category === 'temp' ? 'Temperatūra' : this.category === 'food' ? 'Ēdienreizes' : this.category === 'fluid' ? 'Šķidrumi' : 'Fizioloģija');
+    let th = '<tr><th class="mh-th-client">Klients</th>';
+    fields.forEach(f => { th += '<th class="mh-th-field">' + f.label + ' ' + (f.unit || '') + '</th>'; });
+    th += '<th class="mh-th-time">Atjaunots</th></tr>';
+    head.innerHTML = th;
+
+    const list = [];
+    this.filteredClientIds.forEach(cid => {
+      const c = this.allClients.find(x => String(x.id || x.ID) === cid);
+      if (!c) return;
+      list.push({ cid, c, name: this._clientName(c) });
+    });
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    let html = '';
+    list.forEach(({ cid, c, name }) => {
+      const latest = this._getLatestByClient(cid, day);
+      const items = this._getItemsOnDate(cid, day);
+      const last = items.length ? items[items.length - 1] : null;
+      html += '<tr onclick="medicineView.openClientDetail(\'' + cid.replace(/\'/g, "\\'") + '\', \'' + day + '\');" style="cursor:pointer;">';
+      html += '<td class="mh-td-client"><span class="mh-client-name">' + this.escapeHtml(name) + '</span></td>';
+      fields.forEach(f => {
+        const it = latest[f.key];
+        const crit = it && isCrit(f.key, it.value);
+        html += '<td class="mh-td-val ' + (crit ? 'mh-val-crit' : '') + '">' + this._renderValCell(it, f) + '</td>';
+      });
+      html += '<td class="mh-td-time">' + (last ? (last.date + (last.time ? ' ' + last.time : '')) : '–') + '</td>';
+      html += '</tr>';
+    });
+    body.innerHTML = html || '<tr><td colspan="' + (fields.length + 2) + '" class="mh-empty">Nav datu.</td></tr>';
+    if (count) count.textContent = list.length + ' klienti';
+  }
   renderDataQuality() {
     const el = document.getElementById('mhDataQuality');
     if (!el) return;
@@ -372,6 +424,12 @@ class MedicineView {
     if (splash) splash.classList.add('hidden');
     this.renderAttention();
     this.renderDataQuality();
+    if (this.category !== 'all') {
+      this._toggleCategoryView();
+      return;
+    }
+    const main = document.querySelector('.mh-data-section');
+    if (main) main.style.display = '';
     ['mhViewDay', 'mhViewWeek', 'mhViewMonth'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
@@ -759,6 +817,7 @@ class MedicineView {
         document.querySelectorAll('.mh-cat-tab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.category = btn.dataset.cat;
+        this._toggleCategoryView();
         this.renderView();
       };
     });
