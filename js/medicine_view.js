@@ -425,6 +425,8 @@ class MedicineView {
     this.renderAttention();
     this.renderDataQuality();
     if (this.category !== 'all') {
+      const tabs = document.getElementById('mhCatTabs');
+      if (tabs) tabs.style.display = 'none';
       this._toggleCategoryView();
       return;
     }
@@ -777,7 +779,8 @@ class MedicineView {
           document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
           document.querySelector('.mh-view-btn[data-view="day"]').classList.add('active');
     this.view = 'day';
-    this.category = 'all';
+    const params = new URLSearchParams(window.location.search);
+    this.category = params.get('cat') || 'all';
           this.renderView();
         }
       };
@@ -814,11 +817,12 @@ class MedicineView {
     }
     document.querySelectorAll('.mh-cat-tab').forEach(btn => {
       btn.onclick = () => {
-        document.querySelectorAll('.mh-cat-tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.category = btn.dataset.cat;
-        this._toggleCategoryView();
-        this.renderView();
+        const cat = btn.dataset.cat;
+        if (cat === 'all') {
+          window.location.href = 'medicine.html';
+        } else {
+          window.open('medicine.html?cat=' + cat, '_blank');
+        }
       };
     });
     const back = document.getElementById('btnBack');
