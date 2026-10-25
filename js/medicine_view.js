@@ -913,6 +913,7 @@ class MedicineView {
     }
     // Disable auto-sync to prevent duplicate loads
     return;
+  }
 
   _setStatus(msg) {
     const el = document.getElementById('mhStatus');
