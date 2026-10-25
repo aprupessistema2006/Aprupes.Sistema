@@ -671,24 +671,26 @@ class MedicineView {
 
   openClientDetail(cid, day) {
     this.selectedClientId = cid;
-    document.getElementById('mhViewDay').style.display = 'none';
-    document.getElementById('mhViewWeek').style.display = 'none';
-    document.getElementById('mhViewMonth').style.display = 'none';
+    const dv = document.getElementById('mhViewDay'); if (dv) dv.style.display = 'none';
+    const wv = document.getElementById('mhViewWeek'); if (wv) wv.style.display = 'none';
+    const mv = document.getElementById('mhViewMonth'); if (mv) mv.style.display = 'none';
     const detail = document.getElementById('mhClientDetail');
     if (detail) detail.style.display = 'block';
     document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
-    this.renderClientDetail(cid, day || (document.getElementById('mhDateFilter').value || this._today()));
+    this.renderClientDetail(cid, day || (document.getElementById('mhDateFilter')?.value || this._today()));
   }
 
   closeClientDetail() {
     this.selectedClientId = null;
     const detail = document.getElementById('mhClientDetail');
     if (detail) detail.style.display = 'none';
-    document.getElementById('mhViewDay').style.display = 'block';
-    document.getElementById('mhViewWeek').style.display = 'none';
-    document.getElementById('mhViewMonth').style.display = 'none';
+    const dayView = document.getElementById('mhViewDay');
+    if (dayView) dayView.style.display = 'block';
+    const wv = document.getElementById('mhViewWeek'); if (wv) wv.style.display = 'none';
+    const mv = document.getElementById('mhViewMonth'); if (mv) mv.style.display = 'none';
     document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('.mh-view-btn[data-view="day"]').classList.add('active');
+    const dayBtn = document.querySelector('.mh-view-btn[data-view="day"]');
+    if (dayBtn) dayBtn.classList.add('active');
     this.renderView();
   }
 
@@ -705,7 +707,7 @@ class MedicineView {
     const items = this._getItemsOnDate(cid, day);
 
     const kpiEl = document.getElementById('mhDetailKpis');
-    kpiEl.innerHTML = '';
+    if (kpiEl) kpiEl.innerHTML = '';
     MEDICINE_FIELDS.forEach(f => {
       const it = latest[f.key];
       const crit = it && isCrit(f.key, it.value);
@@ -718,7 +720,7 @@ class MedicineView {
     });
 
     const blocksEl = document.getElementById('mhDetailBlocks');
-    blocksEl.innerHTML = '';
+    if (blocksEl) blocksEl.innerHTML = '';
 
     // Timeline of all entries that day
     const tl = document.createElement('div');
