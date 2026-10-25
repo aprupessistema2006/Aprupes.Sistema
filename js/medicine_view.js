@@ -794,13 +794,16 @@ class MedicineView {
           this.renderClientDetail(val, document.getElementById('mhDateFilter').value || this._today());
         } else {
           this.selectedClientId = null;
-          document.getElementById('mhClientDetail').style.display = 'none';
-          document.getElementById('mhViewDay').style.display = 'block';
+          const detail = document.getElementById('mhClientDetail');
+          if (detail) detail.style.display = 'none';
+          const dayView = document.getElementById('mhViewDay');
+          if (dayView) dayView.style.display = 'block';
           document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
-          document.querySelector('.mh-view-btn[data-view="day"]').classList.add('active');
-    this.view = 'day';
-    const params = new URLSearchParams(window.location.search);
-    this.category = params.get('cat') || 'all';
+          const dayBtn = document.querySelector('.mh-view-btn[data-view="day"]');
+          if (dayBtn) dayBtn.classList.add('active');
+          this.view = 'day';
+          const params = new URLSearchParams(window.location.search);
+          this.category = params.get('cat') || 'all';
           this.renderView();
         }
       };
