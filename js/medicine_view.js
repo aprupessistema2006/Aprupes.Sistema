@@ -413,8 +413,8 @@ class MedicineView {
         const attnCls = attn ? ' mh-row-attn' : '';
         html += '<tr class="' + rowClass + attnCls + '" onclick="medicineView.openClientDetail(\'' + cid.replace(/'/g, "\\'") + '\', \'' + day + '\');" style="cursor:pointer;">';
         html += '<td class="mh-td-client"><span class="mh-client-name">' + this.escapeHtml(name) + '</span>' + (attn ? ' <span class="mh-attn-dot" title="Manuāli atzīmēts uzmanībai">🟡</span>' : '') + '</td>';
-        MEDICINE_FIELDS.forEach(f => {
-          const it = latest[f.key];
+         MEDICINE_FIELDS.filter(f => this.category === 'all' || f.cat === this.category).forEach(f => {
+           const it = latest[f.key];
           const crit = it && isCrit(f.key, it.value);
           html += '<td class="mh-td-val ' + (crit ? 'mh-val-crit' : '') + '">' + this._renderValCell(it, f) + '</td>';
         });
@@ -718,7 +718,8 @@ class MedicineView {
           document.getElementById('mhViewDay').style.display = 'block';
           document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
           document.querySelector('.mh-view-btn[data-view="day"]').classList.add('active');
-          this.view = 'day';
+    this.view = 'day';
+    this.category = 'all';
           this.renderView();
         }
       };
@@ -753,7 +754,14 @@ class MedicineView {
       finally { refresh.disabled = false; }
       };
     }
-    const back = document.getElementById('btnBack');
+    document.querySelectorAll('.mh-cat-tab').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.mh-cat-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.category = btn.dataset.cat;
+        this.renderView();
+      };
+    });
     if (back) back.onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
     const medBack = document.getElementById('mhBackToList');
     if (medBack) medBack.onclick = () => { this.closeClientDetail(); };
