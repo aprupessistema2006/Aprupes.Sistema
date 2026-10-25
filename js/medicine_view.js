@@ -911,7 +911,6 @@ class MedicineView {
       try { clearInterval(this._autoSyncTimer); } catch (e) {}
       this._autoSyncTimer = null;
     }
-    // Disable auto-sync to prevent duplicate loads
     return;
   }
 
