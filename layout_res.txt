@@ -1,0 +1,16 @@
+﻿Powershell : page.evaluate: TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is not of type 'El
+ement'.
+At line:4 char:1
++ Powershell -ExecutionPolicy Bypass -Command { node "C:\Users\davis\De ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (page.evaluate: ...type 'Element'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    at eval (eval at evaluate (:311:30), <anonymous>:24:18)
+    at UtilityScript.evaluate (<anonymous>:313:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+    at C:\Users\davis\Desktop\Aprupes_sistema\test_medicine_layout.js:106:26 {
+  log: []
+
+=== telefons (390px) ===
+}

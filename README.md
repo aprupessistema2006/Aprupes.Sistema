@@ -38,10 +38,9 @@ HTML lapas → kategoriju formas → care_form.js / aprupe.js / admin.js / contr
 
 ### Saziņa ar aizmugursistēmu
 
-- GAS aizmugursistēma nesūta CORS galvenes POST pieprasījumiem, tāpēc sistēma izmanto **JSONP** (skriptu taga injekciju) kā primāro transporta metodi
-- `requestData()` vispirms mēģina izmantot `fetch` ar CORS, pēc tam pāriet uz `jsonpRequest()` ar 10 sekunžu taimautu un atkārtotu mēģinājumu loģiku
-- Rakstīšanas operācijas izmanto `postAction()`, kas ir `jsonpAction()` aizvietotājs ar pieprasījumu dublikātu novēršanu, izmantojot `pendingActions` karti (Map)
-- Katra rakstīšanas operācija ietver unikālu `actionId`, lai novēretu dubultu apstrādi serverī
+- GAS aizmugursistēma atbalsta POST ar JSON ķermeni un GET ar URL parametriem (action, data, sessionToken). Autentifikācija: kopīgā parole → darbinieka vārds → PIN (serveris salīdzina HMAC-SHA256). Pēc veiksmīgas pārbaudes serveris atgriež sesijas tokenu (8 stundas), ko klients glabā localStorage. Neautentificēti pieprasījumi tiek noraidīti (izņemot ping, login.start, login.pin, setup).
+- Rakstīšanas operācijas izmanto `postAction()`, kas nosūta JSON ar sessionToken. Katra operācija ietver unikālu `actionId`, lai novērstu dubultu apstrādi serverī.
+- Brute-force aizsardzība: pēc 10 neveiksmīgiem mēģinājumiem 15 min logā seko 5 min bloķēšana (fail-closed).
 
 ### Google Apps Script aizmugursistēma (`backend/gas_webhook.gs`)
 
@@ -69,6 +68,16 @@ Nodrošina trīs ieejas punktus:
 
 Visi laika zīmogi aizmugursistēmā tiek konvertēti uz `Europe/Riga` laika joslu, izmantojot `Utilities.formatDate(v, TZ, formāts)`. Datumlauki izmanto formātu `yyyy-MM-dd`, laiklauki — `HH:mm:ss`.
 
+## Drošība
+
+- Autentifikācija: kopīgā parole (ierīces atvērējs, 8 stundas) → darbinieka vārds → individuālais PIN (4–6 cipari). PIN pārbaude notiek TIKAI serverī (HMAC-SHA256 ar sāli un pepper no Script Properties).
+- Sesijas tokens (8 stundas) glabājas localStorage; identitāte un loma tiek ņemtas TIKAI no sesijas, nevis no klienta pieprasījuma.
+- Brute-force aizsardzība: pēc 10 neveiksmīgiem mēģinājumiem 15 min logā seko 5 min bloķēšana (fail-closed, LockService).
+- Darbinieku saraksts pieteikšanai (`publicEmployeeList`) nekad nesatur PIN, paroles vai jaucējvērtības. `sanitizeEmployee` noņem jūtīgos laukus pirms nosūtīšanas.
+- Administratīvās darbības (klientu/darbinieku CRUD, datu labošana) ir atļautas TIKAI administratoram; aprūpētājs redz un maina tikai savus datus.
+- Google Sheet var palikt privāts — GAS skripts darbojas kā īpašnieks; aprūpētāji piekļūst tikai caur GAS_URL.
+- Slepenie dati (kopīgā parole, pepper, sesijas) glabājas Script Properties, nevis kodā vai Sheet.
+
 ## Projekta struktūra
 
 ```
@@ -76,6 +85,7 @@ Aprupes_sistema/
 ├── index.html              # Pieteikšanās lapa — autentifikācija ar PIN
 ├── aprupe.html             # Aprūpētāja sākumlapa — klientu saraksts + uzdevumu tabula
 ├── aprupetajs.html         # Klienta detalizētā informācija — aprūpes forma ar kategorijām
+├── medicine.html             # Medicīnas darbinieka skats
 ├── admin.html              # Administrācijas panelis — informācijas panelis, klientu/darbinieku pārvaldība
 ├── control.html            # Kontroleiļa panelis — statistika, vēsture, Excel eksports, mēneša skats
 ├── Aprūpes lapas.xlsx      # Excel veidne ikmēneša aprūpes dokumentācijai
@@ -112,7 +122,7 @@ Sistēma izmanto šādas lapas (identificētas pēc `SHEET_ID` failā `config.js
 
 | Lapas nosaukums | Apraksts |
 |-----------------|----------|
-| `darbinieki` | Darbinieki (vārds, loma, PIN, aktīvais statuss) |
+| `darbinieki` | Darbinieki (vārds, loma, PIN hash, aktīvais statuss) |
 | `klienti` | Klienti (vārds, dzimšanas datums, diēta, kontaktinformācija, aktīvais statuss) |
 | `atzimes` | Aprūpes atzīmes/rezultāti (klients, darbinieks, datums, maiņa, kategorija, lauks, vērtība) |
 | `atzimes_log` | Visu aprūpes atzīmju izmaiņu auditņš (jauni ieraksti, labojumi) |
@@ -201,18 +211,19 @@ Klase `CareSync` pārvalda notikumu vadītu sinhronizācijas arhitektūru:
 | `aprūpētājs` | Caregiver | aprupe.html, aprupetajs.html | Skatīt klientus, reģistrēt aprūpes atzīmes, parakstīt maiņas, pabeigt uzdevumus |
 | `kontroliere` | Controller | control.html | Skatīt statistiku, auditņa vēsturi, izveidot uzdevumus, eksportēt uz Excel |
 | `administrators` | Administrator | admin.html, aprupetajs.html (administrators režīmā) | Pilna piekļuve; izveidot/rediģēt klientus un darbiniekus; ieiet aprūpētāja režīmā |
+| `medic` | Medic (Medicīnas darbinieks) | medicine.html | Medicīnas skats, klientu aprūpes ieraksti medicīnas perspektīvā |
 
 ### Pieteikšanās plūsma (`js/login.js`)
 
-1. Ielādējot lapu, pārbauda `sessionStorage` esošo `careUser` — ja atrasts ar `pinVerified: true`, pāradresē pēc lomas
+1. Ielādējot lapu, pārbauda `sessionStorage` esošo `careUser` un `localStorage` sesijas tokenu — ja derīgs, pārbauda serverī (`session.check`) un pāradresē pēc lomas
 2. Pārbauda Google Sheets savienojamību, izmantojot `sync.checkConnection()`
 3. Ja nav attālinātā savienojuma un nav lokālo datu → pāriet iestatīšanas režīmā, lai izveidotu pirmo administratoru
 4. Ielādē datus no Google Sheets, izmantojot `sync.loadInitialData()`
 5. Veiksmīgā savienojumā ielādē darbiniekus no `darbinieki` krātuves
 6. Darbinieka izvēle ar lomu filtrēšanu (Administratorsi, Kontroleiri, Aprūpētāji vai Visi)
-7. PIN ievade (4–6 cipari, skaitliski) ar atpakaļspausces atbalstu
-8. Maiņu tipa izvēle: `diennakts` (nakts maiņa, 19:00–07:00) vai `dienas` (dienas maiņa)
-9. Pieteikšanās brīdī validē PIN pret `employee.pin` (lokalā salīdzinājums), saglabā lietotāju `sessionStorage`, atskaņo nejaušu iedrošinājuma ziņojumu, pēc tam pāradresē pēc lomas
+7. Kopīgā parole (ierīces atvērējs, 8 stundas) → darbinieka vārds → PIN (4–6 cipari)
+8. PIN pārbaude notiek TIKAI serverī (HMAC-SHA256 ar sāli un pepper); klients nesalīdzina PIN lokāli
+9. Pēc veiksmīgas pārbaudes serveris atgriež sesijas tokenu; lietotājs tiek saglabāts `sessionStorage`, pāradresē pēc lomas
 
 ### Pāradresācija pēc lomas (`login.js` `redirectByRole`)
 - `administrators` → `admin.html`

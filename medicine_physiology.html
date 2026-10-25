@@ -1,0 +1,86 @@
+<!DOCTYPE html><html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a3a5c">
+  <title>Fizioloģija — Medicīniskais uzraudzība</title>
+  <link rel="stylesheet" href="css/design-system.css?v=20261022-1150">
+  <link rel="stylesheet" href="css/medicine.css?v=20261022-1150">
+  <link rel="stylesheet" href="css/medicine_sections.css?v=20261022-1150">
+</head>
+<body>
+<header class="mh-header">
+  <div class="mh-brand">
+    <div class="mh-logo">🚽</div>
+    <div class="mh-title">
+      <div class="mh-title-main">Fizioloģija</div>
+      <div class="mh-title-sub">Medicīniskais uzraudzība</div>
+    </div>
+  </div>
+  <div class="mh-actions">
+    <button id="logoutBtn" class="mh-btn-logout" title="Iziet">⎋</button>
+  </div>
+</header>
+<main class="mh-main">
+  <nav class="mh-nav">
+    <a class="mh-nav-link" href="medicine.html">🏠 Galvenais</a>
+    <a class="mh-nav-link" href="medicine_temperature.html">🌡 Temperatūra</a>
+    <a class="mh-nav-link" href="medicine_meals.html">🍽 Ēdienreizes</a>
+    <a class="mh-nav-link" href="medicine_fluids.html">💧 Šķidrumi</a>
+    <a class="mh-nav-link active" href="medicine_physiology.html">🚽 Fizioloģija</a>
+    <a class="mh-nav-link" href="medicine_dashboard.html">📊 Analīzes un pārvaldība</a>
+  </nav>
+  <div class="mh-filter-bar">
+    <div class="mh-row">
+      <div class="mh-filter-group">
+        <label class="mh-filter-label">Klients</label>
+        <select id="mhClientFilter" class="mh-select"><option value="">Visi klienti</option></select>
+      </div>
+      <div class="mh-filter-group">
+        <label class="mh-filter-label">Meklēt</label>
+        <input type="search" id="mhClientSearch" class="mh-search" placeholder="Klienta vārds...">
+      </div>
+      <div class="mh-filter-group">
+        <label class="mh-filter-label">Datums</label>
+        <input type="date" id="mhDateFilter" class="mh-date">
+      </div>
+      <div class="mh-filter-group">
+        <label class="mh-filter-label">Skats</label>
+        <button class="mh-view-btn active" data-view="day">Diena</button>
+        <button class="mh-view-btn" data-view="week">Nedēļa</button>
+        <button class="mh-view-btn" data-view="month">Mēnesis</button>
+      </div>
+    </div>
+  </div>
+  <section class="mh-data-section">
+    <div class="mh-section-header">
+      <h2 class="mh-section-title">🚽 Fizioloģiskie rādītāji</h2>
+      <span class="mh-section-count" id="mhDataCount">0 klienti</span>
+    </div>
+    <div class="mh-day-table-wrap">
+      <table class="mh-day-table">
+        <thead><tr><th class="mh-th-client">Klients</th><th>Vēdera izeja</th><th class="mh-th-time">Atjaunināts</th></tr></thead>
+        <tbody id="mhDayBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script src="js/config.js?v=20261022-1150"></script>
+<script src="js/db.js?v=20261022-1150"></script>
+<script src="js/i18n.js?v=20261022-1150"></script>
+<script src="js/operation_registry.js?v=20261022-1150"></script>
+<script src="js/perf.js?v=20261022-1150"></script>
+<script src="js/sync.js?v=20261022-1150"></script>
+<script src="js/timezone.js?v=20261022-1150"></script>
+<script src="js/logout.js?v=20261022-1150"></script>
+<script src="js/medicine_view.js?v=20261022-1150"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    if(typeof MedicineView === 'function'){
+      const mv = new MedicineView();
+      mv.category = 'physio';
+      setTimeout(function(){ if(typeof mv.renderView === 'function') mv.renderView(); }, 800);
+    }
+  });
+</script>
+</body></html>

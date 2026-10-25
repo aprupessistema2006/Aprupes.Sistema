@@ -985,3 +985,6 @@ class MedicineView {
 
 let medicineView;
 document.addEventListener('DOMContentLoaded', () => { medicineView = new MedicineView(); });
+
+// Additional compatibility
+if(typeof window!== undefined){window.MedicineView=MedicineView;}
