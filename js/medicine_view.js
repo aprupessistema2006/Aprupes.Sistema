@@ -1006,4 +1006,25 @@ class MedicineView {
 // Additional compatibility
 if (typeof window !== 'undefined') {
   window.MedicineView = MedicineView;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      if (!window.medicineView) {
+        try {
+          console.log('[MED] Auto-creating MedicineView');
+          window.medicineView = new MedicineView();
+        } catch (e) {
+          console.error('[MED] Auto-create error', e);
+        }
+      }
+    }, { once: true });
+  } else {
+    if (!window.medicineView) {
+      try {
+        console.log('[MED] Auto-creating MedicineView (late)');
+        window.medicineView = new MedicineView();
+      } catch (e) {
+        console.error('[MED] Auto-create error', e);
+      }
+    }
+  }
 }
