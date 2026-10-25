@@ -1003,23 +1003,6 @@ class MedicineView {
   render() { this.renderAll(); }
 }
 
-let medicineView;
-if (typeof window !== 'undefined') {
-  if (window.medicineView) {
-    medicineView = window.medicineView;
-  } else {
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.medicineView) {
-        medicineView = window.medicineView;
-        return;
-      }
-      console.log('[MED] DOMContentLoaded, creating MedicineView');
-      window.medicineView = new MedicineView();
-      medicineView = window.medicineView;
-    });
-  }
-}
-
 // Additional compatibility
 if (typeof window !== 'undefined') {
   window.MedicineView = MedicineView;
