@@ -762,6 +762,7 @@ class MedicineView {
         this.renderView();
       };
     });
+    const back = document.getElementById('btnBack');
     if (back) back.onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
     const medBack = document.getElementById('mhBackToList');
     if (medBack) medBack.onclick = () => { this.closeClientDetail(); };
