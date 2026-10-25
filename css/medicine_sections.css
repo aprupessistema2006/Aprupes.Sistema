@@ -1,30 +1,185 @@
-/* Medicine sections shared styles */
-.mh-nav {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-4);
+/* Medicine main page cards */
+.mh-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
-.mh-nav-link {
-  display: inline-flex;
+
+.mh-category-card {
+  display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-4);
+  padding: var(--space-4);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-primary);
+  border-radius: var(--radius-lg);
   text-decoration: none;
-  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
 }
-.mh-nav-link.active {
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
+
+.mh-category-card:hover {
+  box-shadow: var(--shadow-md);
   border-color: var(--color-primary);
+  transform: translateY(-2px);
 }
-.mh-nav-link:hover {
-  background: var(--color-surface-tertiary);
+
+.mh-category-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
-.mh-nav-link.active:hover {
-  background: var(--color-primary-hover);
+
+.mh-card-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-md);
+}
+
+.mh-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.mh-card-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.mh-card-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.mh-card-arrow {
+  font-size: 1.5rem;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.mh-card-temp .mh-card-icon {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.mh-card-meals .mh-card-icon {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.mh-card-fluids .mh-card-icon {
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.mh-card-physio .mh-card-icon {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.mh-dashboard-entry {
+  margin-bottom: var(--space-6);
+}
+
+.mh-dashboard-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-secondary) 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.mh-dashboard-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.mh-dashboard-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.mh-dashboard-card-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.mh-dashboard-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.mh-dashboard-card-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.mh-dashboard-card-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.mh-dashboard-card-arrow {
+  font-size: 1.75rem;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.mh-section-subtitle {
+  color: var(--color-text-secondary);
+  margin-top: calc(-1 * var(--space-2));
+  margin-bottom: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .mh-cards-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .mh-category-card,
+  .mh-dashboard-card {
+    padding: var(--space-3);
+  }
+
+  .mh-card-icon,
+  .mh-dashboard-card-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.75rem;
+  }
+
+  .mh-dashboard-card-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .mh-card-title {
+    font-size: var(--font-size-base);
+  }
+
+  .mh-dashboard-card-title {
+    font-size: var(--font-size-lg);
+  }
 }

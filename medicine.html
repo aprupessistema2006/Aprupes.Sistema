@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a3a5c">
+  <title>Medicīniskais uzraudzība</title>
+  <link rel="stylesheet" href="css/design-system.css?v=20261022-1150">
+  <link rel="stylesheet" href="css/medicine.css?v=20261022-1150">
+  <link rel="stylesheet" href="css/medicine_sections.css?v=20261022-1150">
+</head>
+<body>
+  <header class="mh-header">
+    <div class="mh-brand">
+      <div class="mh-logo">🏥</div>
+      <div class="mh-title">
+        <div class="mh-title-main">Medicīniskais uzraudzība</div>
+        <div class="mh-title-sub">Aprūpes sistēma</div>
+      </div>
+    </div>
+    <div class="mh-actions">
+      <button id="logoutBtn" class="mh-btn-logout" title="Iziet">⎋</button>
+    </div>
+  </header>
+
+  <main class="mh-main">
+    <nav class="mh-nav">
+      <a class="mh-nav-link active" href="medicine.html">🏠 Galvenais</a>
+      <a class="mh-nav-link" href="medicine_temperature.html">🌡 Temperatūra</a>
+      <a class="mh-nav-link" href="medicine_meals.html">🍽 Ēdienreizes</a>
+      <a class="mh-nav-link" href="medicine_fluids.html">💧 Šķidrumi</a>
+      <a class="mh-nav-link" href="medicine_physiology.html">🚽 Fizioloģija</a>
+      <a class="mh-nav-link" href="medicine_dashboard.html">📊 Analīzes un pārvaldība</a>
+    </nav>
+
+    <section class="mh-section">
+      <div class="mh-section-header">
+        <h1 class="mh-section-title">Medicīniskās uzraudzības modulis</h1>
+      </div>
+      <p class="mh-section-subtitle">Izvēlies nepieciešamo darba logu</p>
+    </section>
+
+    <section class="mh-cards-grid">
+      <a class="mh-category-card mh-card-temp" href="medicine_temperature.html" aria-label="Atvērt temperatūras uzraudzību">
+        <div class="mh-card-icon">🌡</div>
+        <div class="mh-card-content">
+          <div class="mh-card-title">Temperatūra</div>
+          <div class="mh-card-desc">Mērījumi, dinamika, novirzes</div>
+        </div>
+        <div class="mh-card-arrow">›</div>
+      </a>
+
+      <a class="mh-category-card mh-card-meals" href="medicine_meals.html" aria-label="Atvērt ēdienreižu uzraudzību">
+        <div class="mh-card-icon">🍽</div>
+        <div class="mh-card-content">
+          <div class="mh-card-title">Ēdienreizes</div>
+          <div class="mh-card-desc">Ēdienreižu ieraksti un uzņemtā ēdiena apjoms</div>
+        </div>
+        <div class="mh-card-arrow">›</div>
+      </a>
+
+      <a class="mh-category-card mh-card-fluids" href="medicine_fluids.html" aria-label="Atvērt šķidrumu uzraudzību">
+        <div class="mh-card-icon">💧</div>
+        <div class="mh-card-content">
+          <div class="mh-card-title">Šķidrumi</div>
+          <div class="mh-card-desc">Uzņemšana, diennakts kopsumma</div>
+        </div>
+        <div class="mh-card-arrow">›</div>
+      </a>
+
+      <a class="mh-category-card mh-card-physio" href="medicine_physiology.html" aria-label="Atvērt fizioloģijas uzraudzību">
+        <div class="mh-card-icon">🚽</div>
+        <div class="mh-card-content">
+          <div class="mh-card-title">Fizioloģija</div>
+          <div class="mh-card-desc">Fizioloģiskie ieraksti un to regularitāte</div>
+        </div>
+        <div class="mh-card-arrow">›</div>
+      </a>
+    </section>
+
+    <section class="mh-section">
+      <div class="mh-section-header">
+        <h2 class="mh-section-title">Analīze un pārvaldība</h2>
+      </div>
+    </section>
+
+    <section class="mh-dashboard-entry">
+      <a class="mh-dashboard-card" href="medicine_dashboard.html" aria-label="Atvērt medicīniskās analīzes un pārvaldības paneli">
+        <div class="mh-dashboard-card-icon">📊</div>
+        <div class="mh-dashboard-card-content">
+          <div class="mh-dashboard-card-title">Medicīniskās analīzes un pārvaldība</div>
+          <div class="mh-dashboard-card-desc">Klientu uzraudzība, datu kvalitāte, brīdinājumi un detalizēta analīze</div>
+        </div>
+        <div class="mh-dashboard-card-arrow">›</div>
+      </a>
+    </section>
+
+    <div id="mhOffline" class="mh-offline" style="display:none;">
+      <div class="mh-offline-box">
+        <div class="mh-offline-icon">📡</div>
+        <div class="mh-offline-text">Nav interneta savienojuma</div>
+        <div class="mh-offline-sub">Dati tiek rādīti no lokālās kešatmiņas.</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/config.js?v=20261022-1150"></script>
+  <script src="js/db.js?v=20261022-1150"></script>
+  <script src="js/i18n.js?v=20261022-1150"></script>
+  <script src="js/operation_registry.js?v=20261022-1150"></script>
+  <script src="js/perf.js?v=20261022-1150"></script>
+  <script src="js/sync.js?v=20261022-1150"></script>
+  <script src="js/timezone.js?v=20261022-1150"></script>
+  <script src="js/logout.js?v=20261022-1150"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async function(e) {
+          e.preventDefault();
+          if (window.Logout) {
+            const pending = await (async function() {
+              try {
+                if (window.careSync) {
+                  const items = await window.careSync.getUnsyncedItems();
+                  return items ? items.length : 0;
+                }
+              } catch (err) {}
+              return 0;
+            })();
+            const ok = await Logout.confirm({ pending: pending });
+            if (ok) Logout.performLogout();
+          } else {
+            sessionStorage.removeItem('careUser');
+            window.location.href = 'index.html';
+          }
+        });
+      }
+
+      const offlineBox = document.getElementById('mhOffline');
+      function checkOnline() {
+        if (!navigator.onLine) {
+          if (offlineBox) offlineBox.style.display = 'flex';
+        } else {
+          if (offlineBox) offlineBox.style.display = 'none';
+        }
+      }
+      checkOnline();
+      window.addEventListener('online', checkOnline);
+      window.addEventListener('offline', checkOnline);
+    });
+  </script>
+</body>
+</html>
