@@ -785,9 +785,12 @@ class MedicineView {
         const val = clientFilter.value;
         if (val) {
           this.selectedClientId = val;
-          document.getElementById('mhViewDay').style.display = 'none';
-          document.getElementById('mhViewWeek').style.display = 'none';
-          document.getElementById('mhViewMonth').style.display = 'none';
+          const dv = document.getElementById('mhViewDay');
+          const wv = document.getElementById('mhViewWeek');
+          const mv = document.getElementById('mhViewMonth');
+          if (dv) dv.style.display = 'none';
+          if (wv) wv.style.display = 'none';
+          if (mv) mv.style.display = 'none';
           const detail = document.getElementById('mhClientDetail');
           if (detail) detail.style.display = 'block';
           document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
