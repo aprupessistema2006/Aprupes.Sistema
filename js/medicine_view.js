@@ -698,10 +698,12 @@ class MedicineView {
     const c = this.allClients.find(x => String(x.id || x.ID) === cid);
     if (!c) return;
     const name = this._clientName(c);
+    const nameEl = document.getElementById('mhDetailName');
+    if (!nameEl) return;
 
     document.getElementById('mhDetailName').textContent = name;
-    document.getElementById('mhDetailMeta').textContent = 'ID: ' + cid;
-    document.getElementById('mhDetailDate').textContent = this._fmtDayLabel(day);
+    const metaEl = document.getElementById('mhDetailMeta'); if (metaEl) metaEl.textContent = 'ID: ' + cid;
+    const dateEl = document.getElementById('mhDetailDate'); if (dateEl) dateEl.textContent = this._fmtDayLabel(day);
 
     const latest = this._getLatestByClient(cid, day);
     const items = this._getItemsOnDate(cid, day);
