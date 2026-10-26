@@ -468,8 +468,8 @@ class MedicineView {
   // ════════════════════════════════════════════════════════════════════
 
   renderDay() {
-    const day = document.getElementById('mhDateFilter').value || this._today();
-    document.getElementById('mhDayDateLabel').textContent = this._fmtDayLabel(day);
+    const day = document.getElementById('mhDateFilter') ? (document.getElementById('mhDateFilter').value || this._today()) : this._today();
+    const dayLabel = document.getElementById('mhDayDateLabel'); if (dayLabel) dayLabel.textContent = this._fmtDayLabel(day);
     const tbody = document.getElementById('mhDayBody');
     if (!tbody) return;
     const list = [];
@@ -504,8 +504,8 @@ class MedicineView {
       });
     }
     tbody.innerHTML = html;
-    document.getElementById('mhDataTitle').textContent = '📋 Diena — ' + this._fmtDayLabel(day);
-    document.getElementById('mhDataCount').textContent = list.length + ' klienti';
+    const dataTitle = document.getElementById('mhDataTitle'); if (dataTitle) dataTitle.textContent = '📋 Diena — ' + this._fmtDayLabel(day);
+    const dataCount = document.getElementById('mhDataCount'); if (dataCount) dataCount.textContent = list.length + ' klienti';
   }
 
   _renderValCell(it, f) {
