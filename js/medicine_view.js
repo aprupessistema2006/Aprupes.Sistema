@@ -524,7 +524,7 @@ class MedicineView {
       d.setDate(d.getDate() + i);
       days.push(this._iso(d));
     }
-    document.getElementById('mhWeekHeader').textContent = this._fmtWeekLabel(days[0], days[6]);
+    const weekHeader = document.getElementById('mhWeekHeader'); if (weekHeader) weekHeader.textContent = this._fmtWeekLabel(days[0], days[6]);
 
     const thead = document.querySelector('#mhWeekTable thead');
     const tbody = document.getElementById('mhWeekBody');
@@ -602,7 +602,7 @@ class MedicineView {
     const totalDays = last.getDate();
     const startWeekday = first.getDay(); // 0=Sun
 
-    document.getElementById('mhMonthHeader').textContent = this._fmtMonthLabel(y, m);
+    const monthHeader = document.getElementById('mhMonthHeader'); if (monthHeader) monthHeader.textContent = this._fmtMonthLabel(y, m);
 
     const thead = document.querySelector('#mhMonthTable thead');
     const tbody = document.getElementById('mhMonthBody');
