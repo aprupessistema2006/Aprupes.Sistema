@@ -287,6 +287,7 @@ class MedicineView {
 
   renderAll() {
     console.log('[MED] renderAll');
+    this._rebuildFilteredClientIds();
     this._wireTabs();
     this.renderClientFilter();
     this.renderFieldFilter();
