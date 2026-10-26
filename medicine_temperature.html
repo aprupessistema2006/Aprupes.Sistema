@@ -78,6 +78,7 @@
   document.addEventListener('DOMContentLoaded', function(){
     if(typeof MedicineView === 'function'){
       const mv = new MedicineView();
+      window.medicineView = mv;
       mv.category = 'temp';
       // Force render
       setTimeout(function(){ if(typeof mv.renderView === 'function') mv.renderView(); }, 800);
