@@ -445,12 +445,6 @@ class MedicineView {
     if (splash) splash.classList.add('hidden');
     this.renderAttention();
     this.renderDataQuality();
-    if (this.category !== 'all') {
-      const tabs = document.getElementById('mhCatTabs');
-      if (tabs) tabs.style.display = 'none';
-      this._toggleCategoryView();
-      return;
-    }
     const main = document.querySelector('.mh-data-section');
     if (main) main.style.display = '';
     ['mhViewDay', 'mhViewWeek', 'mhViewMonth'].forEach(id => {
