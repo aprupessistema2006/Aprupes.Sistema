@@ -268,14 +268,17 @@ _latestKnownValue(cid, day, fieldKey, allowFuture = false) {
     // tika rādīta iepriekšējā mēneša vērtība ar ~, un lietotāji domāja,
     // ka temperatūra jau ir zināma visam mēnesim.
     const monthStart = new Date(target.getFullYear(), target.getMonth(), 1);
-    for (let i = 1; i <= 7; i++) {
-      const d = new Date(target);
-      d.setDate(d.getDate() - i);
-      if (d < monthStart) break;
-      const iso = this._iso(d);
-      const latest = this._getLatestByClient(cid, iso);
-      const it = latest[fieldKey];
-      if (it && it.value !== '' && it.value !== null && it.value !== undefined) return { it, sourceDay: iso };
+    // ⚠️ Rādīt ~ tikai tad, ja IEPRIEKŠĒJĀ DIENĀ bija faktisks ieraksts.
+    // Bez šī tukšas dienas (piem., 23.10.) neatgriežas pie 22.10. datiem,
+    // un lietotājs domā, ka temperatūra jau ir zināma 24. oktobrī.
+    const prevDay = new Date(target);
+    prevDay.setDate(prevDay.getDate() - 1);
+    if (prevDay < monthStart) return null;
+    const prevIso = this._iso(prevDay);
+    const prevLatest = this._getLatestByClient(cid, prevIso);
+    const prevIt = prevLatest[fieldKey];
+    if (prevIt && prevIt.value !== '' && prevIt.value !== null && prevIt.value !== undefined) {
+      return { it: prevIt, sourceDay: prevIso };
     }
     return null;
   }
