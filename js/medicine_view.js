@@ -641,14 +641,11 @@ _getItemsOnDate(clientId, date) {
           } else if (parts.length) {
             show = parts[0];
 } else {
-            const fk = MEDICINE_FIELDS[0].key;
-            // ⚠️ Nākamajām dienām NEDRĪKST rādīt iepriekšējās dienas vērtību ar ~.
-            const dayDate = new Date(day + 'T00:00:00');
-            const known = (!isNaN(dayDate.getTime()) && dayDate <= new Date())
-              ? this._latestKnownValue(cid, day, fk, true)
-              : null;
-            if (known) show = '~' + MEDICINE_FIELDS[0].label + this._val(known.it.value);
-            else show = (worst === 'none' ? '–' : '');
+            // ⚠️ Tukšām dienām NEDRĪKST rādīt iepriekšējās dienas vērtību ar ~.
+            // 60+ lietotāji redzēja, ka temperatūra jau ir zināma nākamajām dienām
+            // un iepriekšējā mēneša dienām, lai gan tā vēl nav ierakstīta.
+            // Rādām tikai faktiskos ierakstus.
+            show = '';
           }
           html += '<td class="' + cellClass + '" title="' + this.escapeHtml(tip) + '">' + this.escapeHtml(show) + '</td>';
         });
@@ -717,16 +714,11 @@ _getItemsOnDate(clientId, date) {
           } else if (parts.length) {
             show = parts[0];
 } else {
-            const fk = MEDICINE_FIELDS[0].key;
-            // ⚠️ Nākamajām dienām NEDRĪKST rādīt iepriekšējās dienas vērtību ar ~.
-            // 60+ lietotāji redzēja, ka temperatūra jau ir zināma nākamajām dienām,
-            // lai gan tā vēl nav ierakstīta — tas izraisīja neuzticību.
-            const dayDate = new Date(dayStr + 'T00:00:00');
-            const known = (!isNaN(dayDate.getTime()) && dayDate <= new Date())
-              ? this._latestKnownValue(cid, dayStr, fk, true)
-              : null;
-            if (known) show = '~' + MEDICINE_FIELDS[0].label + this._val(known.it.value);
-            else show = '';
+            // ⚠️ Tukšām dienām NEDRĪKST rādīt iepriekšējās dienas vērtību ar ~.
+            // 60+ lietotāji redzēja, ka temperatūra jau ir zināma nākamajām dienām
+            // un iepriekšējā mēneša dienām, lai gan tā vēl nav ierakstīta.
+            // Rādām tikai faktiskos ierakstus.
+            show = '';
           }
           html += '<td class="' + cellClass + '" title="' + this.escapeHtml(tip) + '">' + this.escapeHtml(show) + '</td>';
         }
