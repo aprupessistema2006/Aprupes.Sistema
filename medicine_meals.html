@@ -64,11 +64,30 @@
       <h2 class="mh-section-title">🍽 Ēdienreižu uzraudzība</h2>
       <span class="mh-section-count" id="mhDataCount">0 klienti</span>
     </div>
-    <div class="mh-day-table-wrap">
-      <table class="mh-day-table">
-        <thead><tr><th class="mh-th-client">Klients</th><th>Brokastis</th><th>Pusdienas</th><th>Launags</th><th>Vakariņi</th><th class="mh-th-time">Atjaunināts</th></tr></thead>
-        <tbody id="mhDayBody"></tbody>
-      </table>
+    <div id="mhViewDay" class="mh-view-pane">
+      <div class="mh-day-table-wrap">
+        <table class="mh-day-table">
+          <thead><tr><th class="mh-th-client">Klients</th><th>Brokastis</th><th>Pusdienas</th><th>Launags</th><th>Vakariņi</th><th class="mh-th-time">Atjaunināts</th></tr></thead>
+          <tbody id="mhDayBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="mhViewWeek" class="mh-view-pane" style="display:none">
+      <div class="mh-week-table-wrap">
+        <table id="mhWeekTable" class="mh-week-table">
+          <thead id="mhWeekHead"></thead>
+          <tbody id="mhWeekBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="mhViewMonth" class="mh-view-pane" style="display:none">
+      <div class="mh-month-table-wrap">
+        <div class="mh-month-header" id="mhMonthHeader"></div>
+        <table id="mhMonthTable" class="mh-month-table">
+          <thead id="mhMonthHead"></thead>
+          <tbody id="mhMonthBody"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 </main>
