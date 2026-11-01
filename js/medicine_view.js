@@ -264,9 +264,14 @@ _latestKnownValue(cid, day, fieldKey, allowFuture = false) {
     // lai gan tā vēl nav ierakstīta. Šis parametrs to novērš.
     const today = new Date();
     if (!allowFuture && target > today) return null;
+    // ⚠️ Meklēt TIKAI pašreizējā mēnesī. Bez šī ierobežojuma tukšām dienām
+    // tika rādīta iepriekšējā mēneša vērtība ar ~, un lietotāji domāja,
+    // ka temperatūra jau ir zināma visam mēnesim.
+    const monthStart = new Date(target.getFullYear(), target.getMonth(), 1);
     for (let i = 1; i <= 7; i++) {
       const d = new Date(target);
       d.setDate(d.getDate() - i);
+      if (d < monthStart) break;
       const iso = this._iso(d);
       const latest = this._getLatestByClient(cid, iso);
       const it = latest[fieldKey];
