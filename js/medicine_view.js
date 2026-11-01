@@ -856,7 +856,26 @@ _getItemsOnDate(clientId, date) {
       month.onchange = () => {
         if (month.value) {
           const d = document.getElementById('mhDateFilter');
-          if (d) d.value = month.value + '-01';
+          if (d) {
+            // Nodot mēneša PĒDĒJO dienu, nevis pirmo — datus visbiežāk ieraksta vēlāk,
+            // tāpēc pirmā diena bieži ir tukša un tabula rādīja tikai "–".
+            const parts = month.value.split('-');
+            if (parts.length === 2) {
+              const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+              const lastDay = new Date(y, m, 0).getDate();
+              d.value = month.value + '-' + String(lastDay).padStart(2, '0');
+            } else {
+              d.value = month.value + '-01';
+            }
+          }
+          // Pārslēgt uz mēneša skatu, lai redzētu visu mēnesi vienreiz,
+          // nevis tikai vienu dienu, kurā datu var nebūt.
+          if (this.view !== 'month') {
+            this.view = 'month';
+            document.querySelectorAll('.mh-view-btn').forEach(b => b.classList.remove('active'));
+            const mbtn = document.querySelector('.mh-view-btn[data-view="month"]');
+            if (mbtn) mbtn.classList.add('active');
+          }
         }
         if (this.selectedClientId) this.renderClientDetail(this.selectedClientId, (document.getElementById('mhDateFilter').value || this._today()));
         else this.renderView();
