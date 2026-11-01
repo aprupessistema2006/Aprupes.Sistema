@@ -3,7 +3,7 @@ const CONFIG = {
   // Uzkopējama ar version.json un HTML ?v= parametriem. Šis lauks pats
   // nekur netiek lasīts (skripti izmanto version.json), bet tas ir jātur
   // saskaņot, lai neviens uz to nepaliekot nepareizas versijas.
-  VERSION: '20261101-1230',
+  VERSION: '20261101-1240',
 
   // ⚠️ DROŠĀ ARHITEKTŪRA: šis URL ir vienīgais servera galapunkts.
   // Klients tam sūta TIKAI fetch() POST pieprasījumus ar JSON

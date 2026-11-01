@@ -257,8 +257,13 @@ _markDate(m) {
     return out;
   }
 
-  _latestKnownValue(cid, day, fieldKey) {
+_latestKnownValue(cid, day, fieldKey, allowFuture = false) {
     const target = new Date(day + 'T00:00:00');
+    // ⚠️ Nākamajām dienām NEDRĪKST rādīt iepriekšējās dienas vērtību.
+    // 60+ lietotāji redzēja, ka temperatūra jau ir zināma 2. novembrim,
+    // lai gan tā vēl nav ierakstīta. Šis parametrs to novērš.
+    const today = new Date();
+    if (!allowFuture && target > today) return null;
     for (let i = 1; i <= 7; i++) {
       const d = new Date(target);
       d.setDate(d.getDate() - i);
@@ -627,9 +632,13 @@ _getItemsOnDate(clientId, date) {
             show = MEDICINE_FIELDS.find(x=>x.key===this.selectedField).label + this._val(latest[this.selectedField].value);
           } else if (parts.length) {
             show = parts[0];
-          } else {
+} else {
             const fk = MEDICINE_FIELDS[0].key;
-            const known = this._latestKnownValue(cid, day, fk);
+            // ⚠️ Nākamajām dienām NEDRĪKST rādīt iepriekšējās dienas vērtību ar ~.
+            const dayDate = new Date(day + 'T00:00:00');
+            const known = (!isNaN(dayDate.getTime()) && dayDate <= new Date())
+              ? this._latestKnownValue(cid, day, fk, true)
+              : null;
             if (known) show = '~' + MEDICINE_FIELDS[0].label + this._val(known.it.value);
             else show = (worst === 'none' ? '–' : '');
           }
@@ -699,10 +708,17 @@ _getItemsOnDate(clientId, date) {
             show = MEDICINE_FIELDS.find(x=>x.key===this.selectedField).label + this._val(latest[this.selectedField].value);
           } else if (parts.length) {
             show = parts[0];
-          } else {
+} else {
             const fk = MEDICINE_FIELDS[0].key;
-            const known = this._latestKnownValue(cid, dayStr, fk);
+            // ⚠️ Nākamajām dienām NEDRĪKST rādīt iepriekšējās dienas vērtību ar ~.
+            // 60+ lietotāji redzēja, ka temperatūra jau ir zināma nākamajām dienām,
+            // lai gan tā vēl nav ierakstīta — tas izraisīja neuzticību.
+            const dayDate = new Date(dayStr + 'T00:00:00');
+            const known = (!isNaN(dayDate.getTime()) && dayDate <= new Date())
+              ? this._latestKnownValue(cid, dayStr, fk, true)
+              : null;
             if (known) show = '~' + MEDICINE_FIELDS[0].label + this._val(known.it.value);
+            else show = '';
           }
           html += '<td class="' + cellClass + '" title="' + this.escapeHtml(tip) + '">' + this.escapeHtml(show) + '</td>';
         }
