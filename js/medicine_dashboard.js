@@ -11,12 +11,18 @@
       setup();
       return;
     }
-    // Try to create minimal instance
-    try {
-      if(typeof MedicineView === 'function'){
-        // don't auto-init full UI if not needed
-      }
-    } catch(e){}
+    // Create our own instance on this page (no other page loaded here)
+    if(typeof MedicineView === 'function'){
+      const mv = new MedicineView();
+      window.medicineView = mv;
+      dashView = mv;
+      mv.init().then(()=>{
+        if(typeof mv.loadData === 'function') return mv.loadData();
+      }).then(()=>{
+        setup();
+      }).catch((e)=>{ console.warn('[dash] init error', e); setup(); });
+      return;
+    }
     setTimeout(init, 200);
   }
 
@@ -38,6 +44,21 @@
     const cat = document.getElementById('mhDashCategory');
     if(cat){ cat.onchange = render; }
     if(dateEl){ dateEl.onchange = render; }
+    const monthEl = document.getElementById('mhMonthFilter');
+    if(monthEl){
+      monthEl.onchange = ()=>{
+        if(monthEl.value){
+          const parts = monthEl.value.split('-');
+          if(parts.length === 2 && dateEl){
+            const y = parseInt(parts[0],10), m = parseInt(parts[1],10);
+            const lastDay = new Date(y, m, 0).getDate();
+            dateEl.value = monthEl.value + '-01';
+            // Re-render with the new date range
+            render();
+          }
+        }
+      };
+    }
     document.getElementById('mhDashDetailClose').onclick = ()=>{
       document.getElementById('mhDashDetailPanel').classList.remove('active');
     };
@@ -49,8 +70,21 @@
 
   function render(){
     if(!dashView){ setTimeout(render,300); return; }
-    const day = document.getElementById('mhDateFilter').value || (dashView._today ? dashView._today() : '');
+    const dateEl = document.getElementById('mhDateFilter');
+    const monthEl = document.getElementById('mhMonthFilter');
+    const day = dateEl ? (dateEl.value || (dashView._today ? dashView._today() : '')) : '';
     const cat = document.getElementById('mhDashCategory').value || 'all';
+    // Month range support: if mhMonthFilter is set and matches the active month, expand to whole month
+    let rangeStart = day, rangeEnd = day;
+    if(monthEl && monthEl.value){
+      const parts = monthEl.value.split('-');
+      if(parts.length === 2){
+        const y = parseInt(parts[0],10), m = parseInt(parts[1],10);
+        const lastDay = new Date(y, m, 0).getDate();
+        rangeStart = y + '-' + String(m).padStart(2,'0') + '-01';
+        rangeEnd = y + '-' + String(m).padStart(2,'0') + '-' + String(lastDay).padStart(2,'0');
+      }
+    }
     
     // Ensure data loaded
     if((!dashView.allClients || dashView.allClients.length===0) && typeof dashView.loadData === 'function'){
@@ -71,10 +105,19 @@
     filtered.forEach(c=>{
       const cid = String(c.id||c.ID);
       const name = dashView._clientName ? dashView._clientName(c) : ((c.vards||'')+' '+(c.uzvards||'')).trim();
-      const latest = typeof dashView._getLatestByClient === 'function' ? dashView._getLatestByClient(cid, day) : {};
-      const items = typeof dashView._getItemsOnDate === 'function' ? dashView._getItemsOnDate(cid, day) : [];
-      const status = typeof dashView._clientStatusOnDate === 'function' ? dashView._clientStatusOnDate(cid, day) : 'none';
-      const attn = typeof dashView._clientAttentionOnDate === 'function' ? dashView._clientAttentionOnDate(cid, day) : false;
+      // For month range, use the latest entry within the range; otherwise use the specific day
+      const latest = typeof dashView._getLatestByClientInRange === 'function'
+        ? dashView._getLatestByClientInRange(cid, rangeStart, rangeEnd)
+        : (typeof dashView._getLatestByClient === 'function' ? dashView._getLatestByClient(cid, day) : {});
+      const items = typeof dashView._getItemsInRange === 'function'
+        ? dashView._getItemsInRange(cid, rangeStart, rangeEnd)
+        : (typeof dashView._getItemsOnDate === 'function' ? dashView._getItemsOnDate(cid, day) : []);
+      const status = typeof dashView._clientStatusInRange === 'function'
+        ? dashView._clientStatusInRange(cid, rangeStart, rangeEnd)
+        : (typeof dashView._clientStatusOnDate === 'function' ? dashView._clientStatusOnDate(cid, day) : 'none');
+      const attn = typeof dashView._clientAttentionInRange === 'function'
+        ? dashView._clientAttentionInRange(cid, rangeStart, rangeEnd)
+        : (typeof dashView._clientAttentionOnDate === 'function' ? dashView._clientAttentionOnDate(cid, day) : false);
       
       // Category filter
       if(cat !== 'all'){
@@ -110,9 +153,9 @@
       const tr = document.createElement('tr');
       tr.innerHTML = '<td>'+dashView.escapeHtml(name)+'</td><td>'+dashView.escapeHtml(temp)+'</td><td>'+dashView.escapeHtml(foodStr)+'</td><td>'+dashView.escapeHtml(fluidStr)+'</td><td>'+dashView.escapeHtml(phys)+'</td><td>'+statusBadge+'</td><td>'+alertsStr.join(', ')+'</td><td><span class="mh-trend-flat">—</span></td><td>'+dashView.escapeHtml(lastStr)+'</td>';
       tr.style.cursor='pointer';
-      tr.onclick = ()=> openDetail(cid, name, day, items, latest);
+      tr.onclick = ()=> openDetail(cid, name, day, items, latest, rangeStart, rangeEnd);
       tbody.appendChild(tr);
-      rows.push({cid,name,crit:status==='crit',attn});
+      rows.push({cid,name,crit:status==='crit',attn,rangeStart,rangeEnd});
     });
     
     if(countEl) countEl.textContent = total + ' klienti';
@@ -127,7 +170,7 @@
       div.className = 'mh-attn-item ' + (r.crit?'mh-attn-crit':'mh-attn-warn');
       div.innerHTML = '<span class="mh-attn-dot">'+(r.crit?'🔴':'🟡')+'</span><span class="mh-attn-name">'+dashView.escapeHtml(r.name)+'</span><span class="mh-attn-reason">'+(r.crit?'Kritiski rādītāji':'Uzmanība')+'</span>';
       div.style.cursor='pointer';
-      div.onclick = ()=> openDetail(r.cid, r.name, day, typeof dashView._getItemsOnDate==='function'?dashView._getItemsOnDate(r.cid,day):[], typeof dashView._getLatestByClient==='function'?dashView._getLatestByClient(r.cid,day):{});
+      div.onclick = ()=> openDetail(r.cid, r.name, day, (typeof dashView._getItemsInRange==='function'?dashView._getItemsInRange(r.cid,r.rangeStart,r.rangeEnd):(typeof dashView._getItemsOnDate==='function'?dashView._getItemsOnDate(r.cid,day):[])), (typeof dashView._getLatestByClientInRange==='function'?dashView._getLatestByClientInRange(r.cid,r.rangeStart,r.rangeEnd):(typeof dashView._getLatestByClient==='function'?dashView._getLatestByClient(r.cid,day):{})));
       alerts.appendChild(div);
     });
     if(!alerts.children.length){
@@ -135,9 +178,10 @@
     }
   }
 
-  function openDetail(cid,name,day,items,latest){
+  function openDetail(cid,name,day,items,latest,rangeStart,rangeEnd){
     document.getElementById('mhDashDetailTitle').textContent = name;
-    document.getElementById('mhDashDetailMeta').textContent = 'Klients ID: '+cid+' | Datums: '+day;
+    const label = (rangeStart && rangeEnd && rangeStart !== rangeEnd) ? (rangeStart + ' → ' + rangeEnd) : day;
+    document.getElementById('mhDashDetailMeta').textContent = 'Klients ID: '+cid+' | Periods: '+label;
     const cont = document.getElementById('mhDashDetailContent');
     cont.innerHTML = '';
     const tbl = document.createElement('table');

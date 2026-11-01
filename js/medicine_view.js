@@ -31,7 +31,7 @@ function isCrit(f, v) {
 }
 
 class MedicineView {
-  constructor() {
+  constructor(autoInit = true) {
     this.db = null;
     this.sync = null;
     this.currentUser = null;
@@ -46,7 +46,7 @@ class MedicineView {
     this.view = 'day';
     this._autoSyncTimer = null;
     this._autoSyncRunning = false;
-    this.init();
+    if (autoInit) this.init();
   }
 
   async init() {
@@ -257,9 +257,50 @@ class MedicineView {
     return null;
   }
 
-  _getItemsOnDate(clientId, date) {
+_getItemsOnDate(clientId, date) {
     const list = this._byClient.get(String(clientId)) || [];
     return list.filter(i => i.date === date);
+  }
+
+  _getItemsInRange(clientId, startDate, endDate) {
+    const list = this._byClient.get(String(clientId)) || [];
+    return list.filter(i => i.date >= startDate && i.date <= endDate);
+  }
+
+  _getLatestByClientInRange(clientId, startDate, endDate) {
+    const fields = this._byClientField.get(String(clientId));
+    const out = {};
+    if (!fields) return out;
+    MEDICINE_FIELDS.forEach(f => {
+      const series = fields.get(f.key) || [];
+      for (let i = series.length - 1; i >= 0; i--) {
+        if (series[i].date >= startDate && series[i].date <= endDate) { out[f.key] = series[i]; break; }
+      }
+    });
+    return out;
+  }
+
+  _clientStatusInRange(cid, startDate, endDate) {
+    let worst = 'none';
+    let hasAny = false;
+    MEDICINE_FIELDS.forEach(f => {
+      const latest = this._getLatestByClientInRange(cid, startDate, endDate)[f.key];
+      if (!latest) return;
+      hasAny = true;
+      if (isCrit(f.key, latest.value)) { worst = 'crit'; return; }
+      if (worst !== 'crit') worst = 'ok';
+    });
+    if (!hasAny) return 'none';
+    return worst;
+  }
+
+  _clientAttentionInRange(cid, startDate, endDate) {
+    const items = this._getItemsInRange(cid, startDate, endDate);
+    return items.some(i => {
+      const cat = String(i.category || i.kategorija || (i.raw && (i.raw.category || i.raw.kategorija)) || '').toLowerCase();
+      const field = String(i.field || i.lauka_nosaukums || (i.raw && (i.raw.field || i.raw.lauka_nosaukums)) || '').toLowerCase();
+      return cat === 'pievienot' || field === 'uzmaniba';
+    });
   }
 
   _clientStatusOnDate(cid, day) {
