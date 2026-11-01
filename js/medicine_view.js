@@ -193,28 +193,41 @@ class MedicineView {
     this._byClientField.forEach(byField => byField.forEach(series => series.sort(bySort)));
   }
 
-  _markDate(m) {
+_markDate(m) {
     if (!m) return '';
-    // Prefer explicit ISO date fields
+    // ⚠️ Pirms notikuma_laiks pārbaudām `datums` / `date` — tas ir
+    // pareizs dienas datums (piem., 2026.31.10). `notikuma_laiks` var
+    // būt laika zīmoga laiks (piem., 2026-11-01 09:48:11), kas neatbilst
+    // ierakstītajam datumam, un tā dēļ visa mēneša dati tika rādīti
+    // nākamajā mēnesī.
+    const rawDate = m.datums || m.date || '';
+    const ds = String(rawDate);
+    const dymd = ds.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})/);
+    if (dymd) return dymd[1] + '-' + String(dymd[3]).padStart(2,'0') + '-' + String(dymd[2]).padStart(2,'0');
+    const diso = ds.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (diso) return diso[1] + '-' + diso[2] + '-' + diso[3];
+    const dlv = ds.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+    if (dlv) return dlv[3] + '-' + dlv[2] + '-' + dlv[1];
+    // Tad notikuma_laiks
     const nl = m.notikuma_laiks || m.notikumaLaiks || '';
-    const nlIso = String(nl).match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+    const nlIso = String(nl).match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (nlIso) return nlIso[1] + '-' + nlIso[2] + '-' + nlIso[3];
-    const raw = m.date || m.datums || m.lastModified || m.pedeja_laiks || '';
+    const raw = m.lastModified || m.pedeja_laiks || '';
     const s = String(raw);
-    const iso = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
-    const ymd = s.match(/^(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})/);
+    const ymd = s.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})/);
     if (ymd) return ymd[1] + '-' + String(ymd[3]).padStart(2,'0') + '-' + String(ymd[2]).padStart(2,'0');
-    const lv = s.match(/^(\\d{2})\\.(\\d{2})\\.(\\d{4})/);
+    const lv = s.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
     if (lv) return lv[3] + '-' + lv[2] + '-' + lv[1];
     // Timezone-aware conversion for timestamps (Riga)
     if (typeof TimezoneUtils !== 'undefined' && TimezoneUtils.formatDateRiga) {
       const tz = TimezoneUtils.formatDateRiga(s);
       if (tz) return tz;
     }
-    const idTs = String(m.id || '').match(/^[a-z]+_(\\d{10,13})/);
+    const idTs = String(m.id || '').match(/^([a-z]+_)(\d{10,13})/);
     if (idTs) {
-      const d = new Date(parseInt(idTs[1], 10));
+      const d = new Date(parseInt(idTs[2], 10));
       if (!isNaN(d.getTime()) && typeof TimezoneUtils !== 'undefined' && TimezoneUtils.formatDateRiga) {
         const tz = TimezoneUtils.formatDateRiga(d);
         if (tz) return tz;
