@@ -810,6 +810,17 @@ class MedicineView {
         }
       };
     }
+    const month = document.getElementById('mhMonthFilter');
+    if (month) {
+      month.onchange = () => {
+        if (month.value) {
+          const d = document.getElementById('mhDateFilter');
+          if (d) d.value = month.value + '-01';
+        }
+        if (this.selectedClientId) this.renderClientDetail(this.selectedClientId, (document.getElementById('mhDateFilter').value || this._today()));
+        else this.renderView();
+      };
+    }
     const date = document.getElementById('mhDateFilter');
     if (date) {
       date.onchange = () => {
